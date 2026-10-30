@@ -68,6 +68,22 @@ func points() -> Array[Dictionary]:
 func press(local_pos: Vector2) -> bool:
 	if not _active or not is_processing():
 		return true  # Not balancing: nothing to miss.
+	var best := _point_at(local_pos)
+	if best < 0:
+		return false
+	_points.remove_at(best)
+	queue_redraw()
+	point_hit.emit()
+	return true
+
+
+## Whether a tap at local_pos (-1..1) would hit a balance point, without taking it.
+func hits(local_pos: Vector2) -> bool:
+	return _point_at(local_pos) >= 0
+
+
+## Index of the point closest to local_pos within reach, or -1.
+func _point_at(local_pos: Vector2) -> int:
 	var at := (local_pos + Vector2.ONE) * 0.5 * size
 	var best := -1
 	var best_dist := _radius * hit_slop
@@ -76,12 +92,7 @@ func press(local_pos: Vector2) -> bool:
 		if dist <= best_dist:
 			best = i
 			best_dist = dist
-	if best < 0:
-		return false
-	_points.remove_at(best)
-	queue_redraw()
-	point_hit.emit()
-	return true
+	return best
 
 
 func _process(delta: float) -> void:

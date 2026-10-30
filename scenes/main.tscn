@@ -1,18 +1,20 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bpk1htqw64d0u"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://scripts/safe_area.gd" id="2_safe"]
-[ext_resource type="Script" path="res://scripts/runner.gd" id="3_runner"]
-[ext_resource type="Script" path="res://scripts/control_panel.gd" id="4_panel"]
-[ext_resource type="Script" path="res://scripts/pad.gd" id="5_pad"]
-[ext_resource type="Script" path="res://scripts/balance_pad.gd" id="6_balance"]
+[ext_resource type="Script" uid="uid://k3u1c43elfbp" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://lxurh3qf5pxg" path="res://scripts/safe_area.gd" id="2_safe"]
+[ext_resource type="Script" uid="uid://ctawxu70h1kgu" path="res://scripts/runner.gd" id="3_runner"]
+[ext_resource type="Script" uid="uid://bay0xl8y72183" path="res://scripts/control_panel.gd" id="4_panel"]
+[ext_resource type="Script" uid="uid://df6vfr8ew27o5" path="res://scripts/pad.gd" id="5_pad"]
+[ext_resource type="Script" uid="uid://dmbkk0751esol" path="res://scripts/balance_pad.gd" id="6_balance"]
+[ext_resource type="Script" uid="uid://c1ty61ud8ig8i" path="res://scripts/trick_pad.gd" id="7_trick"]
+[ext_resource type="Script" uid="uid://dyxedn72cp486" path="res://scripts/callouts.gd" id="8_callouts"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
 bg_color = Color(0.07, 0.07, 0.1, 1)
 border_width_top = 4
 border_color = Color(0.25, 0.27, 0.35, 1)
 
-[node name="Main" type="Control"]
+[node name="Main" type="Control" unique_id=295394180]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -22,7 +24,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_main")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=1489858448]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -32,7 +34,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.12, 0.13, 0.18, 1)
 
-[node name="Layout" type="VBoxContainer" parent="."]
+[node name="Layout" type="VBoxContainer" parent="." unique_id=88878677]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -42,19 +44,22 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/separation = 0
 
-[node name="PlayArea" type="Control" parent="Layout"]
+[node name="PlayArea" type="Control" parent="Layout" unique_id=1085816072]
 clip_contents = true
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 7.0
 mouse_filter = 2
 
-[node name="World" type="Node2D" parent="Layout/PlayArea"]
+[node name="World" type="Node2D" parent="Layout/PlayArea" unique_id=286436139]
 
-[node name="Runner" type="Node2D" parent="Layout/PlayArea/World"]
+[node name="Runner" type="Node2D" parent="Layout/PlayArea/World" unique_id=1316725073]
 script = ExtResource("3_runner")
 
-[node name="HUD" type="MarginContainer" parent="Layout/PlayArea"]
+[node name="Callouts" type="Node2D" parent="Layout/PlayArea/World/Runner" unique_id=1962593077]
+script = ExtResource("8_callouts")
+
+[node name="HUD" type="MarginContainer" parent="Layout/PlayArea" unique_id=1817057864]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -65,35 +70,44 @@ mouse_filter = 2
 script = ExtResource("2_safe")
 use_bottom = false
 
-[node name="Top" type="HBoxContainer" parent="Layout/PlayArea/HUD"]
+[node name="Top" type="HBoxContainer" parent="Layout/PlayArea/HUD" unique_id=305123472]
 layout_mode = 2
 size_flags_vertical = 0
 mouse_filter = 2
 
-[node name="Menu" type="Button" parent="Layout/PlayArea/HUD/Top"]
+[node name="Menu" type="Button" parent="Layout/PlayArea/HUD/Top" unique_id=642013022]
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 32
-text = " ≡ "
+icon_alignment = 1
 
-[node name="Score" type="Label" parent="Layout/PlayArea/HUD/Top"]
+[node name="Stats" type="Button" parent="Layout/PlayArea/HUD/Top" unique_id=884213907]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 24
+toggle_mode = true
+text = " STATS "
+
+[node name="Score" type="Label" parent="Layout/PlayArea/HUD/Top" unique_id=1570191530]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 40
 text = "0"
 
-[node name="Speed" type="Label" parent="Layout/PlayArea/HUD/Top"]
+[node name="Speed" type="Label" parent="Layout/PlayArea/HUD/Top" unique_id=135259964]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
 text = "0 px/s"
 
-[node name="LastInput" type="Label" parent="Layout/PlayArea/HUD/Top"]
+[node name="LastInput" type="Label" parent="Layout/PlayArea/HUD/Top" unique_id=1346616261]
+visible = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 horizontal_alignment = 2
 
-[node name="ControlPanel" type="PanelContainer" parent="Layout"]
+[node name="ControlPanel" type="PanelContainer" parent="Layout" unique_id=1790477591]
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 3.0
@@ -101,38 +115,41 @@ mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBox_panel")
 script = ExtResource("4_panel")
 
-[node name="SafeArea" type="MarginContainer" parent="Layout/ControlPanel"]
+[node name="SafeArea" type="MarginContainer" parent="Layout/ControlPanel" unique_id=1550836674]
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_safe")
 use_top = false
 
-[node name="GroundPads" type="HBoxContainer" parent="Layout/ControlPanel/SafeArea"]
+[node name="GroundPads" type="HBoxContainer" parent="Layout/ControlPanel/SafeArea" unique_id=1620408999]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="TailPop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+[node name="TailPop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads" unique_id=1203576917]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 script = ExtResource("5_pad")
 action = &"tail_pop"
 color = Color(0.9, 0.35, 0.35, 1)
-label = "▲\n\nTAIL\nPOP\n\n▼"
+label = "TAIL
+POP"
+arrows = true
 font_size = 26
 
-[node name="Push" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+[node name="Push" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads" unique_id=1615588406]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 script = ExtResource("5_pad")
 action = &"push"
 color = Color(0.35, 0.8, 0.45, 1)
-label = "▲\n\nPUSH\n\n▼"
+label = "PUSH"
+arrows = true
 font_size = 26
 
-[node name="Balance" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+[node name="Balance" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads" unique_id=950213247]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
@@ -143,40 +160,44 @@ color = Color(0.3, 0.8, 0.9, 1)
 label = "BALANCE"
 font_size = 22
 
-[node name="NosePop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+[node name="NosePop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads" unique_id=1204518938]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 script = ExtResource("5_pad")
 action = &"nose_pop"
 color = Color(0.95, 0.6, 0.25, 1)
-label = "▲\n\nNOSE\nPOP\n\n▼"
+label = "NOSE
+POP"
+arrows = true
 font_size = 26
 
-[node name="AirPads" type="VBoxContainer" parent="Layout/ControlPanel/SafeArea"]
+[node name="AirPads" type="VBoxContainer" parent="Layout/ControlPanel/SafeArea" unique_id=1691685388]
 visible = false
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="Trick" type="Panel" parent="Layout/ControlPanel/SafeArea/AirPads"]
+[node name="Trick" type="Panel" parent="Layout/ControlPanel/SafeArea/AirPads" unique_id=1961179448]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
-script = ExtResource("5_pad")
+script = ExtResource("7_trick")
 action = &"trick"
 color = Color(0.75, 0.45, 0.9, 1)
-label = "HEELFLIP"
-label_bottom = "KICKFLIP"
-font_size = 24
+font_size = 20
 
-[node name="BoardTop" type="Panel" parent="Layout/ControlPanel/SafeArea/AirPads"]
+[node name="BoardTop" type="Panel" parent="Layout/ControlPanel/SafeArea/AirPads" unique_id=100724296]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 script = ExtResource("5_pad")
 action = &"lock_tilt"
 color = Color(0.35, 0.55, 0.95, 1)
-label = "CATCH   ·   tap twice for manual\n◄ tail            nose ►"
+label = "CATCH  ·  again before landing: manual / grind
+ "
+side_arrows = true
+side_left = "tail"
+side_right = "nose"
 font_size = 26
 center_mark = true

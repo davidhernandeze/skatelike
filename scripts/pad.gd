@@ -11,6 +11,13 @@ extends Panel
 @export var font_size := 36
 ## Draws a vertical line at the center, for pads where touch position matters.
 @export var center_mark := false
+## Draws ▲ near the top and ▼ near the bottom (touch height matters).
+@export var arrows := false
+## Draws ◄ side_left and side_right ► below the middle (touch x matters); leave the
+## label's second line blank for them.
+@export var side_arrows := false
+@export var side_left := ""
+@export var side_right := ""
 ## Shown faded, for pads without a function yet.
 @export var dimmed := false
 
@@ -78,6 +85,22 @@ func _draw() -> void:
 	if center_mark:
 		var x := size.x * 0.5
 		draw_line(Vector2(x, 12.0), Vector2(x, size.y - 12.0), Color(color, 0.6), 3.0)
+	# Symbols are shapes, not text: the web build's font has no arrow glyphs.
+	var arrow := font_size * 0.7
+	if arrows:
+		draw_colored_polygon(Icons.triangle(Vector2(size.x * 0.5, size.y * 0.18), Vector2.UP, arrow), Color.WHITE)
+		draw_colored_polygon(Icons.triangle(Vector2(size.x * 0.5, size.y * 0.82), Vector2.DOWN, arrow), Color.WHITE)
+	if side_arrows:
+		var y := size.y * 0.5 + font_size * 0.68
+		var font := get_theme_default_font()
+		var left := Vector2(size.x * 0.12, y)
+		var right := Vector2(size.x * 0.88, y)
+		draw_colored_polygon(Icons.triangle(left, Vector2.LEFT, arrow), Color.WHITE)
+		draw_colored_polygon(Icons.triangle(right, Vector2.RIGHT, arrow), Color.WHITE)
+		var baseline := y + font_size * 0.35
+		draw_string(font, Vector2(left.x + arrow, baseline), side_left, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		var width := font.get_string_size(side_right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		draw_string(font, Vector2(right.x - arrow - width, baseline), side_right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	if _pie > 0.0 or _pie_queue > 0:
 		var radius := 24.0
 		var center := Vector2(size.x - radius - 14.0, radius + 14.0)

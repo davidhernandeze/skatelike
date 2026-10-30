@@ -5,61 +5,157 @@ extends Control
 
 const MENU_SCENE := "res://scenes/menu.tscn"
 
+## Whether the stats (speed, last inputs) are shown; kept across restarts.
+static var show_stats := false
+
 @onready var play_area: Control = $Layout/PlayArea
 @onready var runner: Runner = $Layout/PlayArea/World/Runner
+@onready var callouts: Node2D = $Layout/PlayArea/World/Runner/Callouts
 @onready var control_panel: PanelContainer = $Layout/ControlPanel
 @onready var menu_button: Button = $Layout/PlayArea/HUD/Top/Menu
+@onready var stats_button: Button = $Layout/PlayArea/HUD/Top/Stats
 @onready var score_label: Label = $Layout/PlayArea/HUD/Top/Score
 @onready var speed_label: Label = $Layout/PlayArea/HUD/Top/Speed
 @onready var last_input: Label = $Layout/PlayArea/HUD/Top/LastInput
 @onready var push_pad: Pad = $Layout/ControlPanel/SafeArea/GroundPads/Push
-@onready var trick_pad: Pad = $Layout/ControlPanel/SafeArea/AirPads/Trick
+@onready var trick_pad: TrickPad = $Layout/ControlPanel/SafeArea/AirPads/Trick
 @onready var balance_pad: BalancePad = $Layout/ControlPanel/SafeArea/GroundPads/Balance
 @onready var pop_pads: Array[Pad] = [
 	$Layout/ControlPanel/SafeArea/GroundPads/TailPop,
 	$Layout/ControlPanel/SafeArea/GroundPads/NosePop,
 ]
+## Guided steps, on tutorial levels only.
+var tutorial: Tutorial
+## Flow meter and slow-motion button, just above the control panel.
+var flow: FlowButton
+## Online ghosts and name tags, on challenges with the online switch on.
+var ghosts: Node2D
+## Time until the next pose goes to the ghost room (s).
+var _pose_left := 0.0
+## Poses sent per second while online.
+const POSE_RATE := 15.0
+## The level as defined (not cut at a checkpoint), for finding checkpoints in it.
+var _level: Dictionary
+## A checkpoint counts as reached this close before its mark, on the ground (px).
+const CHECKPOINT_LEAD := 600.0
 
 
 func _ready() -> void:
 	Engine.time_scale = game_speed
-	runner.configure(Levels.get_level(Levels.current))
+	_level = Levels.get_level(Levels.current)
+	var level := _level
+	if Levels.checkpoint != "":
+		level = Levels.from_checkpoint(_level, Levels.checkpoint)
+	runner.configure(level)
+	# The tutorial freezes the game by pausing the tree: only the world and the
+	# balance points stop, the UI keeps taking input.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	$Layout/PlayArea/World.process_mode = Node.PROCESS_MODE_PAUSABLE
+	balance_pad.process_mode = Node.PROCESS_MODE_PAUSABLE
+	flow = FlowButton.new()
+	flow.action = &"flow"
+	flow.color = Color(1.0, 0.75, 0.25)
+	flow.runner = runner
+	flow.base_time_scale = game_speed
+	add_child(flow)
+	flow.tapped.connect(func() -> void: _on_pad_pressed(&"flow", Time.get_ticks_usec(), Vector2.ZERO))
+	runner.landed.connect(flow.on_landed)
+	runner.slammed.connect(func(_reason: String) -> void: flow.on_slammed())
+	Profile.load_profile()
+	if _level.get("challenge", false) and Profile.online:
+		ghosts = preload("res://scripts/ghosts.gd").new()
+		runner.add_child(ghosts)
+		runner.move_child(ghosts, 0)  # Under the callouts.
+		Online.join(_level.id)
+	if level.get("tutorial", false):
+		tutorial = Tutorial.new()
+		tutorial.runner = runner
+		tutorial.balance_pad = balance_pad
+		tutorial.play_area = play_area
+		tutorial.pads = control_panel._pads.duplicate()
+		tutorial.pads.append(flow)
+		tutorial.flow = flow
+		tutorial.start_section = Levels.checkpoint
+		add_child(tutorial)
 	play_area.resized.connect(_layout_world)
 	control_panel.pad_pressed.connect(_on_pad_pressed)
+	menu_button.icon = Icons.menu_texture(32)
 	menu_button.pressed.connect(_to_menu)
+	stats_button.button_pressed = show_stats
+	stats_button.toggled.connect(_show_stats)
+	_show_stats(show_stats)
 	runner.airborne_changed.connect(control_panel.set_airborne)
 	runner.score_changed.connect(func(score: int) -> void: score_label.text = str(score))
 	runner.speed_changed.connect(_show_speed)
 	runner.pushed.connect(_on_pushed)
 	runner.popped.connect(_on_popped)
-	runner.dropped.connect(func(factor: float) -> void: last_input.text = "drop x%.1f" % factor)
+	runner.dropped.connect(func() -> void: last_input.text = "drop")
 	runner.caught.connect(_on_caught)
-	runner.flipped.connect(func(trick: String) -> void: last_input.text += "\n" + trick)
-	runner.flip_caught.connect(func(trick: String) -> void: last_input.text += "\n%s caught" % trick)
+	runner.trick_started.connect(func(trick: String) -> void: last_input.text += "\n" + trick)
+	runner.trick_caught.connect(func(trick: String) -> void: last_input.text += "\n%s caught" % trick)
 	runner.slammed.connect(_on_slammed)
 	runner.balance_changed.connect(_on_balance_changed)
+	runner.callout.connect(callouts.show_callout)
 	balance_pad.point_expired.connect(runner.lose_balance)
 	runner.landed.connect(func(style: String) -> void: last_input.text += "\n" + style)
 	runner.level_cleared.connect(_on_level_cleared)
 	runner.game_over.connect(_on_game_over)
 	_layout_world()
-	_show_speed(runner.start_speed)
+	_show_speed(runner.start_speed * runner.pixels_per_meter)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	push_pad.set_pie(runner.push_progress(), runner.queued_pushes())
 	for pad in pop_pads:
 		pad.set_enabled(not runner.is_pushing())
-	trick_pad.set_enabled(runner.can_flip())
+	trick_pad.set_enabled(runner.can_board_trick())
+	_update_checkpoint()
+	if ghosts:
+		_send_pose(delta)
+
+
+func _exit_tree() -> void:
+	if ghosts:
+		Online.leave()
+
+
+## Sends the board pose to the ghost room POSE_RATE times a second.
+func _send_pose(delta: float) -> void:
+	_pose_left -= delta
+	if _pose_left > 0.0:
+		return
+	_pose_left = 1.0 / POSE_RATE
+	var pose := runner.board_pose()
+	var at := runner.to_level(pose[0])
+	Online.send_pose(PackedFloat32Array([at.x, at.y, pose[1], pose[2].x, pose[2].y]))
+
+
+## Records the furthest marked segment coming up while riding calmly (on the ground,
+## not balancing), so a slam in what follows restarts there.
+func _update_checkpoint() -> void:
+	if not _level.get("checkpoints", true) or not runner.is_grounded() or runner.is_balancing():
+		return
+	var x := runner.board_position().x
+	var best := Levels.mark_index(_level, Levels.checkpoint)
+	for mark in runner.marks:
+		var index := Levels.mark_index(_level, mark)
+		if index > best and runner.marks[mark].x - x < CHECKPOINT_LEAD:
+			best = index
+			Levels.checkpoint = mark
 
 
 func _layout_world() -> void:
 	runner.setup(play_area.size)
+	if flow:
+		var area := play_area.get_global_rect()
+		flow.position = Vector2(area.get_center().x - flow.radius, area.end.y - flow.radius * 2.0 - 16.0)
 
 
 func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) -> void:
 	# Pop and push strength come from touch height (top = strongest),
 	# the tilt lock angle from touch x.
+	if tutorial and not tutorial.accept(action, local_pos):
+		return
 	match action:
 		&"tail_pop":
 			runner.pop(false, -local_pos.y)
@@ -73,11 +169,20 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 		&"lock_tilt":
 			runner.lock_tilt(local_pos.x)
 		&"trick":
-			runner.flip(local_pos.y > 0.0)  # Top half heelflip, bottom half kickflip.
+			runner.board_trick(trick_pad.trick_at(local_pos))
+		&"flow":
+			flow.activate()
 
 
+func _show_stats(shown: bool) -> void:
+	show_stats = shown
+	speed_label.visible = shown
+	last_input.visible = shown
+
+
+## `speed` in px/s, shown in km/h.
 func _show_speed(speed: float) -> void:
-	speed_label.text = "%d px/s" % speed
+	speed_label.text = "%.1f km/h" % (speed / runner.pixels_per_meter * 3.6)
 
 
 func _on_pushed(strength: float, speed: float, queued: bool) -> void:
@@ -86,11 +191,13 @@ func _on_pushed(strength: float, speed: float, queued: bool) -> void:
 
 
 func _on_popped(nose: bool, strength: float) -> void:
+	trick_pad.set_pop_side(nose)
 	last_input.text = "%s pop %d%%" % ["nose" if nose else "tail", roundi(strength * 100.0)]
 
 
 func _on_slammed(reason: String) -> void:
 	balance_pad.freeze()
+	callouts.slam()
 	last_input.text += "\nSLAM: " + reason
 
 
@@ -98,6 +205,8 @@ func _on_slammed(reason: String) -> void:
 ## (harder on rails).
 func _on_balance_changed(mode: StringName) -> void:
 	var balancing := mode != &""
+	if not balancing:
+		callouts.end_sustained()
 	push_pad.visible = not balancing
 	balance_pad.visible = balancing
 	balance_pad.set_active(balancing, mode == &"grind")
@@ -106,13 +215,18 @@ func _on_balance_changed(mode: StringName) -> void:
 
 
 func _on_caught(catch_index: int, angle_deg: float, apex_ms: int) -> void:
-	var what: String = ["catch %+.0f°" % angle_deg, "manual catch", "grind catch"][catch_index - 1]
+	var what: String = ["catch %+.0f°" % angle_deg, "timed catch"][catch_index - 1]
 	last_input.text += "\n%s  apex %+d ms" % [what, apex_ms]
 
 
 func _on_level_cleared() -> void:
 	last_input.text = "CLEARED!"
-	Levels.last_cleared = Levels.current
+	Levels.record(Levels.current, 1.0)
+	Levels.checkpoint = ""
+	if _level.get("challenge", false) and Profile.online:
+		# On the board: send the clear and show the board when back on the menu.
+		Scoreboard.record_clear(_level.id)
+		preload("res://scripts/menu.gd").page = "board:" + _level.id
 	await get_tree().create_timer(1.0, true, false, true).timeout
 	_to_menu()
 
@@ -122,4 +236,5 @@ func _to_menu() -> void:
 
 
 func _on_game_over() -> void:
+	Levels.record(Levels.current, runner.progress())
 	get_tree().reload_current_scene.call_deferred()
