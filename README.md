@@ -168,7 +168,7 @@ The main menu has three pages:
 
 - **Practice:** every level without `challenge = true`, the tutorial first.
 - **Challenges:** levels with `challenge = true` (only Sketchy #1 for now), each with your
-  best progress, and the **Online ghosts** switch (see below).
+  best progress, a **Scoreboard** button, and the **Online** switch (see below).
 - **Profile:** your skater name, 3 letters and 2 numbers (default SKT01). Set it with the
   ▲/▼ buttons over each character. It's saved in `user://profile.cfg` and shown on the main
   page.
@@ -181,7 +181,25 @@ browser it's the page's IndexedDB (`/userfs`), which Godot syncs whenever a file
 written. They survive restarts and page reloads, but not clearing site data or a private
 window.
 
-## Online ghosts
+## Online: scoreboards
+
+With the Online switch on, clearing a challenge records you on its scoreboard, and you land
+on the board when you're back on the menu. The board lists the skaters who cleared it in
+the order they first did. It shows the first 12, plus your own row (in yellow) if you're
+further down.
+
+- The API lives in `server/` (Fastify + Postgres, served at `https://skatelike.com/api`).
+  `scripts/scoreboard.gd` (autoload `Scoreboard`) calls `POST /scoreboards/<id>/clears`
+  and `GET /scoreboards/<id>`.
+- Clears are queued in `user://scoreboard.cfg` before sending. A clear made offline, or
+  while the API is down, goes out later: on the menu, on the next clear, or every 30 s.
+  Rejected ones (bad name, unknown challenge) are dropped.
+- API URL: `--api-url=`, then `SKATELIKE_API_URL`, then the project setting
+  `skatelike/api/url`, then (web) `/api` on the page's own origin, then
+  `https://skatelike.com/api`.
+- With the switch off, the game makes no network calls.
+
+## Online: ghosts
 
 With the switch on, everyone riding the same challenge shows up as a faded blue board with
 their skater name. Your own board gets a name tag too. It's purely visual: no competition
@@ -248,6 +266,7 @@ scripts/
   toggle.gd          big on/off switch (the Online ghosts switch)
   profile.gd         skater name (3 letters + 2 numbers) and the online switch, saved on the device
   online.gd          online ghosts: WebSocket client and headless relay server (autoload)
+  scoreboard.gd      challenge scoreboards from the server/ API, with an offline queue (autoload)
   ghosts.gd          draws other riders' boards and the name tags
   safe_area.gd       keeps UI clear of notches and home indicators
 assets/fonts/
@@ -255,6 +274,7 @@ assets/fonts/
   BubblezGraffiti-OFL.txt       its license (SIL Open Font License 1.1; keep it with the font)
 docs/
   online.md          online server handoff: running, TLS/URL, protocol
+server/              scoreboard API (Node + Postgres), see server/README.md
 tools/
   android-release.sh build (and upload) the signed APK
 skatepark.blend      unused 3D sketch

@@ -69,6 +69,7 @@ func _show_board(id: String) -> void:
 	_add_label(level.name.to_upper(), 36, Color(0.75, 0.78, 0.9))
 	var state := Label.new()
 	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	state.add_theme_font_size_override("font_size", 26)
 	state.add_theme_color_override("font_color", Color(0.6, 0.62, 0.72))
 	list.add_child(state)
@@ -150,6 +151,7 @@ func _add_online_switch() -> void:
 	list.add_child(switch)
 	var state := Label.new()
 	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART  # Wrap instead of widening the menu.
 	state.add_theme_font_size_override("font_size", 24)
 	list.add_child(state)
 	var show_status := func(status: StringName) -> void:

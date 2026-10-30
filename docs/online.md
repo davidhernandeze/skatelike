@@ -1,5 +1,8 @@
 # Online ghosts: server handoff
 
+(The scoreboards are a separate HTTP API in `server/`, called by `scripts/scoreboard.gd`.
+This page is only about the ghost rooms.)
+
 Notes for whoever deploys and runs the online server. The game side is done. Hosting,
 TLS, process supervision and DNS are up to you.
 
