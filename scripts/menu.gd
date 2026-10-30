@@ -1,15 +1,23 @@
 extends Control
 ## Menu pages: the main page (Practice, Challenges, Profile), the level lists, a
-## challenge's scoreboard ("board:<level id>") and the profile editor. Level buttons are built from Levels.LIST: levels with
-## `challenge = true` go under Challenges (with their best progress), the rest under Practice.
+## challenge's scoreboard ("board:<level id>") and the profile editor. The title stays at
+## the top; pages scroll below it and start with a Back button. Level buttons come from
+## Levels.LIST: levels with `challenge = true` go in the Challenges table (best progress,
+## scoreboard), the rest under Practice.
 
 const GAME_SCENE := "res://scenes/main.tscn"
 const BUTTON_SIZE := Vector2(480, 88)
+## Width of the challenges and scoreboard tables, and their column widths.
+const TABLE_WIDTH := 640.0
+const BEST_WIDTH := 120.0
+const BOARD_WIDTH := 130.0
+const HEADER_COLOR := Color(0.6, 0.62, 0.72)
+const BACK_COLOR := Color(0.55, 0.62, 0.85)
 
 ## Page to show; kept so that leaving a level returns to its list.
 static var page := "main"
 
-@onready var list: VBoxContainer = $Center/Box/Levels
+@onready var list: VBoxContainer = $Safe/Page/Scroll/Center/Levels
 
 
 func _ready() -> void:
@@ -42,29 +50,100 @@ func _show(new_page: String) -> void:
 
 
 func _show_levels(challenges: bool) -> void:
+	_add_back("main")
 	_add_label("CHALLENGES" if challenges else "PRACTICE", 36, Color(0.75, 0.78, 0.9))
 	if challenges:
 		_add_online_switch()
+		_show_challenge_table()
+		return
 	for level in Levels.LIST:
-		if level.get("challenge", false) != challenges:
+		if level.get("challenge", false):
 			continue
-		var text: String = level.name
-		var best: float = Levels.best.get(level.id, 0.0)
-		if challenges and best > 0.0:
-			text += "   best %d%%" % floori(best * 100.0)
-		var button := _add_button(text, _start.bind(level.id))
+		var button := _add_button(level.name, _start.bind(level.id))
 		if Levels.is_cleared(level.id):
 			button.icon = Icons.check_texture(36, Color(0.5, 0.9, 0.5))
 			button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		if challenges and Profile.online:
-			var board := _make_button("Scoreboard", Vector2(480, 60), 28)
-			board.pressed.connect(_show.bind("board:" + level.id))
-			list.add_child(board)
-	_add_button("Back", _show.bind("main"))
+
+
+## One row per challenge: play button, your best progress, and its scoreboard.
+func _show_challenge_table() -> void:
+	list.add_child(_table_row([_cell("CHALLENGE", 0.0, 24, HEADER_COLOR, HORIZONTAL_ALIGNMENT_LEFT),
+			_cell("BEST", BEST_WIDTH, 24, HEADER_COLOR), _cell("BOARD", BOARD_WIDTH, 24, HEADER_COLOR)]))
+	for level in Levels.LIST:
+		if not level.get("challenge", false):
+			continue
+		var play := _make_button("  " + level.name, Vector2(0, 84), 36)
+		play.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		play.pressed.connect(_start.bind(level.id))
+		var best: float = Levels.best.get(level.id, 0.0)
+		var best_cell: Control
+		if Levels.is_cleared(level.id):
+			var check := TextureRect.new()
+			check.texture = Icons.check_texture(40, Color(0.5, 0.9, 0.5))
+			check.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			check.custom_minimum_size = Vector2(BEST_WIDTH, 0)
+			best_cell = check
+		else:
+			best_cell = _cell("%d%%" % floori(best * 100.0) if best > 0.0 else "-", BEST_WIDTH, 32,
+					Color(0.9, 0.9, 0.95) if best > 0.0 else HEADER_COLOR)
+		var board := _make_button("Top", Vector2(BOARD_WIDTH, 84), 28)
+		board.disabled = not Profile.online  # The boards come from the server.
+		board.pressed.connect(_show.bind("board:" + level.id))
+		list.add_child(_table_row([play, best_cell, board]))
+	if not Profile.online:
+		_add_label("turn Online on for the scoreboards", 24, HEADER_COLOR)
+
+
+func _table_row(cells: Array) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(TABLE_WIDTH, 0)
+	row.add_theme_constant_override("separation", 10)
+	for cell in cells:
+		row.add_child(cell)
+	return row
+
+
+## A table cell: a label `width` px wide, or filling the row's spare width when 0.
+func _cell(text: String, width: float, font_size: int, color: Color,
+		align := HORIZONTAL_ALIGNMENT_CENTER) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = align
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	if width > 0.0:
+		label.custom_minimum_size = Vector2(width, 0)
+	else:
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return label
+
+
+## The Back button: outlined in BACK_COLOR with a left arrow, at the top left of the page.
+func _add_back(target: String) -> void:
+	var back := _make_button("Back", Vector2(200, 72), 32)
+	back.icon = Icons.triangle_texture(Vector2.LEFT, 28, BACK_COLOR)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.add_theme_color_override("font_color", BACK_COLOR)
+	back.add_theme_color_override("font_hover_color", BACK_COLOR.lightened(0.3))
+	back.add_theme_color_override("font_pressed_color", BACK_COLOR.lightened(0.3))
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(BACK_COLOR, 0.18 if state == "pressed" else (0.1 if state == "hover" else 0.0))
+		style.border_color = BACK_COLOR
+		style.set_border_width_all(3)
+		style.set_corner_radius_all(36)
+		style.content_margin_left = 18
+		style.content_margin_right = 24
+		back.add_theme_stylebox_override(state, style)
+	back.pressed.connect(_show.bind(target))
+	list.add_child(back)
 
 
 ## A challenge's scoreboard: who cleared it, in the order they first did.
 func _show_board(id: String) -> void:
+	_add_back("challenges")
 	var level := Levels.get_level(id)
 	_add_label(level.name.to_upper(), 36, Color(0.75, 0.78, 0.9))
 	var state := Label.new()
@@ -76,7 +155,6 @@ func _show_board(id: String) -> void:
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", 4)
 	list.add_child(rows)
-	_add_button("Back", _show.bind("challenges"))
 	if not Profile.online:
 		state.text = "turn Online on to see who cleared it"
 		return
@@ -113,6 +191,8 @@ func _fill_board(rows: VBoxContainer, state: Label, board: Dictionary) -> void:
 		state.text = "nobody has cleared it yet: be the first!"
 		return
 	state.text = "%d skater%s cleared it, first clears first" % [total, "" if total == 1 else "s"]
+	rows.add_child(_table_row([_cell("#", 90.0, 24, HEADER_COLOR), _cell("SKATER", 0.0, 24, HEADER_COLOR),
+			_cell("CLEARS", 150.0, 24, HEADER_COLOR)]))
 	var mine := -1
 	for i in clears.size():
 		if clears[i].get("skater", "") == Profile.skater_name:
@@ -130,15 +210,11 @@ func _fill_board(rows: VBoxContainer, state: Label, board: Dictionary) -> void:
 		rows.add_child(more)
 
 
-## "3.  ABC01   x2": position, skater and how often they cleared it; yours in yellow.
-func _board_row(position: int, clear: Dictionary, mine: bool) -> Label:
-	var row := Label.new()
-	var times: int = clear.get("clears", 1)
-	row.text = "%2d.  %s%s" % [position, clear.get("skater", "?????"), "   x%d" % times if times > 1 else ""]
-	row.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	row.add_theme_font_size_override("font_size", 34)
-	row.add_theme_color_override("font_color", Color(1, 0.85, 0.3) if mine else Color(0.9, 0.9, 0.95))
-	return row
+## A board row: position, skater and how often they cleared it; yours in yellow.
+func _board_row(position: int, clear: Dictionary, mine: bool) -> HBoxContainer:
+	var color := Color(1, 0.85, 0.3) if mine else Color(0.9, 0.9, 0.95)
+	return _table_row([_cell(str(position), 90.0, 34, color), _cell(clear.get("skater", "?????"), 0.0, 34, color),
+			_cell(str(int(clear.get("clears", 1))), 150.0, 34, color)])  # JSON numbers are floats.
 
 
 ## Online switch: ghosts of other skaters on the same challenge, and the scoreboards.
@@ -146,7 +222,7 @@ func _add_online_switch() -> void:
 	var switch := Toggle.new()
 	switch.text = "  Online"
 	switch.button_pressed = Profile.online
-	switch.custom_minimum_size = BUTTON_SIZE
+	switch.custom_minimum_size = Vector2(TABLE_WIDTH, BUTTON_SIZE.y)
 	switch.add_theme_font_size_override("font_size", 36)
 	list.add_child(switch)
 	var state := Label.new()
@@ -164,7 +240,7 @@ func _add_online_switch() -> void:
 		Profile.set_online(on)
 		Online.refresh()
 		Scoreboard.flush()
-		_show(page))  # Shows or hides the Scoreboard buttons.
+		_show(page))  # Turns the scoreboard buttons on or off.
 	Online.status_changed.connect(show_status)
 	state.tree_exiting.connect(func() -> void: Online.status_changed.disconnect(show_status))
 	Online.refresh()
@@ -173,6 +249,7 @@ func _add_online_switch() -> void:
 
 ## Skater name editor: a column per character, with buttons to step through its charset.
 func _show_profile() -> void:
+	_add_back("main")
 	_add_label("SKATER NAME", 36, Color(0.75, 0.78, 0.9))
 	_add_label("3 letters + 2 numbers", 26, Color(0.6, 0.62, 0.72))
 	var row := HBoxContainer.new()
@@ -199,7 +276,6 @@ func _show_profile() -> void:
 		column.add_child(up)
 		column.add_child(letter)
 		column.add_child(down)
-	_add_button("Back", _show.bind("main"))
 
 
 ## Moves character i of the name by `step` through its charset, wrapping, and saves.

@@ -656,7 +656,8 @@ func _step_ground() -> void:
 	if _pos.x + board_size.x * 0.5 > _support.x1:
 		# Floor ahead that the board can't roll onto (platforms have no walls).
 		var joint := _joint(_support, _support.next) if _support.next and next == null else &""
-		if joint == &"step_up":
+		# A higher floor right at the edge is a wall; across a gap the board drops first.
+		if joint == &"step_up" and _support.next.x0 - _support.x1 <= 1.0:
 			_slam("wall")
 			return
 		if _pos.x + w > _support.x1:

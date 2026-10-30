@@ -134,6 +134,66 @@ const LIST := [
 		{width = 800, gap = 900, platform = [Vector2(-1100, 120), Vector2(100, 120)], deck = 30, mark = "finale"},
 		Vector2(500, 0),
 	]},
+	# Rail yard: gaps that only rails cross, stair rails, downhill rails over drops.
+	# Uphills after each descent bleed off the speed the frictionless rails add.
+	{id = "sketchy_2", name = "Sketchy #2", start_y = 0.55, checkpoints = false, challenge = true, segments = [
+		Vector2(600, 0),
+		{width = 900, gap = 700, rail = [Vector2(-950, 70), Vector2(100, 70)], mark = "r1"},
+		{width = 480, rise = 260, stairs = 8, rail = Vector3(-40, 520, 70), mark = "r2"},
+		Vector2(700, 0),
+		Vector3(1000, 0, -260),
+		{width = 900, gap = 600, step = 180, rail = [Vector2(-850, 250), Vector2(80, 130)], mark = "r3"},
+		Vector3(900, 0, -220),
+		# The long one: a rail over a gap no ollie clears.
+		{width = 900, gap = 1200, rail = [Vector2(-1450, 80), Vector2(150, 80)], mark = "r4"},
+		{width = 600, step = -130, mark = "r5"},
+		{width = 800, gap = 500, step = 120, rail = [Vector2(-750, 190), Vector2(100, 70)], mark = "r6"},
+		{width = 460, rise = 260, stairs = 8, rail = Vector3(-40, 500, 70), mark = "r7"},
+		Vector2(600, 0),
+		Vector3(900, 0, -220),
+		{width = 700, gap = 800, rail = [Vector2(-1050, 90), Vector2(100, 90)], mark = "r8"},
+		Vector2(500, 0),
+	]},
+	# Rooftops: decks and boxes over gaps, islands at different heights, a kicker, high
+	# ollies. No rails.
+	{id = "sketchy_3", name = "Sketchy #3", start_y = 0.5, checkpoints = false, challenge = true, segments = [
+		Vector2(600, 0),
+		{width = 600, gap = 300, step = -60, mark = "a1"},
+		{width = 700, gap = 700, platform = [Vector2(-900, 80), Vector2(80, 80)], deck = 30, mark = "a2"},
+		{width = 800, gap = 450, platform = [Vector2(-650, 50), Vector2(-200, 50)], mark = "a3"},
+		{width = 450, gap = 260, step = 40, mark = "a4"},
+		{width = 450, gap = 260, step = -60, mark = "a5"},
+		{width = 600, gap = 260, step = 40, mark = "a6"},
+		{width = 600, step = -130, mark = "a7"},
+		{width = 800, gap = 600, platform = [Vector2(-800, 100), Vector2(50, 0)], mark = "a8"},
+		{width = 700, gap = 400, step = 200, mark = "a9"},
+		Vector2(300, 0),
+		Vector3(260, 0, -90),  # Kicker.
+		{width = 700, gap = 380, step = 40, mark = "a10"},
+		{width = 800, gap = 900, platform = [Vector2(-1100, 120), Vector2(100, 120)], deck = 30, mark = "a11"},
+		Vector2(500, 0),
+	]},
+	# Bomb hill: downhills for speed, stair sets with no rail (clear them in one ollie),
+	# landing ramps and islands where a fast board needs a softer pop.
+	{id = "sketchy_4", name = "Sketchy #4", start_y = 0.3, checkpoints = false, challenge = true, segments = [
+		Vector2(500, 0),
+		Vector3(900, 0, 160),
+		{width = 700, gap = 360, step = 30, mark = "b1"},
+		{width = 500, rise = 280, stairs = 9, mark = "b2"},
+		Vector2(700, 0),
+		Vector3(1400, 0, -250),  # A long, gentle uphill: push.
+		{width = 600, gap = 300, step = -40, rise = 120, mark = "b3"},
+		Vector2(300, 0),
+		{width = 500, gap = 260, mark = "b4"},
+		{width = 500, gap = 260, mark = "b5"},
+		Vector3(900, 0, -220),
+		Vector3(800, 0, 150),
+		{width = 450, rise = 240, stairs = 8, mark = "b6"},
+		Vector2(600, 0),
+		Vector3(1600, 0, -260),
+		{width = 700, gap = 300, mark = "b7"},
+		Vector2(500, 0),
+	]},
 ]
 
 static var current := "push"

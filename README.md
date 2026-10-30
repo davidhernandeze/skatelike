@@ -161,19 +161,24 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 | Rails | A long straight rail and a long downhill rail |
 | Ledges | A flat ledge, a downhill ledge that runs onto the floor, and a bridge over a pit |
 | Sketchy #1 | A long survival run through every obstacle kind, no checkpoints (see below) |
+| Sketchy #2 | Rail yard: gaps only rails cross (one 1200 px), stair rails, downhill rails over drops |
+| Sketchy #3 | Rooftops: decks and boxes over gaps, islands at different heights, a kicker, high ollies; no rails |
+| Sketchy #4 | Bomb hill: downhills, rail-less stair sets to clear in one ollie, landing ramps, islands, long uphills to push |
 
 ## Menu
 
 The main menu has three pages:
 
 - **Practice:** every level without `challenge = true`, the tutorial first.
-- **Challenges:** levels with `challenge = true` (only Sketchy #1 for now), each with your
-  best progress, a **Scoreboard** button, and the **Online** switch (see below).
+- **Challenges:** the **Online** switch (see below), then a table of the levels with
+  `challenge = true` (Sketchy #1 to #4). Each row has the play button, your best progress
+  (a check once cleared), and **Top**, the challenge's scoreboard (only with Online on).
 - **Profile:** your skater name, 3 letters and 2 numbers (default SKT01). Set it with the
   ▲/▼ buttons over each character. It's saved in `user://profile.cfg` and shown on the main
   page.
 
-Leaving a level returns to the page it was started from.
+The title stays at the top, and pages scroll below it. Each page starts with an outlined
+**Back** button. Leaving a level returns to the page it was started from.
 
 Cleared levels get a green check, and challenges show their best progress. Both are saved
 in `user://progress.cfg`: on a phone or desktop that's the app's data folder; in the
