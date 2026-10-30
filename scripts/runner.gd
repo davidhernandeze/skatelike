@@ -5,20 +5,23 @@ extends Node2D
 ## Every pop or roll-off of a floor ledge starts a trick that must be caught before
 ## landing; rolling off a platform or the end of a rail doesn't need a catch (the board
 ## levels itself).
-## Manuals and grinds take a timed second catch: it readies the balance for
-## balance_window seconds, and whatever the board touches down on meanwhile starts it
-## (rail or platform top = grind/slide, floor = manual). Too early and it lapses: slam.
+## Manuals and grinds come from holding CATCH: it readies the balance for as long as it's
+## held, and whatever the board touches down on meanwhile starts it (rail or platform top
+## = grind/slide, floor = manual). The press that catches the board has to be held for
+## hold_delay first, so quick catches stay catches; a later press readies it at once.
+## Letting go cancels it, so a rider can let a rail pass and press again to manual on the
+## floor under it.
 ## Rails float above the ground and are only solid for a board coming down on them
-## with that second catch ready; otherwise the board passes through to the floor.
+## with the balance ready; otherwise the board passes through to the floor.
 ## Platforms (ledges, boxes, bridges) are only solid from above: the board lands or
-## rides on their top, slides it with the second catch ready, and passes through their sides.
+## rides on their top, slides it with the balance ready, and passes through their sides.
 ## The ground is a chain of straight, possibly sloped segments; the board rides on
 ## its two wheels. Everything is drawn with basic shapes.
 
 signal game_over
 signal level_cleared
 signal score_changed(score: int)
-## Emitted on each mid-air catch (1 = tilt lock, 2 = timed balance catch).
+## Emitted on each mid-air catch change (1 = tilt locked, 2 = balance ready, CATCH held).
 ## apex_ms < 0 means before the peak of the jump.
 signal caught(catch_index: int, angle_deg: float, apex_ms: int)
 signal landed(style: String)
@@ -164,11 +167,11 @@ class Seg:
 @export var lock_dead_zone := 0.15
 ## How fast the board rotates to the caught angle.
 @export var lock_snap := 14.0
-## Tilt added by the second (manual) catch, relative to the first (deg).
+## Tilt added while the balance is ready (CATCH held), relative to the catch (deg).
 @export var manual_angle := 12.0
-## How long the second catch keeps a manual or grind ready before it lapses (s).
-## Touching down within it starts the balance trick.
-@export var balance_window := 0.25
+## How long the press that catches the board must be held to ready a manual or grind (s).
+## Later presses ready it at once.
+@export var hold_delay := 0.15
 ## Tilt relative to the ground at which the tail/nose hits the floor (deg).
 @export var manual_max_angle := 20.0
 
@@ -240,13 +243,15 @@ var _angular_velocity := 0.0
 var _locked := false
 var _lock_angle := 0.0
 var _first_lock_angle := 0.0
-## Number of catches in the current trick (0, 1 or 2).
+## 0 = not caught, 1 = caught (tilt locked), 2 = balance ready (CATCH held long enough).
 var _catches := 0
-## Time left on the second catch's balance window (s).
-var _balance_left := 0.0
+## CATCH is held: since when (s, game time, counted once the board is caught) and where.
+var _holding := false
+var _hold_t := 0.0
+var _hold_offset := 0.0
 ## The current trick came from a pop (or a hop off a rail) and must be caught.
 var _needs_catch := true
-## +1 = nose manual, -1 = manual (tail down). Set by the second catch.
+## +1 = nose manual, -1 = manual (tail down). Set by where CATCH is held.
 var _manual_dir := -1.0
 ## Manual being ridden on the ground: 0 = none, +1 = nose manual, -1 = manual.
 ## Set through _set_balance(), which also sets _rail.
@@ -425,11 +430,31 @@ func push(strength := 1.0) -> void:
 	_start_push(power)
 
 
-## Catches the board during a trick. offset is -1 (left edge) .. 1 (right edge).
-## The first catch locks the tilt. The second adds manual tilt and readies a manual or
-## grind for balance_window; catching again restarts the window. If it runs out before
-## touchdown, the rider slams.
-## Catching a board trick completes it and locks the tilt like a first catch.
+## A press on CATCH at offset -1 (left edge) .. 1 (right edge). If the board isn't caught
+## yet it catches it (lock_tilt), and holding it for hold_delay readies a manual or grind;
+## on a board already caught it readies one at once. Either way it stays ready until
+## release_catch. The press's offset picks the side: left tail, right nose.
+func press_catch(offset: float) -> void:
+	var already_caught := _in_trick and _catches >= 1 and _board_trick == &""
+	lock_tilt(offset)
+	_holding = true
+	_hold_t = 0.0
+	_hold_offset = offset
+	if already_caught and not _dead:
+		_ready_balance(offset)
+
+
+## CATCH let go: a ready manual or grind is cancelled if the board is still in the air.
+func release_catch() -> void:
+	_holding = false
+	if _catches == 2 and _in_trick:
+		_catches = 1
+		_lock_angle = _first_lock_angle
+		caught.emit(1, rad_to_deg(_lock_angle), int(_velocity_y / gravity * 1000.0))
+
+
+## A tap on CATCH (a press that isn't held): the first one locks the tilt; later ones
+## do nothing. Catching a board trick completes it and locks the tilt like a first catch.
 func lock_tilt(offset: float) -> void:
 	if not _in_trick or _dead:
 		return
@@ -444,15 +469,21 @@ func lock_tilt(offset: float) -> void:
 		trick_caught.emit(_board_trick_name())
 		caught.emit(1, rad_to_deg(_lock_angle), int(_velocity_y / gravity * 1000.0))
 		return
-	if _catches == 0:
-		_catches = 1
-		_first_lock_angle = _tilt_for(offset)
-		_lock_angle = _first_lock_angle
-	else:
-		_catches = 2
-		_balance_left = balance_window
-		_manual_dir = 1.0 if offset > lock_dead_zone else -1.0
-		_lock_angle = _first_lock_angle + deg_to_rad(manual_angle) * _manual_dir
+	if _catches != 0:
+		return
+	_catches = 1
+	_first_lock_angle = _tilt_for(offset)
+	_lock_angle = _first_lock_angle
+	_locked = true
+	_angular_velocity = 0.0
+	caught.emit(_catches, rad_to_deg(_lock_angle), int(_velocity_y / gravity * 1000.0))
+
+
+## Readies a manual or grind toward the held side (CATCH held for hold_delay).
+func _ready_balance(offset: float) -> void:
+	_catches = 2
+	_manual_dir = 1.0 if offset > lock_dead_zone else -1.0
+	_lock_angle = _first_lock_angle + deg_to_rad(manual_angle) * _manual_dir
 	_locked = true
 	_angular_velocity = 0.0
 	caught.emit(_catches, rad_to_deg(_lock_angle), int(_velocity_y / gravity * 1000.0))
@@ -586,7 +617,7 @@ func _process(delta: float) -> void:
 			if _board_trick_left <= 0.0:
 				_slam(_board_trick + " not caught")
 				return
-		_step_balance_window(delta)
+		_step_hold(delta)
 		_step_air(delta)
 	if _dead:
 		return
@@ -737,7 +768,7 @@ func _step_air(delta: float) -> void:
 		_die()
 		return
 	if _velocity_y >= 0.0 and _catches == 2:
-		# Rails and platform edges only hold a board with the second catch ready, at its middle.
+		# Rails and platform edges only hold a board with the balance ready, at its middle.
 		for rail in _rails + _ledges:
 			if _pos.x < rail.x0 or _pos.x > rail.x1:
 				continue
@@ -798,18 +829,19 @@ func _touch_down(surface: Seg) -> void:
 	_velocity_y = 0.0
 
 
-func _step_balance_window(delta: float) -> void:
+func _step_hold(delta: float) -> void:
 	if not _needs_catch and _catches == 0:
 		var below := _seg_at(_pos.x)
 		if below != null:
 			_lock_angle = below.angle()  # Uncaught drop-off: level out to the ground.
-	if _catches == 2:
-		_balance_left -= delta
-		if _balance_left <= 0.0:
-			_slam("second catch too early")  # Nothing to land a manual or grind on.
+	if _holding and _catches == 1 and _board_trick == &"":
+		_hold_t += delta
+		if _hold_t >= hold_delay:
+			_ready_balance(_hold_offset)
 
 
 func _start_trick(spin: float) -> void:
+	_holding = false  # A finger still down from the last trick doesn't count.
 	_in_trick = true
 	_needs_catch = true
 	_locked = false
@@ -875,7 +907,7 @@ func _land(on: Seg) -> void:
 		callout.emit(_pop_callout(trick.strip_edges()), false)
 
 
-## Locks onto a rail or platform edge with the second catch ready: like landing a manual on it.
+## Locks onto a rail or platform edge with the balance ready: like landing a manual on it.
 func _start_grind(rail: Seg) -> void:
 	_touch_down(rail)
 	_ground_angle = rail.angle()

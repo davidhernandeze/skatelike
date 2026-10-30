@@ -25,7 +25,8 @@ var start_section := ""
 ## Each step: {when: Callable -> bool, text: String, wait: Array[StringName] or Callable
 ## returning one, check: Callable(action, local_pos) -> String (a hint, "" if fine),
 ## unless: Callable -> bool (skip the step when it triggers), banner: bool,
-## section: the mark whose checkpoint restarts here, enter: Callable run as it freezes}.
+## section: the mark whose checkpoint restarts here, enter: Callable run as it freezes,
+## hold: the press has to be held for HOLD_CONFIRM; the game resumes with it still held}.
 var _steps: Array[Dictionary] = []
 var _index := 0
 var _frozen := false
@@ -35,6 +36,10 @@ var _box: PanelContainer
 var _text: Label
 var _hint_label: Label
 var _time := 0.0
+## Hold steps: real time (ms) when the accepted press started; 0 when none is held.
+var _hold_since := 0
+## Real time a hold step's press must last before the game resumes (ms).
+const HOLD_CONFIRM := 350
 
 
 func _ready() -> void:
@@ -81,13 +86,29 @@ func accept(action: StringName, local_pos: Vector2) -> bool:
 		if hint != "":
 			_show_hint(hint)
 			return false
+	if step.get("hold", false):
+		# Stay frozen until the press has lasted HOLD_CONFIRM (see _process).
+		_hold_since = Time.get_ticks_msec()
+		_show_hint("Keep holding...")
+		return true
 	_unfreeze()
 	_index += 1
 	return true
 
 
+## A finger lifted (from Main): a hold step's press let go too early starts over.
+func released(action: StringName) -> void:
+	if _frozen and _hold_since > 0 and action in waiting():
+		_hold_since = 0
+		_show_hint("Keep holding CATCH until the game moves again.")
+
+
 func _process(delta: float) -> void:
 	_time += delta
+	if _frozen and _hold_since > 0 and Time.get_ticks_msec() - _hold_since >= HOLD_CONFIRM:
+		_hold_since = 0
+		_unfreeze()
+		_index += 1
 	if _banner_left > 0.0:
 		_banner_left -= delta
 		if _banner_left <= 0.0 and not _frozen:
@@ -230,12 +251,12 @@ func _caught() -> bool:
 	return runner._catches > 0
 
 
-## Airborne and about to touch down: time for the second, timed catch.
+## Caught, airborne and coming down: time to hold CATCH (with room for hold_delay).
 ## `rails` counts rails as something to land on.
 func _touchdown_soon(rails: bool) -> Callable:
 	return func() -> bool:
 		return runner._in_trick and runner._catches == 1 \
-				and runner.time_to_touchdown(rails) < runner.balance_window * 0.5
+				and runner.time_to_touchdown(rails) < runner.hold_delay + 0.25
 
 
 func _full_pop(_action: StringName, local_pos: Vector2) -> String:
@@ -288,8 +309,8 @@ func _build_steps() -> void:
 			wait = catch, check = _flat_catch, text = "...and catch it again."},
 		{section = "manual", when = func() -> bool: return _past("manual") and runner._in_trick, wait = catch, check = _flat_catch,
 			text = "Manual: catch once to lock the board..."},
-		{when = _touchdown_soon(false), wait = catch,
-			text = "...then catch again right before landing. Left half = manual on the tail, right half = nose manual. Too early and you slam."},
+		{when = _touchdown_soon(false), wait = catch, hold = true,
+			text = "...then press and HOLD CATCH as you come down: holding readies a manual. Left half = on the tail, right half = nose manual. Keep holding until you land."},
 		{when = func() -> bool: return runner.is_balancing() and not balance_pad.points().is_empty(),
 			wait = [&"balance"],
 			check = _on_point,
@@ -300,8 +321,8 @@ func _build_steps() -> void:
 		{section = "rail", when = _pop_at("rail"), wait = [&"tail_pop"], check = _full_pop,
 			text = "A rail! Ollie toward it."},
 		{when = _near_apex(-250.0), wait = catch, check = _flat_catch, text = "Catch to lock the board..."},
-		{when = _touchdown_soon(true), wait = catch,
-			text = "...and catch again right before touching the rail to grind it. (Time it for the floor instead and you skip the rail and land a manual.)"},
+		{when = _touchdown_soon(true), wait = catch, hold = true,
+			text = "...and HOLD CATCH coming down onto the rail to grind it. Letting go cancels it: let a rail pass, then hold again to manual on the floor under it."},
 		{when = func() -> bool: return runner.is_grinding() and not balance_pad.points().is_empty(),
 			wait = [&"balance"],
 			check = _on_point,
@@ -313,10 +334,10 @@ func _build_steps() -> void:
 			unless = func() -> bool: return not runner._in_trick or not runner._needs_catch or _caught(),
 			wait = catch, check = _flat_catch, text = "Hopping off needs a catch. Catch it!"},
 		{section = "ledge", when = func() -> bool: return _near("ledge", 600.0), banner = true,
-			text = "Ledges work like rails: a timed second catch onto one is a tailslide or noseslide."},
+			text = "Ledges work like rails: hold CATCH onto one to tailslide or noseslide."},
 		{when = _pop_at("ledge"), wait = [&"tail_pop"], check = _full_pop, text = "Ollie toward the ledge."},
 		{when = _near_apex(-250.0), wait = catch, check = _flat_catch, text = "Catch to lock..."},
-		{when = _touchdown_soon(true), wait = catch, text = "...and catch again right before the ledge: slide it!"},
+		{when = _touchdown_soon(true), wait = catch, hold = true, text = "...and HOLD CATCH onto the ledge: slide it!"},
 		{when = func() -> bool: return runner._in_trick and runner._from_rail and not runner._needs_catch,
 			banner = true, text = "Dropping off the end of a ledge or rail needs no catch."},
 		{when = func() -> bool: return runner.is_grounded() and not runner.is_balancing(),

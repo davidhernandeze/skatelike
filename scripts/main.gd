@@ -30,6 +30,8 @@ var tutorial: Tutorial
 var flow: FlowButton
 ## Online ghosts and name tags, on challenges with the online switch on.
 var ghosts: Node2D
+## Fingers holding CATCH.
+var _catch_holds := 0
 ## Time until the next pose goes to the ghost room (s).
 var _pose_left := 0.0
 ## The level as defined (not cut at a checkpoint), for finding checkpoints in it.
@@ -77,6 +79,7 @@ func _ready() -> void:
 		add_child(tutorial)
 	play_area.resized.connect(_layout_world)
 	control_panel.pad_pressed.connect(_on_pad_pressed)
+	control_panel.pad_released.connect(_on_pad_released)
 	menu_button.icon = Icons.menu_texture(32)
 	menu_button.pressed.connect(_to_menu)
 	stats_button.button_pressed = show_stats
@@ -165,7 +168,8 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 			if not balance_pad.press(local_pos):
 				runner.lose_balance("missed balance")
 		&"lock_tilt":
-			runner.lock_tilt(local_pos.x)
+			_catch_holds += 1
+			runner.press_catch(local_pos.x)
 		&"trick":
 			runner.board_trick(trick_pad.trick_at(local_pos))
 		&"flow":
@@ -179,6 +183,16 @@ func _show_stats(shown: bool) -> void:
 
 
 ## `speed` in px/s, shown in km/h.
+## A finger lifted. CATCH counts its fingers: the hold ends when the last one lifts.
+func _on_pad_released(action: StringName) -> void:
+	if tutorial:
+		tutorial.released(action)
+	if action == &"lock_tilt":
+		_catch_holds = maxi(_catch_holds - 1, 0)
+		if _catch_holds == 0:
+			runner.release_catch()
+
+
 func _show_speed(speed: float) -> void:
 	speed_label.text = "%.1f km/h" % (speed / runner.pixels_per_meter * 3.6)
 

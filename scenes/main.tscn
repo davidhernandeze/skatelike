@@ -194,7 +194,7 @@ mouse_filter = 2
 script = ExtResource("5_pad")
 action = &"lock_tilt"
 color = Color(0.35, 0.55, 0.95, 1)
-label = "CATCH  ·  again before landing: manual / grind
+label = "CATCH  ·  hold it before landing: manual / grind
  "
 side_arrows = true
 side_left = "tail"

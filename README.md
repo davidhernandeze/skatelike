@@ -26,7 +26,7 @@ several fingers at once. Where you touch inside a pad often matters.
 | Pad | Action |
 |---|---|
 | TRICK (top) | Four sectors. The column on the side of the pop pad you used does shuvits (top front shuvit, bottom shuvit). The opposite column does flips (top heelflip, bottom kickflip). Only after a pop, one board trick per jump. |
-| CATCH (bottom) | 1st catch locks the board angle (touch x: left = tail down, right = nose down). 2nd, timed right before touchdown, adds manual tilt toward the tail or nose and readies a manual or grind for `balance_window` (0.25 s). |
+| CATCH (bottom) | A tap catches the board and locks its angle (touch x: left = tail down, right = nose down). **Holding** CATCH readies a manual or grind (touch x: left = tail, right = nose) for as long as it's held. |
 
 ## Board physics
 
@@ -69,12 +69,14 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   `land_tolerance` (15°). Rolling off a platform, or off the end of a rail or slide, needs no
   catch: the board levels itself to the ground below. You can still catch (for a manual,
   say). Hopping off a rail with a pop does need a catch.
-- **Manuals and grinds: the timed second catch.** After the first catch, a second catch
-  readies the balance for `balance_window` (0.25 s). Whatever the board touches down on in
-  that time decides the trick: a rail grinds, a platform top slides, the floor is a manual.
-  A second catch that runs out before touchdown slams ("second catch too early").
-  Catching again restarts the window. So over a rail you can let the rail pass and
-  time the second catch for the floor below to land a manual instead.
+- **Manuals and grinds: hold CATCH.** Holding CATCH readies the balance (the board tilts
+  12° toward the held side) for as long as it's held. Whatever the board touches down on
+  meanwhile decides the trick: a rail grinds, a platform top slides, the floor is a manual.
+  - The press that catches the board has to be held for `hold_delay` (0.15 s) before it
+    counts, so quick catches stay plain catches. Any later press, once the board is caught,
+    readies it at once.
+  - Letting go before touchdown just cancels it: no slam. So over a rail you can let the
+    rail pass, then press and hold again to land a manual on the floor under it.
 - **Manual.** During a manual, popping the raised end puts the wheels down.
 - **Flips and shuvits.** A board trick must be caught within `trick_time` (0.4 s). Shuvits
   finish their half turn faster (`shuvit_spin_time`, 0.2 s).
@@ -85,9 +87,9 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   their top and pass through their sides.
   - A platform's end drops you off unless it meets floor at the same height. That lets a
     downhill ledge run onto the floor, or a bridge carry you over a pit.
-- **Grinds.** Rails are only solid for a board coming down on them with the second catch
-  ready. Otherwise you pass through and land on the floor. The same timing onto a platform
-  top is a slide.
+- **Grinds.** Rails are only solid for a board coming down on them with CATCH held (the
+  balance ready). Otherwise you pass through and land on the floor. The same hold onto a
+  platform top is a slide.
   - A grind is a manual on the rail or edge, with harder balance settings. On rails it's a
     5-0 (tail) or nosegrind. On ledges it's a tailslide or noseslide: the board swings across
     the ledge and rests on its tail or nose, with the trucks hanging over the edge.
@@ -124,10 +126,12 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 ## Tutorial
 
 The first entry in the level menu. It walks through every mechanic in order: push, ollie and
-catch, rolling off a ledge, nollie, flip or shuvit, late trick, manual (timed second catch)
+catch, rolling off a ledge, nollie, flip or shuvit, late trick, manual (hold CATCH)
 and balance, wheels down, rail grind and hop off, ledge slide and dropping off its end, and flow state (the
 meter is filled for you there). At each spot the game freezes, shows the
-instruction and highlights the pad to tap. The tap that resumes it is applied at the frozen
+instruction and highlights the pad to tap. For the hold lessons (manual, grind, slide) you
+press and keep holding CATCH. The game resumes after 0.35 s with your finger still down,
+and "Keep holding" shows if you let go sooner. The tap that resumes it is applied at the frozen
 moment, so the timing is always right. A wrong pad or a weak tap shows a hint instead (for
 example "tap higher" for a pop, or "tap near the middle line" for a flat catch). A few
 stretches in between, such as the step ups after the first flip, are left to the player.
