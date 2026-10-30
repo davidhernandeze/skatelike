@@ -1,0 +1,182 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/safe_area.gd" id="2_safe"]
+[ext_resource type="Script" path="res://scripts/runner.gd" id="3_runner"]
+[ext_resource type="Script" path="res://scripts/control_panel.gd" id="4_panel"]
+[ext_resource type="Script" path="res://scripts/pad.gd" id="5_pad"]
+[ext_resource type="Script" path="res://scripts/balance_pad.gd" id="6_balance"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
+bg_color = Color(0.07, 0.07, 0.1, 1)
+border_width_top = 4
+border_color = Color(0.25, 0.27, 0.35, 1)
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_main")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.12, 0.13, 0.18, 1)
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="PlayArea" type="Control" parent="Layout"]
+clip_contents = true
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 7.0
+mouse_filter = 2
+
+[node name="World" type="Node2D" parent="Layout/PlayArea"]
+
+[node name="Runner" type="Node2D" parent="Layout/PlayArea/World"]
+script = ExtResource("3_runner")
+
+[node name="HUD" type="MarginContainer" parent="Layout/PlayArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_safe")
+use_bottom = false
+
+[node name="Top" type="HBoxContainer" parent="Layout/PlayArea/HUD"]
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+
+[node name="Menu" type="Button" parent="Layout/PlayArea/HUD/Top"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 32
+text = " ≡ "
+
+[node name="Score" type="Label" parent="Layout/PlayArea/HUD/Top"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 40
+text = "0"
+
+[node name="Speed" type="Label" parent="Layout/PlayArea/HUD/Top"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "0 px/s"
+
+[node name="LastInput" type="Label" parent="Layout/PlayArea/HUD/Top"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 2
+
+[node name="ControlPanel" type="PanelContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_panel")
+script = ExtResource("4_panel")
+
+[node name="SafeArea" type="MarginContainer" parent="Layout/ControlPanel"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("2_safe")
+use_top = false
+
+[node name="GroundPads" type="HBoxContainer" parent="Layout/ControlPanel/SafeArea"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="TailPop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+script = ExtResource("5_pad")
+action = &"tail_pop"
+color = Color(0.9, 0.35, 0.35, 1)
+label = "▲\n\nTAIL\nPOP\n\n▼"
+font_size = 26
+
+[node name="Push" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+script = ExtResource("5_pad")
+action = &"push"
+color = Color(0.35, 0.8, 0.45, 1)
+label = "▲\n\nPUSH\n\n▼"
+font_size = 26
+
+[node name="Balance" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+script = ExtResource("6_balance")
+action = &"balance"
+color = Color(0.3, 0.8, 0.9, 1)
+label = "BALANCE"
+font_size = 22
+
+[node name="NosePop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+script = ExtResource("5_pad")
+action = &"nose_pop"
+color = Color(0.95, 0.6, 0.25, 1)
+label = "▲\n\nNOSE\nPOP\n\n▼"
+font_size = 26
+
+[node name="AirPads" type="VBoxContainer" parent="Layout/ControlPanel/SafeArea"]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="Trick" type="Panel" parent="Layout/ControlPanel/SafeArea/AirPads"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+script = ExtResource("5_pad")
+action = &"trick"
+color = Color(0.75, 0.45, 0.9, 1)
+label = "HEELFLIP"
+label_bottom = "KICKFLIP"
+font_size = 24
+
+[node name="BoardTop" type="Panel" parent="Layout/ControlPanel/SafeArea/AirPads"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+script = ExtResource("5_pad")
+action = &"lock_tilt"
+color = Color(0.35, 0.55, 0.95, 1)
+label = "CATCH   ·   tap twice for manual\n◄ tail            nose ►"
+font_size = 26
+center_mark = true
