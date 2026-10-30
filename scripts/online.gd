@@ -30,6 +30,8 @@ const POSE_SIZE := 5
 const MAX_ROOM := 32
 const MIN_POSE_INTERVAL_MS := 40
 const RETRY_SECONDS := 3.0
+## Server main loop rate (frames, i.e. network polls, per second).
+const SERVER_FPS := 60
 
 var is_server := false
 var status: StringName = &"off"
@@ -162,6 +164,9 @@ func _start_server() -> void:
 		return
 	multiplayer.multiplayer_peer = peer
 	multiplayer.server_relay = false  # Clients only ever talk to the server.
+	# Headless, the main loop would spin as fast as it can; poses arrive ~15 times a
+	# second, so polling at SERVER_FPS keeps latency low at a fraction of the CPU.
+	Engine.max_fps = SERVER_FPS
 	multiplayer.peer_connected.connect(func(id: int) -> void: print("rider %d connected" % id))
 	multiplayer.peer_disconnected.connect(_on_rider_disconnected)
 	get_tree().call_deferred("unload_current_scene")  # No menu or game on the server.

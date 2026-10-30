@@ -11,6 +11,87 @@ It's raw on purpose. Names are the game's 3 letters + 2 digits with no account b
 them, and a clear is whatever the client reports. The only protection is validation and
 a per-IP rate limit.
 
+## Connecting
+
+### Production endpoints
+
+| Service | URL | Protocol |
+|---|---|---|
+| Scoreboards (this API) | `https://skatelike.com/api` | JSON over HTTPS, see [API](#api) |
+| Ghost rooms | `wss://skatelike.com/online` | Godot high-level multiplayer over WebSocket (`scripts/online.gd`, protocol in `docs/online.md`). Not a plain WebSocket API |
+
+Neither needs a login. Browsers on other sites get `403` (an Origin check at the edge).
+Requests without an Origin header (the Android app, `curl`, a native build) get through.
+
+### From the game
+
+Both services are only used while the **Online** switch on the Challenges page is on
+(`Profile.online`). The game finds them on its own:
+
+| Build | Scoreboards (`scripts/scoreboard.gd`) | Ghost rooms (`scripts/online.gd`) |
+|---|---|---|
+| Web | `/api` on the page's own origin | `wss://` (or `ws://` on plain http) + the page's host + `/online` |
+| Android, desktop | `https://skatelike.com/api` | `wss://skatelike.com/online` |
+
+To point a build somewhere else, the first match wins:
+
+1. a command-line argument after `--`: `--api-url=…` / `--online-url=…`
+2. an environment variable: `SKATELIKE_API_URL` / `SKATELIKE_ONLINE_URL`
+3. a project setting in `project.godot`: `skatelike/api/url` / `skatelike/online/url`
+   (set it before exporting a build meant for another server)
+4. the defaults above
+
+The ghost-room server only accepts clients built from **the same commit** as itself:
+Godot refuses RPCs whose configuration differs. The scoreboards have no such restriction.
+
+### Against a local backend
+
+The API's routes have no `/api` prefix (the edge strips it in production), so a local API
+URL has none either. Start Postgres and the API ([Development](#development) has the
+Postgres container), the ghost-room server, then the game:
+
+```sh
+# from server/: the API on 127.0.0.1:3000
+SKATELIKE_CHALLENGES=sketchy_1 PGHOST=127.0.0.1 PGPORT=55432 PGUSER=postgres PGPASSWORD=test \
+  PGDATABASE=postgres npm start
+# The database needs the schema first. Running the tests once creates it, or by hand:
+#   podman exec -i skl-pg psql -U postgres -c 'create role skatelike_api'
+#   podman exec -i skl-pg psql -U postgres < db/migrations/0001_clears.sql
+
+# from the repo root: the ghost-room server on :8911, then two game windows
+godot --headless --path . -- --server --port=8911
+SKATELIKE_API_URL=http://127.0.0.1:3000 SKATELIKE_ONLINE_URL=ws://127.0.0.1:8911 godot --path .
+SKATELIKE_API_URL=http://127.0.0.1:3000 SKATELIKE_ONLINE_URL=ws://127.0.0.1:8911 godot --path .
+```
+
+Turn on Online in each window and ride Sketchy #1: each window shows the other as a ghost,
+and clearing it adds your name to the local board.
+
+### By hand
+
+```sh
+curl -s https://skatelike.com/api/health
+curl -s https://skatelike.com/api/scoreboards/sketchy_1
+# Records a real clear on the live board. Use a local API to experiment.
+curl -s -X POST -H 'Content-Type: application/json' -d '{"skater":"DHZ07"}' \
+  https://skatelike.com/api/scoreboards/sketchy_1/clears
+```
+
+### The production machines
+
+Everything runs in containers on the homelab Proxmox host (`root@192.168.0.111`, or
+`pmx.tail391c2a.ts.net` over Tailscale). The containers have no sshd: go through the host.
+If ssh prints locale warnings from the Mac, add `-o SetEnv=LC_ALL=C`.
+
+| What | CT | Logs | Shell |
+|---|---|---|---|
+| Ghost rooms | 113 | `ssh root@192.168.0.111 'pct exec 113 -- journalctl -u skatelike-game -f'` | `ssh -t root@192.168.0.111 pct enter 113` |
+| This API | 114 | `ssh root@192.168.0.111 'pct exec 114 -- journalctl -u skatelike-api -f'` | `ssh -t root@192.168.0.111 pct enter 114` |
+| Postgres | 115 | `ssh root@192.168.0.111 'pct exec 115 -- tail -f /var/log/postgresql/postgresql-17-main.log'` | `ssh -t root@192.168.0.111 "pct exec 115 -- su postgres -c 'psql -d skatelike'"` |
+
+From a database shell, `select * from clears order by challenge, first_cleared_at;`
+shows every board.
+
 ## API
 
 Paths as the game sees them (servi2's edge strips `/api` before proxying):

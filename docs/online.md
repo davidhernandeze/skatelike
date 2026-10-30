@@ -37,6 +37,10 @@ It's the same Godot project, started in server mode by `scripts/online.gd` (auto
   `printerr` and exit code 1 if the port can't be bound.
 - **State** lives in memory only. A restart just drops everyone, and clients reconnect
   every 3 s.
+- **Main loop:** capped at `SERVER_FPS` (60) network polls a second. Uncapped, the
+  headless Linux build spun at about 10% of a core with nobody connected.
+- **Production:** the `skatelike-game` service in CT 113 on the homelab, behind
+  `wss://skatelike.com/online` (see `server/README.md`, "The production machines").
 - **Resources:** one process, idle CPU, a few KB per rider. A full room is 32 riders.
   Poses arrive at about 15 per second per rider and fan out to the rest of the room.
 
