@@ -32,8 +32,6 @@ var flow: FlowButton
 var ghosts: Node2D
 ## Time until the next pose goes to the ghost room (s).
 var _pose_left := 0.0
-## Poses sent per second while online.
-const POSE_RATE := 15.0
 ## The level as defined (not cut at a checkpoint), for finding checkpoints in it.
 var _level: Dictionary
 ## A checkpoint counts as reached this close before its mark, on the ground (px).
@@ -119,12 +117,12 @@ func _exit_tree() -> void:
 		Online.leave()
 
 
-## Sends the board pose to the ghost room POSE_RATE times a second.
+## Sends the board pose to the ghost room Online.POSE_RATE times a second.
 func _send_pose(delta: float) -> void:
 	_pose_left -= delta
 	if _pose_left > 0.0:
 		return
-	_pose_left = 1.0 / POSE_RATE
+	_pose_left = 1.0 / Online.POSE_RATE
 	var pose := runner.board_pose()
 	var at := runner.to_level(pose[0])
 	Online.send_pose(PackedFloat32Array([at.x, at.y, pose[1], pose[2].x, pose[2].y]))

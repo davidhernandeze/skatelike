@@ -209,7 +209,7 @@ or retrying).
 - `scripts/online.gd` (autoload `Online`) is both the WebSocket client and the server. Run
   with `-- --server [--port=8910]`, or export the "Linux Server" preset, for a headless
   relay with one room per challenge.
-- Each client sends its board pose ~15 times a second in level coordinates
+- Each client sends its board pose 10 times a second in level coordinates
   (`Runner.to_level`), so different screen sizes line up. `scripts/ghosts.gd` eases
   between updates and draws the boards with `Runner.draw_board_at`.
 - Deployment notes, URL selection (same host `/online` on the web), TLS and the protocol

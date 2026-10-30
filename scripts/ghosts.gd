@@ -2,7 +2,7 @@ extends Node2D
 ## Other online skaters on the same challenge, drawn as faded boards with their names,
 ## plus a name tag over the player's own board. A child of the Runner (shares its
 ## coordinates); poses arrive in level coordinates from Online and are eased between
-## updates (~15 per second).
+## updates (Online.POSE_RATE per second).
 
 @export var alpha := 0.45
 @export var ghost_color := Color(0.65, 0.8, 1.0)

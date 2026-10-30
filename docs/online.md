@@ -11,8 +11,9 @@ TLS, process supervision and DNS are up to you.
 On the Challenges page, players can turn on **Online ghosts**. While they ride a challenge,
 everyone else riding the same challenge shows up as a faded board with a name tag. It's
 purely visual: no scores, no collisions, nothing simulated on the server. The server keeps
-one room per challenge and relays each rider's board pose (5 floats, about 15 times a
-second) to the others in the room.
+one room per challenge. Each rider sends their board pose (5 floats) 10 times a second, and
+10 times a second the server sends each rider **one** message with the poses that came in
+from the others in their room since the last one.
 
 ## The server
 
@@ -42,7 +43,10 @@ It's the same Godot project, started in server mode by `scripts/online.gd` (auto
 - **Production:** the `skatelike-game` service in CT 113 on the homelab, behind
   `wss://skatelike.com/online` (see `server/README.md`, "The production machines").
 - **Resources:** one process, idle CPU, a few KB per rider. A full room is 32 riders.
-  Poses arrive at about 15 per second per rider and fan out to the rest of the room.
+  Each rider sends 10 poses a second and gets 10 batched messages a second, whatever the
+  room size. With two ghosts, a rider's download measured 631 B/s of WebSocket payload,
+  down from 936 B/s with one message per pose at 15 a second. The saving grows with the
+  room, and the wire saves more again (TCP/IP/TLS headers per message).
 
 ## TLS and the URL clients use
 
@@ -72,17 +76,23 @@ the web and Android builds.
 ## Protocol
 
 Godot high-level multiplayer (`WebSocketMultiplayerPeer` + RPCs on `/root/Online`). The
-client and server must come from the **same commit**: Godot checks that RPC
-configurations match. `server_relay` is off, so clients can only talk to the server.
+client and server must come from the **same protocol version**: Godot numbers RPCs by
+their order, so a mismatch would misroute calls. Both sides announce the WebSocket
+subprotocol `Online.PROTOCOL` (now `skatelike-2`). A mismatched client fails the
+handshake and keeps retrying (the menu shows it can't reach the server), and the server
+drops any rider whose protocol isn't its own. Bump `PROTOCOL` whenever the RPCs change,
+and **deploy the server and the web build together**. `server_relay` is off, so clients
+can only talk to the server. If a proxy sits in front, it must pass the
+`Sec-WebSocket-Protocol` header through (Caddy does by default).
 
 | RPC | Direction | Payload | Server checks |
 |---|---|---|---|
 | `_join` | client → server | room (challenge level id, e.g. `sketchy_1`), skater name | room is a level with `challenge = true`; name is 3 letters + 2 digits; room has fewer than 32 riders |
 | `_leave` | client → server | none | none |
-| `_pose` | client → server | `PackedFloat32Array` of 5: level x, level y, angle, scale x, scale y | exactly 5 floats; rider is in a room; at most one per 40 ms (extra ones are dropped) |
+| `_pose` | client → server | `PackedFloat32Array` of 5: level x, level y, angle, scale x, scale y | exactly 5 floats; rider is in a room; at most one per 70 ms (extra ones are dropped). Kept until the next broadcast |
 | `_ghost_joined` | server → client | id, skater name | sent for each rider already in the room, and to them for the newcomer |
 | `_ghost_left` | server → client | id | on leave, rejoin or disconnect |
-| `_ghost_pose` | server → client | id, pose | relayed to everyone else in the room |
+| `_ghost_poses` | server → client | `PackedInt32Array` ids, `PackedFloat32Array` poses (5 per id, same order) | 10 times a second, to each rider: the fresh poses of the others in their room. Nothing is sent when nothing is new |
 
 Poses are in level coordinates (see `Runner.to_level`), so riders on different screen
 sizes line up.
