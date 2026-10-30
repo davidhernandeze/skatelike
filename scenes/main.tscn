@@ -199,5 +199,6 @@ label = "CATCH  ·  hold it before landing: manual / grind
 side_arrows = true
 side_left = "tail"
 side_right = "nose"
+side_middle = "50-50"
 font_size = 26
 center_mark = true

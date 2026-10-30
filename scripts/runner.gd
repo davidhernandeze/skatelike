@@ -42,7 +42,8 @@ signal trick_caught(trick: String)
 ## A trick worth a callout landed: a pop trick ("ollie", "nollie kickflip"), or a
 ## manual/grind (sustained = lasts until balance_changed(&"")).
 signal callout(text: String, sustained: bool)
-## A balance trick started or ended: &"manual", &"grind" or &"" (none).
+## A balance trick started or ended: &"manual", &"grind", &"fifty" (a 50-50 grind) or
+## &"" (none).
 signal balance_changed(mode: StringName)
 
 ## A straight surface from (x0, y0) to (x1, y1): floor (solid below), the top of a
@@ -172,6 +173,9 @@ class Seg:
 ## How long the press that catches the board must be held to ready a manual or grind (s).
 ## Later presses ready it at once.
 @export var hold_delay := 0.15
+## Allowed difference between the board and rail angles when landing a 50-50 (deg): more
+## forgiving than land_tolerance, since both trucks take the rail.
+@export var fifty_tolerance := 25.0
 ## Tilt relative to the ground at which the tail/nose hits the floor (deg).
 @export var manual_max_angle := 20.0
 
@@ -251,11 +255,14 @@ var _hold_t := 0.0
 var _hold_offset := 0.0
 ## The current trick came from a pop (or a hop off a rail) and must be caught.
 var _needs_catch := true
-## +1 = nose manual, -1 = manual (tail down). Set by where CATCH is held.
+## +1 = nose manual, -1 = manual (tail down), 0 = 50-50 (CATCH held in the middle).
+## Set by where CATCH is held.
 var _manual_dir := -1.0
 ## Manual being ridden on the ground: 0 = none, +1 = nose manual, -1 = manual.
-## Set through _set_balance(), which also sets _rail.
+## Set through _set_balance(), which also sets _rail and _fifty.
 var _riding_manual := 0.0
+## Riding a 50-50: both trucks on the rail or ledge, board level along it.
+var _fifty := false
 ## Rail or platform edge being ground (null when not grinding). Not _grounded meanwhile.
 var _rail: Seg
 ## The current trick left a rail: grinding again before touching the floor is a double grind.
@@ -399,7 +406,8 @@ func lose_balance(reason := "lost balance") -> void:
 ## Popping the raised end during a manual puts the wheels down; during a grind it
 ## hops off the rail without spin, and the board still has to be caught.
 func pop(nose: bool, strength := 1.0) -> void:
-	var contrary := is_balancing() and (1.0 if nose else -1.0) == -_riding_manual
+	# A 50-50 has no raised end: either pop is a plain ollie off the rail.
+	var contrary := is_balancing() and not _fifty and (1.0 if nose else -1.0) == -_riding_manual
 	if contrary and _rail == null:
 		_set_balance(0.0)
 		return
@@ -480,9 +488,13 @@ func lock_tilt(offset: float) -> void:
 
 
 ## Readies a manual or grind toward the held side (CATCH held for hold_delay).
+## In the middle of the pad (the dead zone), a 50-50: the board stays level, no tilt.
 func _ready_balance(offset: float) -> void:
 	_catches = 2
-	_manual_dir = 1.0 if offset > lock_dead_zone else -1.0
+	if absf(offset) <= lock_dead_zone:
+		_manual_dir = 0.0
+	else:
+		_manual_dir = 1.0 if offset > 0.0 else -1.0
 	_lock_angle = _first_lock_angle + deg_to_rad(manual_angle) * _manual_dir
 	_locked = true
 	_angular_velocity = 0.0
@@ -623,7 +635,7 @@ func _process(delta: float) -> void:
 		return
 	_update_airborne()
 	_step_rotation(delta)
-	var sliding := _rail != null and _rail.ledge
+	var sliding := _rail != null and _rail.ledge and not _fifty
 	_slide = move_toward(_slide, 1.0 if sliding else 0.0, delta / slide_swing_time)
 	if _grounded and not _in_trick and _pos.x >= _goal_x:
 		_cleared = true
@@ -727,12 +739,16 @@ func _step_grind() -> void:
 		if next != null and next.ledge:
 			_rail = next  # Next piece of the same platform edge.
 		elif next != null:
-			# The edge ran down onto the floor: carry on as a manual.
+			# The edge ran down onto the floor: carry on as a manual (a 50-50 just rolls).
 			_support = next
 			_grounded = true
-			_set_balance(_riding_manual)
-			landed.emit("to manual")
-			callout.emit("nose manual" if _riding_manual > 0.0 else "manual", true)
+			if _fifty:
+				_set_balance(0.0)
+				landed.emit("roll")
+			else:
+				_set_balance(_riding_manual)
+				landed.emit("to manual")
+				callout.emit("nose manual" if _riding_manual > 0.0 else "manual", true)
 			_step_ground()
 			return
 	if _pos.x > _rail.x1:
@@ -744,11 +760,13 @@ func _step_grind() -> void:
 	_ground_angle = _rail.angle()
 
 
-## Starts or ends a balance trick: direction +1 nose / -1 tail / 0 none, on `rail` if grinding.
-func _set_balance(direction: float, rail: Seg = null) -> void:
+## Starts or ends a balance trick: direction +1 nose / -1 tail / 0 none, on `rail` if
+## grinding; `fifty` for a 50-50 (direction then only marks it as ridden).
+func _set_balance(direction: float, rail: Seg = null, fifty := false) -> void:
 	var old := _balance_mode()
 	_riding_manual = direction
 	_rail = rail if direction != 0.0 else null
+	_fifty = fifty and direction != 0.0
 	var mode := _balance_mode()
 	if mode != old:
 		balance_changed.emit(mode)
@@ -757,7 +775,14 @@ func _set_balance(direction: float, rail: Seg = null) -> void:
 func _balance_mode() -> StringName:
 	if _riding_manual == 0.0:
 		return &""
+	if _fifty:
+		return &"fifty"
 	return &"grind" if _rail != null else &"manual"
+
+
+## Which way the board tilts while balancing: +1 nose, -1 tail, 0 level (none or 50-50).
+func _tilt_dir() -> float:
+	return 0.0 if _fifty else _riding_manual
 
 
 func _step_air(delta: float) -> void:
@@ -883,7 +908,7 @@ func _land(on: Seg) -> void:
 		_slam("no catch")
 		return
 	var trick := _trick_prefix()
-	if _catches >= 2:
+	if _catches >= 2 and _manual_dir != 0.0:  # (A 50-50 hold on the floor just lands.)
 		# Tilt relative to the ground, positive in the manual's direction.
 		var tilt := rad_to_deg(_angle - _ground_angle) * _manual_dir
 		if tilt > manual_max_angle:
@@ -917,12 +942,24 @@ func _start_grind(rail: Seg) -> void:
 	if _board_trick != &"":
 		_slam("landed mid-" + _board_trick)
 		return
+	var where := "ledge" if rail.ledge else "rail"
+	var trick := ("double " if _from_rail else "") + _trick_prefix()
+	if _manual_dir == 0.0:
+		# 50-50: both trucks on it, so only the board's angle against the rail counts,
+		# with fifty_tolerance.
+		var off := rad_to_deg(absf(_angle - _ground_angle))
+		if off > fifty_tolerance:
+			_slam("off by %d° on %s" % [roundi(off), where])
+			return
+		_set_balance(1.0, rail, true)
+		landed.emit(trick + "50-50 grind")
+		callout.emit(trick + "50-50 grind", true)
+		return
 	var tilt := rad_to_deg(_angle - _ground_angle) * _manual_dir
 	var error := absf(tilt - manual_angle)
 	if error > land_tolerance:
-		_slam("off by %d° on %s" % [roundi(error), "ledge" if rail.ledge else "rail"])
+		_slam("off by %d° on %s" % [roundi(error), where])
 		return
-	var trick := ("double " if _from_rail else "") + _trick_prefix()
 	if rail.ledge:
 		trick += "noseslide" if _manual_dir > 0.0 else "tailslide"
 	else:
@@ -935,7 +972,7 @@ func _start_grind(rail: Seg) -> void:
 func _step_rotation(delta: float) -> void:
 	if _grounded or _rail != null:
 		_angular_velocity = 0.0
-		var target := _ground_angle + deg_to_rad(manual_angle) * _riding_manual
+		var target := _ground_angle + deg_to_rad(manual_angle) * _tilt_dir()
 		_angle = lerpf(_angle, target, 1.0 - exp(-land_settle * delta))
 	elif _locked:
 		_angle = lerpf(_angle, _lock_angle, 1.0 - exp(-lock_snap * delta))
@@ -1284,7 +1321,7 @@ func board_pose() -> Array:
 	var board_scale := board_size / Vector2(96.0, 28.0)
 	var anchor := _pos
 	var local_anchor := Vector2(0.0, 14.0)
-	if (_grounded or _rail != null) and _riding_manual != 0.0 and _slam_t < 0.0:
+	if (_grounded or _rail != null) and _tilt_dir() != 0.0 and _slam_t < 0.0:
 		var wheel := _riding_manual  # Manual (-1) rolls on the back wheel, nose manual (+1) on the front.
 		anchor = _pos + Vector2(wheel * _wheel_offset(), 0.0).rotated(_ground_angle)
 		local_anchor = Vector2(wheel * WHEEL_X, 14.0)

@@ -259,6 +259,12 @@ func _touchdown_soon(rails: bool) -> Callable:
 				and runner.time_to_touchdown(rails) < runner.hold_delay + 0.25
 
 
+## Manuals need a side: a hold in the middle of CATCH is a 50-50, for rails and ledges.
+func _side_hold(_action: StringName, local_pos: Vector2) -> String:
+	return "Hold on the left or right half for a manual. The middle is a 50-50, for rails." \
+			if absf(local_pos.x) <= runner.lock_dead_zone else ""
+
+
 func _full_pop(_action: StringName, local_pos: Vector2) -> String:
 	return "Tap higher on the pad for a stronger pop." if local_pos.y > 0.0 else ""
 
@@ -309,7 +315,7 @@ func _build_steps() -> void:
 			wait = catch, check = _flat_catch, text = "...and catch it again."},
 		{section = "manual", when = func() -> bool: return _past("manual") and runner._in_trick, wait = catch, check = _flat_catch,
 			text = "Manual: catch once to lock the board..."},
-		{when = _touchdown_soon(false), wait = catch, hold = true,
+		{when = _touchdown_soon(false), wait = catch, hold = true, check = _side_hold,
 			text = "...then press and HOLD CATCH as you come down: holding readies a manual. Left half = on the tail, right half = nose manual. Keep holding until you land."},
 		{when = func() -> bool: return runner.is_balancing() and not balance_pad.points().is_empty(),
 			wait = [&"balance"],
@@ -322,11 +328,11 @@ func _build_steps() -> void:
 			text = "A rail! Ollie toward it."},
 		{when = _near_apex(-250.0), wait = catch, check = _flat_catch, text = "Catch to lock the board..."},
 		{when = _touchdown_soon(true), wait = catch, hold = true,
-			text = "...and HOLD CATCH coming down onto the rail to grind it. Letting go cancels it: let a rail pass, then hold again to manual on the floor under it."},
+			text = "...and HOLD CATCH coming down onto the rail to grind it. Hold the middle for a 50-50 (the easiest), a side for a 5-0 or nosegrind. Letting go cancels it."},
 		{when = func() -> bool: return runner.is_grinding() and not balance_pad.points().is_empty(),
 			wait = [&"balance"],
 			check = _on_point,
-			text = "Grinding! Balance is harder on rails: points come faster and are smaller."},
+			text = "Grinding! Keep balancing. On a 5-0 or nosegrind the points come faster and are smaller; a 50-50 is gentler."},
 		{when = func() -> bool: return runner.is_grinding() and _past("rail", -350.0 + runner.marks.rail.y - runner.marks.rail.x),
 			wait = _raised_end, unless = func() -> bool: return not runner.is_grinding(),
 			text = "Pop the raised end to hop off the rail. You'll have to catch the board."},

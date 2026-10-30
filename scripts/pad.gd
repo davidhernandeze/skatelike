@@ -18,6 +18,8 @@ extends Panel
 @export var side_arrows := false
 @export var side_left := ""
 @export var side_right := ""
+## Drawn between them, on the center line.
+@export var side_middle := ""
 ## Shown faded, for pads without a function yet.
 @export var dimmed := false
 
@@ -101,6 +103,12 @@ func _draw() -> void:
 		draw_string(font, Vector2(left.x + arrow, baseline), side_left, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 		var width := font.get_string_size(side_right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 		draw_string(font, Vector2(right.x - arrow - width, baseline), side_right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		if side_middle != "":
+			var middle := font.get_string_size(side_middle, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+			var box := Rect2(Vector2(size.x * 0.5 - middle.x * 0.5 - 8.0, y - middle.y * 0.5), middle + Vector2(16.0, 0.0))
+			draw_rect(box, _style.bg_color)  # Covers the center line behind the text.
+			draw_string(font, Vector2(size.x * 0.5 - middle.x * 0.5, baseline), side_middle,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	if _pie > 0.0 or _pie_queue > 0:
 		var radius := 24.0
 		var center := Vector2(size.x - radius - 14.0, radius + 14.0)

@@ -26,7 +26,7 @@ several fingers at once. Where you touch inside a pad often matters.
 | Pad | Action |
 |---|---|
 | TRICK (top) | Four sectors. The column on the side of the pop pad you used does shuvits (top front shuvit, bottom shuvit). The opposite column does flips (top heelflip, bottom kickflip). Only after a pop, one board trick per jump. |
-| CATCH (bottom) | A tap catches the board and locks its angle (touch x: left = tail down, right = nose down). **Holding** CATCH readies a manual or grind (touch x: left = tail, right = nose) for as long as it's held. |
+| CATCH (bottom) | A tap catches the board and locks its angle (touch x: left = tail down, right = nose down). **Holding** CATCH readies a manual or grind for as long as it's held (touch x: left = tail, right = nose, middle = 50-50). |
 
 ## Board physics
 
@@ -90,6 +90,11 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 - **Grinds.** Rails are only solid for a board coming down on them with CATCH held (the
   balance ready). Otherwise you pass through and land on the floor. The same hold onto a
   platform top is a slide.
+  - **50-50:** hold CATCH in the middle of the pad (its dead zone) instead. Both trucks
+    take the rail or ledge with the board level along it, so it's forgiving: the board
+    only has to be within `fifty_tolerance` (25°) of the rail, instead of 15° from the
+    manual tilt, and it uses the normal (manual) balance points. Either pop ollies you off
+    it. On the floor, a middle hold just lands as a roll.
   - A grind is a manual on the rail or edge, with harder balance settings. On rails it's a
     5-0 (tail) or nosegrind. On ledges it's a tailslide or noseslide: the board swings across
     the ledge and rests on its tail or nose, with the trucks hanging over the edge.
