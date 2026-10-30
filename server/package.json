@@ -1,0 +1,23 @@
+{
+  "name": "skatelike-api",
+  "private": true,
+  "description": "skatelike scoreboard API: who cleared each challenge",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "check": "tsc",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "11.2.1",
+    "fastify": "5.12.7",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}
