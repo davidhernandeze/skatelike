@@ -29,6 +29,7 @@ var _enabled := true
 ## Pie indicator (e.g. push cooldown): remaining fraction, hidden at 0.
 var _pie := 0.0
 var _pie_queue := 0
+var _label_nodes: Array[Label] = []
 
 
 func _ready() -> void:
@@ -52,6 +53,7 @@ func _add_label(string: String, preset: Control.LayoutPreset) -> void:
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label_nodes.append(text)
 	text.set_anchors_and_offsets_preset(preset)
 	if preset != Control.PRESET_FULL_RECT:
 		text.anchor_top = 0.0 if preset == Control.PRESET_TOP_WIDE else 0.5
@@ -59,6 +61,13 @@ func _add_label(string: String, preset: Control.LayoutPreset) -> void:
 		text.offset_top = 0.0
 		text.offset_bottom = 0.0
 	add_child(text)
+
+
+## Changes the (top) label's text.
+func set_label(text: String) -> void:
+	label = text
+	if not _label_nodes.is_empty():
+		_label_nodes[0].text = text
 
 
 ## Fades the pad when its action isn't available right now.

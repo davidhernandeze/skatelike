@@ -26,7 +26,13 @@ var start_section := ""
 ## returning one, check: Callable(action, local_pos) -> String (a hint, "" if fine),
 ## unless: Callable -> bool (skip the step when it triggers), banner: bool,
 ## section: the mark whose checkpoint restarts here, enter: Callable run as it freezes,
-## hold: the press has to be held for HOLD_CONFIRM; the game resumes with it still held}.
+## hold: the press has to be held for HOLD_CONFIRM; the game resumes with it still held,
+## during_balance: part of a manual or grind lesson, skipped once that balance is over}.
+##
+## wait can also hold &"release" (lift the finger that holds a balance trick), and the
+## balance steps are answered by sliding that finger (&"balance", &"balance_pop").
+## The runner is forgiving here: what would be a slam puts the rider back on the ground
+## and shows a hint instead.
 var _steps: Array[Dictionary] = []
 var _index := 0
 var _frozen := false
@@ -40,6 +46,8 @@ var _time := 0.0
 var _hold_since := 0
 ## Real time a hold step's press must last before the game resumes (ms).
 const HOLD_CONFIRM := 350
+## The current balance lesson's manual or grind has started (see _process).
+var _balance_seen := false
 
 
 func _ready() -> void:
@@ -48,6 +56,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_box()
 	_build_steps()
+	runner.forgiven.connect(_on_forgiven)
 	if start_section != "":
 		for i in _steps.size():
 			if _steps[i].get("section", "") == start_section:
@@ -96,11 +105,45 @@ func accept(action: StringName, local_pos: Vector2) -> bool:
 	return true
 
 
-## A finger lifted (from Main): a hold step's press let go too early starts over.
+## A finger lifted (from Main): a hold step's press let go too early starts over. During
+## a balance lesson it ends the balance: the lift that step asked for, or one that skips
+## the rest of that lesson.
 func released(action: StringName) -> void:
 	if _frozen and _hold_since > 0 and action in waiting():
 		_hold_since = 0
 		_show_hint("Keep holding CATCH until the game moves again.")
+		return
+	if action != &"lock_tilt" or not runner.is_balancing():
+		return
+	if _frozen and _steps[_index].get("during_balance", false):
+		var asked := &"release" in waiting()
+		_unfreeze()
+		_index += 1
+		if not asked:
+			_skip_balance_steps()
+
+
+func _skip_balance_steps() -> void:
+	while _index < _steps.size() and _steps[_index].get("during_balance", false):
+		_index += 1
+
+
+## A tap on the balance pads (from Main): only the finger held since landing plays them.
+func hint_balance_tap() -> void:
+	var text := "Taps don't count here: keep the finger that held CATCH down and slide it."
+	if _frozen:
+		_show_hint(text)
+	elif runner.is_balancing():
+		_show(text)
+		_banner_left = banner_time
+
+
+## What would have been a slam: the runner put the rider back on the ground.
+func _on_forgiven(reason: String) -> void:
+	if _frozen:
+		return
+	_show("Careful: that was a slam (%s). In a real run it ends the run; here you keep rolling." % reason)
+	_banner_left = banner_time
 
 
 func _process(delta: float) -> void:
@@ -113,6 +156,14 @@ func _process(delta: float) -> void:
 		_banner_left -= delta
 		if _banner_left <= 0.0 and not _frozen:
 			_box.visible = false
+	# A balance lesson whose balance is over (lifted early, or a forgiven slam): skip ahead.
+	if not _frozen and _index < _steps.size() and _steps[_index].get("during_balance", false):
+		if runner.is_balancing():
+			_balance_seen = true
+		elif _balance_seen:
+			_skip_balance_steps()
+	if _index < _steps.size() and not _steps[_index].get("during_balance", false):
+		_balance_seen = false
 	if not _frozen and _index < _steps.size() and runner._started and not runner._dead:
 		var step := _steps[_index]
 		if step.when.call():
@@ -261,7 +312,7 @@ func _touchdown_soon(rails: bool) -> Callable:
 
 ## Manuals need a side: a hold in the middle of CATCH is a 50-50, for rails and ledges.
 func _side_hold(_action: StringName, local_pos: Vector2) -> String:
-	return "Hold on the left or right half for a manual. The middle is a 50-50, for rails." \
+	return "Hold on the left or right half: the middle keeps the board level, and level doesn't balance here." \
 			if absf(local_pos.x) <= runner.lock_dead_zone else ""
 
 
@@ -274,36 +325,40 @@ func _flat_catch(_action: StringName, local_pos: Vector2) -> String:
 			if absf(local_pos.x) > runner.lock_dead_zone else ""
 
 
-func _on_point(_action: StringName, local_pos: Vector2) -> String:
-	return "" if balance_pad.hits(local_pos) else "Tap right on the balance point."
-
-
-## The pop on the raised end: nose pop after a (tail) manual, tail pop after a nose manual.
-func _raised_end() -> Array:
-	return [&"nose_pop" if runner._riding_manual < 0.0 else &"tail_pop"]
-
-
 func _build_steps() -> void:
 	var always := func() -> bool: return true
 	var catch := [&"lock_tilt"]
 	_steps = [
+		# Riding: push, ollie and catch, roll-offs, nollie.
 		{when = func() -> bool: return _time > 0.6, wait = [&"push"],
 			text = "Welcome! The board keeps its speed on flat ground. PUSH to go faster: tap higher for a harder kick."},
 		{section = "ollie", when = _pop_at("ollie"), wait = [&"tail_pop"], check = _full_pop,
 			text = "A step ahead. TAIL POP to ollie up onto it. Tap near the top for a full pop."},
 		{when = _near_apex(), wait = catch, check = _flat_catch,
-			text = "Catch the board before you land, or you slam. Tap CATCH near its middle line to land flat."},
+			text = "Catch the board before you land. Tap CATCH near its middle line to land flat."},
 		{section = "drop", when = func() -> bool: return _past("drop") and runner._in_trick, wait = catch, check = _flat_catch,
-			text = "Rolling off a ledge needs a catch too. (Don't push right before a ledge: that slams.)"},
+			text = "Rolling off a ledge needs a catch too. (Don't push right before a ledge.)"},
 		{section = "nollie", when = _pop_at("nollie"), wait = [&"nose_pop"], check = _full_pop,
 			text = "NOSE POP pops off the front: a nollie. Then catch it yourself."},
+		# Balance on flat ground first: the manual.
+		{section = "manual", when = func() -> bool: return _past("manual") and runner._in_trick, wait = catch, check = _flat_catch,
+			text = "Manual time. Catch the board..."},
+		{when = _touchdown_soon(false), wait = catch, hold = true, check = _side_hold,
+			text = "...then press and HOLD CATCH as you come down: left half for a manual on the tail, right half for a nose manual. Keep holding: you'll play the manual with this finger."},
+		{when = func() -> bool: return runner.is_balancing() and not balance_pad.points().is_empty(),
+			during_balance = true, wait = [&"balance"],
+			text = "Balance points pop up below. Keep the same finger down and SLIDE it onto each point before its ring runs out."},
+		{when = func() -> bool: return runner.is_balancing() and _past("manual", 900.0),
+			during_balance = true, wait = [&"release"],
+			text = "Lift your finger to finish the manual: the wheels go down."},
+		# Board tricks.
 		{section = "flip", when = _pop_at("flip", 80.0), wait = [&"tail_pop"], check = _full_pop,
 			text = "Big drop ahead. Pop off the edge for lots of air."},
 		{when = _near_apex(-700.0), wait = [&"trick"],
 			text = "TRICK pad: the column on your pop side does shuvits, the other column flips. Pick any trick."},
 		{when = func() -> bool: return runner._board_trick != &"" and runner._board_trick_left < runner.trick_time * 0.6,
 			wait = catch, check = _flat_catch,
-			text = "Catch the trick before it finishes (0.4 s), or you slam."},
+			text = "Catch the trick before it finishes (0.4 s)."},
 		{section = "steps", when = func() -> bool: return _past("steps", -300.0), banner = true,
 			text = "Your turn: ollie up the steps and catch each jump."},
 		{section = "late", when = _pop_at("late", 80.0), wait = [&"tail_pop"], check = _full_pop,
@@ -313,39 +368,34 @@ func _build_steps() -> void:
 		{when = always, wait = [&"trick"], text = "...then pick a TRICK..."},
 		{when = func() -> bool: return runner._board_trick != &"" and runner._board_trick_left < runner.trick_time * 0.6,
 			wait = catch, check = _flat_catch, text = "...and catch it again."},
-		{section = "manual", when = func() -> bool: return _past("manual") and runner._in_trick, wait = catch, check = _flat_catch,
-			text = "Manual: catch once to lock the board..."},
-		{when = _touchdown_soon(false), wait = catch, hold = true, check = _side_hold,
-			text = "...then press and HOLD CATCH as you come down: holding readies a manual. Left half = on the tail, right half = nose manual. Keep holding until you land."},
-		{when = func() -> bool: return runner.is_balancing() and not balance_pad.points().is_empty(),
-			wait = [&"balance"],
-			check = _on_point,
-			text = "Keep your balance: tap each point before its ring runs out. Tapping an empty spot slams."},
-		{when = func() -> bool: return _past("rail", -700.0), wait = _raised_end,
-			unless = func() -> bool: return not runner.is_balancing(),
-			text = "Pop the raised end to put the wheels down."},
+		# Rails: the manual's balance, on a rail, and popping out.
 		{section = "rail", when = _pop_at("rail"), wait = [&"tail_pop"], check = _full_pop,
 			text = "A rail! Ollie toward it."},
 		{when = _near_apex(-250.0), wait = catch, check = _flat_catch, text = "Catch to lock the board..."},
 		{when = _touchdown_soon(true), wait = catch, hold = true,
-			text = "...and HOLD CATCH coming down onto the rail to grind it. Hold the middle for a 50-50 (the easiest), a side for a 5-0 or nosegrind. Letting go cancels it."},
+			text = "...and HOLD CATCH coming down onto the rail to grind it. How the board meets it names the grind: level is a 50-50 (the easiest), tail down a 5-0, nose down a nosegrind."},
 		{when = func() -> bool: return runner.is_grinding() and not balance_pad.points().is_empty(),
-			wait = [&"balance"],
-			check = _on_point,
-			text = "Grinding! Keep balancing. On a 5-0 or nosegrind the points come faster and are smaller; a 50-50 is gentler."},
-		{when = func() -> bool: return runner.is_grinding() and _past("rail", -350.0 + runner.marks.rail.y - runner.marks.rail.x),
-			wait = _raised_end, unless = func() -> bool: return not runner.is_grinding(),
-			text = "Pop the raised end to hop off the rail. You'll have to catch the board."},
-		{when = func() -> bool: return (runner._in_trick and runner._velocity_y > -200.0) or _near("ledge", 700.0),
+			during_balance = true, wait = [&"balance"],
+			text = "Grinding: balance like a manual, sliding the same finger onto the points."},
+		{when = func() -> bool: return runner.is_grinding() and _past("rail", -500.0 + runner.marks.rail.y - runner.marks.rail.x),
+			during_balance = true, wait = [&"balance_pop"],
+			text = "Slide your finger up into POP to ollie out. It pops the end you ride: the tail for 5-0s and 50-50s, the nose for nosegrinds."},
+		{when = func() -> bool: return (runner._in_trick and runner._popped and runner._velocity_y > -250.0) \
+				or _near("ledge", 700.0),
 			unless = func() -> bool: return not runner._in_trick or not runner._needs_catch or _caught(),
-			wait = catch, check = _flat_catch, text = "Hopping off needs a catch. Catch it!"},
+			wait = catch, check = _flat_catch, text = "Popping out needs a catch."},
+		# Ledges: slides, and lifting the finger to end one.
 		{section = "ledge", when = func() -> bool: return _near("ledge", 600.0), banner = true,
-			text = "Ledges work like rails: hold CATCH onto one to tailslide or noseslide."},
+			text = "Ledges work like rails: hold CATCH onto one. Tail down tailslides, nose down noseslides."},
 		{when = _pop_at("ledge"), wait = [&"tail_pop"], check = _full_pop, text = "Ollie toward the ledge."},
 		{when = _near_apex(-250.0), wait = catch, check = _flat_catch, text = "Catch to lock..."},
-		{when = _touchdown_soon(true), wait = catch, hold = true, text = "...and HOLD CATCH onto the ledge: slide it!"},
-		{when = func() -> bool: return runner._in_trick and runner._from_rail and not runner._needs_catch,
-			banner = true, text = "Dropping off the end of a ledge or rail needs no catch."},
+		{when = _touchdown_soon(true), wait = catch, hold = true, check = _side_hold,
+			text = "...and HOLD CATCH on a side onto the ledge: slide it!"},
+		{when = func() -> bool: return runner.is_balancing() and _past("ledge", 450.0),
+			during_balance = true, wait = [&"release"],
+			text = "Lift your finger to end the slide: you keep rolling along the ledge."},
+		{when = func() -> bool: return _past("ledge", 600.0) and runner._in_trick and not runner._needs_catch,
+			banner = true, text = "The ledge ran out: rolling off its end needs no catch."},
 		{when = func() -> bool: return runner.is_grounded() and not runner.is_balancing(),
 			enter = func() -> void: flow.fill(), wait = [&"flow"],
 			text = "Tricks fill the FLOW button: harder tricks and combos fill it faster. When it's full, tap it for 5 s of slow motion."},

@@ -1,10 +1,11 @@
 class_name BalancePad
 extends Pad
-## Replaces the push pad while a balance trick (manual or grind) is ridden. Balance
-## points pop up inside it and must be tapped before their ring runs out.
-## Grinds use the harder settings.
+## The bottom row of the balance layout, while a balance trick (manual or grind) is ridden.
+## Balance points pop up inside it; the finger still holding from the landing clears them
+## by sliding over them (sweep), before their ring runs out. Other taps do nothing.
+## 5-0s, nosegrinds and slides use the harder settings.
 
-## A balance point ran out before being tapped.
+## A balance point ran out before being cleared.
 signal point_expired
 signal point_hit
 
@@ -16,7 +17,7 @@ signal point_hit
 @export var first_delay := 0.25
 @export var max_points := 3
 @export var point_radius := 40.0
-## Taps this much farther than the radius still count (forgiving touch targets).
+## A finger this much farther than the radius still clears a point (forgiving targets).
 @export var hit_slop := 1.3
 
 @export_group("Hard (grinds)")
@@ -64,35 +65,21 @@ func points() -> Array[Dictionary]:
 	return _points
 
 
-## Handles a tap at local_pos (-1..1). Returns false if it missed every balance point.
-func press(local_pos: Vector2) -> bool:
-	if not _active or not is_processing():
-		return true  # Not balancing: nothing to miss.
-	var best := _point_at(local_pos)
-	if best < 0:
-		return false
-	_points.remove_at(best)
-	queue_redraw()
-	point_hit.emit()
-	return true
-
-
-## Whether a tap at local_pos (-1..1) would hit a balance point, without taking it.
-func hits(local_pos: Vector2) -> bool:
-	return _point_at(local_pos) >= 0
-
-
-## Index of the point closest to local_pos within reach, or -1.
-func _point_at(local_pos: Vector2) -> int:
-	var at := (local_pos + Vector2.ONE) * 0.5 * size
-	var best := -1
-	var best_dist := _radius * hit_slop
-	for i in _points.size():
-		var dist := at.distance_to(_points[i].pos)
-		if dist <= best_dist:
-			best = i
-			best_dist = dist
-	return best
+## Clears the points under a finger at `global_pos`. Returns how many it cleared. Works
+## while frozen too (the tutorial waits for a point to be cleared).
+func sweep(global_pos: Vector2) -> int:
+	if not _active:
+		return 0
+	var at := global_pos - global_position
+	var cleared := 0
+	for i in range(_points.size() - 1, -1, -1):
+		if at.distance_to(_points[i].pos) <= _radius * hit_slop:
+			_points.remove_at(i)
+			cleared += 1
+			point_hit.emit()
+	if cleared > 0:
+		queue_redraw()
+	return cleared
 
 
 func _process(delta: float) -> void:

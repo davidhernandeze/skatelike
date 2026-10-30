@@ -19,14 +19,22 @@ several fingers at once. Where you touch inside a pad often matters.
 |---|---|
 | TAIL POP / NOSE POP | Ollie / nollie. Touch height sets pop strength (top = full). |
 | PUSH | A kick: a force pulse over 0.1–0.25 s. Touch height sets strength. Kicks add less the faster you go (see Board physics). You can't pop while pushing, and up to 2 pushes queue. |
-| BALANCE (replaces PUSH during a manual or grind) | Tap each balance point before its ring runs out. An expired point or a tap that misses slams. |
+
+**While balancing** (a manual, grind or slide), the pads switch to two rows. Everything is
+played with the one finger still down from holding CATCH. New taps on these pads do nothing.
+
+| Pad | Action |
+|---|---|
+| POP (top row) | Slide the finger up into it to pop out: the nose for nose tricks (nose manual, nosegrind, noseslide), the tail for tail tricks and 50-50s. A normal pop: catch it. |
+| BALANCE (bottom row, where CATCH was) | Slide the finger onto each balance point before its ring runs out. An expired point while you hold slams. |
+| (lift the finger) | Ends the trick cleanly: a manual puts the wheels down, a grind drops off the rail (no catch needed), a slide keeps rolling along the ledge top. |
 
 **In the air** (after a pop or rolling off a ledge)
 
 | Pad | Action |
 |---|---|
 | TRICK (top) | Four sectors. The column on the side of the pop pad you used does shuvits (top front shuvit, bottom shuvit). The opposite column does flips (top heelflip, bottom kickflip). Only after a pop, one board trick per jump. |
-| CATCH (bottom) | A tap catches the board and locks its angle (touch x: left = tail down, right = nose down). **Holding** CATCH readies a manual or grind for as long as it's held (touch x: left = tail, right = nose, middle = 50-50). |
+| CATCH (bottom) | A tap catches the board and locks its angle (touch x: left = tail down, right = nose down). **Holding** CATCH readies a manual or grind for as long as it's held, and tilts the board 12° (touch x: left = tail down, right = nose down, middle = level). |
 
 ## Board physics
 
@@ -77,7 +85,8 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
     readies it at once.
   - Letting go before touchdown just cancels it: no slam. So over a rail you can let the
     rail pass, then press and hold again to land a manual on the floor under it.
-- **Manual.** During a manual, popping the raised end puts the wheels down.
+- **Balancing** is one long press, from holding CATCH in the air to lifting the finger:
+  slide it over the balance points, up into POP to pop out, or lift it to finish.
 - **Flips and shuvits.** A board trick must be caught within `trick_time` (0.4 s). Shuvits
   finish their half turn faster (`shuvit_spin_time`, 0.2 s).
   - pop → trick → catch = kickflip / heelflip / shuvit / front shuvit
@@ -90,16 +99,26 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 - **Grinds.** Rails are only solid for a board coming down on them with CATCH held (the
   balance ready). Otherwise you pass through and land on the floor. The same hold onto a
   platform top is a slide.
-  - **50-50:** hold CATCH in the middle of the pad (its dead zone) instead. Both trucks
-    take the rail or ledge with the board level along it, so it's forgiving: the board
-    only has to be within `fifty_tolerance` (25°) of the rail, instead of 15° from the
-    manual tilt, and it uses the normal (manual) balance points. Either pop ollies you off
-    it. On the floor, a middle hold just lands as a roll.
+  - **The trick is named from how the board meets the surface,** not from where CATCH
+    was held (that only tilts the board on the way down). At touchdown, the board's angle
+    against the rail, ledge or floor decides:
+
+    | Angle against it | Rail | Ledge | Floor |
+    |---|---|---|---|
+    | within `fifty_band` (6°) of level | 50-50 | 50-50 | plain landing |
+    | nose down, up to the limit | nosegrind | noseslide | nose manual |
+    | tail down, up to the limit | 5-0 | tailslide | manual |
+    | past the limit (`grind_max_angle` 27°, floor `manual_max_angle` 20°) | slam | slam | nose/tail strike |
+
+    The board keeps the angle it touched down at. A 50-50 uses the normal (manual)
+    balance points and either pop ollies off it. A level catch with a middle hold on a
+    flat rail is a 50-50. A slightly tail-down catch with a nose-side hold on an 8°
+    downhill rail ends up level with it: also a 50-50.
   - A grind is a manual on the rail or edge, with harder balance settings. On rails it's a
     5-0 (tail) or nosegrind. On ledges it's a tailslide or noseslide: the board swings across
     the ledge and rests on its tail or nose, with the trucks hanging over the edge.
   - Rails have no friction (`rail_friction` factor 0). Slides drag 8× rolling friction.
-  - Popping the opposite end hops off and needs a catch. Popping the same end is a normal pop.
+  - POP ollies out of a grind from the end you ride (a nollie off a nosegrind), and it needs a catch.
   - Reaching the end of a rail or ledge drops you off, no catch needed. A ledge that runs down onto the floor turns the
     slide into a manual.
   - Grinding again before touching the floor counts as a double grind.
@@ -130,19 +149,34 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 
 ## Tutorial
 
-The first entry in the level menu. It walks through every mechanic in order: push, ollie and
-catch, rolling off a ledge, nollie, flip or shuvit, late trick, manual (hold CATCH)
-and balance, wheels down, rail grind and hop off, ledge slide and dropping off its end, and flow state (the
-meter is filled for you there). At each spot the game freezes, shows the
-instruction and highlights the pad to tap. For the hold lessons (manual, grind, slide) you
-press and keep holding CATCH. The game resumes after 0.35 s with your finger still down,
-and "Keep holding" shows if you let go sooner. The tap that resumes it is applied at the frozen
+The first entry in the level menu. Lessons go from riding to balancing to tricks, each one
+building on the last:
+
+1. **Riding:** push, ollie and catch, rolling off a ledge, nollie.
+2. **Manual:** catch, hold CATCH, slide the finger onto the balance points, lift it to
+   finish. This is the first balance lesson because it's on flat ground.
+3. **Board tricks:** flip or shuvit, the step ups on your own, a late trick.
+4. **Rail:** hold onto the rail (level is a 50-50), balance like the manual, slide up into
+   POP to ollie out, catch.
+5. **Ledge:** hold on a side to tailslide or noseslide, lift to end it, roll off the end.
+6. **Flow state** (the meter is filled for you there).
+
+At each spot the game freezes, shows the instruction and highlights the pad to use. For
+the hold lessons you press and keep holding CATCH. The game resumes after 0.35 s with your
+finger still down, and "Keep holding" shows if you let go sooner. Balance steps wait for
+the held finger to slide onto a point, into POP, or to lift. Lifting early just ends that
+balance and skips the rest of its lesson.
+
+**No slams.** The tutorial runs the Runner in `forgiving` mode: a missed catch, an expired
+point, a wall and so on put the rider back on the ground under the board, with a hint,
+instead of ending the run. The tap that resumes it is applied at the frozen
 moment, so the timing is always right. A wrong pad or a weak tap shows a hint instead (for
 example "tap higher" for a pop, or "tap near the middle line" for a flat catch). A few
 stretches in between, such as the step ups after the first flip, are left to the player.
 Steps the player already did on their own are skipped.
 
-**Checkpoints.** A slam doesn't send you back to the start. Each lesson begins at a
+**Checkpoints** (any level with marked segments; the tutorial no longer slams, so there
+they only matter if that's turned off). A slam doesn't send you back to the start. Each lesson begins at a
 checkpoint (the ollie step, the drop, the rail, the ledge and so on). After a slam the level
 restarts just before the last checkpoint you reached, at the same height, and the tutorial
 picks up at that lesson. A checkpoint counts as reached once you're riding calmly within

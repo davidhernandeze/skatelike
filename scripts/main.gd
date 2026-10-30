@@ -19,7 +19,8 @@ static var show_stats := false
 @onready var last_input: Label = $Layout/PlayArea/HUD/Top/LastInput
 @onready var push_pad: Pad = $Layout/ControlPanel/SafeArea/GroundPads/Push
 @onready var trick_pad: TrickPad = $Layout/ControlPanel/SafeArea/AirPads/Trick
-@onready var balance_pad: BalancePad = $Layout/ControlPanel/SafeArea/GroundPads/Balance
+@onready var balance_pad: BalancePad = $Layout/ControlPanel/SafeArea/BalancePads/Balance
+@onready var balance_pop_pad: Pad = $Layout/ControlPanel/SafeArea/BalancePads/BalancePop
 @onready var pop_pads: Array[Pad] = [
 	$Layout/ControlPanel/SafeArea/GroundPads/TailPop,
 	$Layout/ControlPanel/SafeArea/GroundPads/NosePop,
@@ -68,6 +69,7 @@ func _ready() -> void:
 		runner.move_child(ghosts, 0)  # Under the callouts.
 		Online.join(_level.id)
 	if level.get("tutorial", false):
+		runner.forgiving = true  # No slams in the tutorial.
 		tutorial = Tutorial.new()
 		tutorial.runner = runner
 		tutorial.balance_pad = balance_pad
@@ -85,7 +87,7 @@ func _ready() -> void:
 	stats_button.button_pressed = show_stats
 	stats_button.toggled.connect(_show_stats)
 	_show_stats(show_stats)
-	runner.airborne_changed.connect(control_panel.set_airborne)
+	runner.airborne_changed.connect(func(_airborne: bool) -> void: _update_layout())
 	runner.score_changed.connect(func(score: int) -> void: score_label.text = str(score))
 	runner.speed_changed.connect(_show_speed)
 	runner.pushed.connect(_on_pushed)
@@ -102,6 +104,7 @@ func _ready() -> void:
 	runner.level_cleared.connect(_on_level_cleared)
 	runner.game_over.connect(_on_game_over)
 	_layout_world()
+	_update_layout()
 	_show_speed(runner.start_speed * runner.pixels_per_meter)
 
 
@@ -110,9 +113,27 @@ func _process(delta: float) -> void:
 	for pad in pop_pads:
 		pad.set_enabled(not runner.is_pushing())
 	trick_pad.set_enabled(runner.can_board_trick())
+	if runner.is_balancing():
+		_follow_balance_finger()
 	_update_checkpoint()
 	if ghosts:
 		_send_pose(delta)
+
+
+## The finger still down from landing plays the balance trick: sliding over balance
+## points clears them, sliding up into POP pops out. Runs while frozen too.
+func _follow_balance_finger() -> void:
+	for at: Vector2 in control_panel.touches_of(&"lock_tilt"):
+		if balance_pad.sweep(at) > 0 and tutorial:
+			tutorial.accept(&"balance", Vector2.ZERO)
+		if balance_pop_pad.get_global_rect().has_point(at) and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
+			balance_pop_pad.flash()
+			runner.balance_pop()
+			return
+
+
+func _update_layout() -> void:
+	control_panel.set_layout(runner._in_trick, runner.is_balancing())
 
 
 func _exit_tree() -> void:
@@ -155,6 +176,10 @@ func _layout_world() -> void:
 func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) -> void:
 	# Pop and push strength come from touch height (top = strongest),
 	# the tilt lock angle from touch x.
+	if action == &"balance" or action == &"balance_pop":
+		if tutorial:
+			tutorial.hint_balance_tap()
+		return
 	if tutorial and not tutorial.accept(action, local_pos):
 		return
 	match action:
@@ -164,9 +189,8 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 			runner.pop(true, -local_pos.y)
 		&"push":
 			runner.push(-local_pos.y)
-		&"balance":
-			if not balance_pad.press(local_pos):
-				runner.lose_balance("missed balance")
+		&"balance", &"balance_pop":
+			pass  # Only the finger held from the landing plays these (_follow_balance_finger).
 		&"lock_tilt":
 			_catch_holds += 1
 			runner.press_catch(local_pos.x)
@@ -182,8 +206,8 @@ func _show_stats(shown: bool) -> void:
 	last_input.visible = shown
 
 
-## `speed` in px/s, shown in km/h.
-## A finger lifted. CATCH counts its fingers: the hold ends when the last one lifts.
+## A finger lifted. CATCH counts its fingers: the hold ends when the last one lifts. If
+## a manual or grind is being ridden, that ends it cleanly.
 func _on_pad_released(action: StringName) -> void:
 	if tutorial:
 		tutorial.released(action)
@@ -191,8 +215,10 @@ func _on_pad_released(action: StringName) -> void:
 		_catch_holds = maxi(_catch_holds - 1, 0)
 		if _catch_holds == 0:
 			runner.release_catch()
+			runner.end_balance()
 
 
+## `speed` in px/s, shown in km/h.
 func _show_speed(speed: float) -> void:
 	speed_label.text = "%.1f km/h" % (speed / runner.pixels_per_meter * 3.6)
 
@@ -213,15 +239,19 @@ func _on_slammed(reason: String) -> void:
 	last_input.text += "\nSLAM: " + reason
 
 
-## While a manual or grind is ridden the push pad turns into the balance pad
-## (harder on rails).
+## While a manual or grind is ridden the pads switch to the balance layout: POP (from
+## the end being ridden) over the balance points (harder on 5-0s, nosegrinds and slides).
 func _on_balance_changed(mode: StringName) -> void:
 	var balancing := mode != &""
 	if not balancing:
 		callouts.end_sustained()
-	push_pad.visible = not balancing
-	balance_pad.visible = balancing
+		# The finger that played it is used up (e.g. still down after popping out): it
+		# mustn't count as holding CATCH in the next trick.
+		control_panel.spend(&"lock_tilt")
+		_catch_holds = 0
+	_update_layout()
 	balance_pad.set_active(balancing, mode == &"grind")
+	balance_pop_pad.set_label("POP NOSE" if runner._riding_manual > 0.0 and mode != &"fifty" else "POP TAIL")
 	if not balancing and runner.is_grounded():
 		last_input.text += "\nwheels down"
 

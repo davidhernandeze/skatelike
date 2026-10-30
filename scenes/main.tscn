@@ -149,17 +149,6 @@ label = "PUSH"
 arrows = true
 font_size = 26
 
-[node name="Balance" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads" unique_id=950213247]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-mouse_filter = 2
-script = ExtResource("6_balance")
-action = &"balance"
-color = Color(0.3, 0.8, 0.9, 1)
-label = "BALANCE"
-font_size = 22
-
 [node name="NosePop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads" unique_id=1204518938]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -202,3 +191,30 @@ side_right = "nose"
 side_middle = "50-50"
 font_size = 26
 center_mark = true
+
+[node name="BalancePads" type="VBoxContainer" parent="Layout/ControlPanel/SafeArea" unique_id=731205518]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="BalancePop" type="Panel" parent="Layout/ControlPanel/SafeArea/BalancePads" unique_id=520918374]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+script = ExtResource("5_pad")
+action = &"balance_pop"
+color = Color(0.95, 0.6, 0.25, 1)
+label = "POP"
+font_size = 26
+
+[node name="Balance" type="Panel" parent="Layout/ControlPanel/SafeArea/BalancePads" unique_id=950213247]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.6
+mouse_filter = 2
+script = ExtResource("6_balance")
+action = &"balance"
+color = Color(0.3, 0.8, 0.9, 1)
+label = "BALANCE"
+font_size = 22
