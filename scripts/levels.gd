@@ -26,6 +26,7 @@ extends RefCounted
 ## `checkpoints = false` turns checkpoints off (slams restart the level).
 ## `challenge = true` lists the level under Challenges (with its best progress) instead
 ## of Practice.
+## `max_fall = px` sets the hardest landing (Runner.max_fall; 0 = no limit).
 ## `random` adds that many randomly generated platforms afterwards.
 ## A flat goal platform with the finish flag always follows the last obstacle.
 
@@ -60,7 +61,7 @@ const LIST := [
 			segments = [Vector2(500, 80), Vector2(500, 120), Vector2(600, 160)]},
 	# Two screen-high drops (~1.1 s of air from a full pop) for catch + late flip,
 	# with pop steps climbing back up between them.
-	{id = "long_jump", name = "Long jump", start_y = 0.3, segments = [
+	{id = "long_jump", name = "Long jump", start_y = 0.3, max_fall = 900, segments = [
 		Vector2(800, 580),
 		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
 		Vector2(800, 550),
@@ -194,6 +195,29 @@ const LIST := [
 		Vector3(1600, 0, -260),
 		{width = 700, gap = 300, mark = "b7"},
 		Vector2(500, 0),
+	]},
+	# Experimental: a vert ramp to drop into. An uphill bleeds the speed off, so the
+	# board leaves the coping almost without horizontal speed and falls along a
+	# near-vertical wall (rolling on just launches off it). A nollie keeps turning nose
+	# down up to nollie_spin_cap while the wall is still below; once a board passes 90°
+	# the catch turns it back slowly (catch_slow_turn), so the catch is timed for it to
+	# meet the wall's angle as it touches down. Then out of the pipe onto the far deck.
+	{id = "vert", name = "Vert", start_y = 0.43, checkpoints = false, challenge = true, segments = [
+		Vector2(300, 0),
+		Vector3(350, 0, -55),
+		{width = 3400 / tan(deg_to_rad(85.0)), rise = 3400, mark = "vert"},
+		Vector3(40, 0, 40 * tan(deg_to_rad(65.0))),
+		Vector3(50, 0, 50 * tan(deg_to_rad(45.0))),
+		Vector3(60, 0, 60 * tan(deg_to_rad(25.0))),
+		Vector3(70, 0, 70 * tan(deg_to_rad(5.0))),
+		Vector2(200, 0),
+		Vector3(70, 0, -70 * tan(deg_to_rad(5.0))),
+		Vector3(60, 0, -60 * tan(deg_to_rad(25.0))),
+		Vector3(50, 0, -50 * tan(deg_to_rad(45.0))),
+		Vector3(200, 0, -200 * tan(deg_to_rad(60.0))),
+		Vector3(30, 0, -30 * tan(deg_to_rad(40.0))),
+		Vector3(30, 0, -30 * tan(deg_to_rad(20.0))),
+		Vector2(600, 0),
 	]},
 ]
 

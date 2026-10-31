@@ -92,6 +92,14 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - pop → trick → catch = kickflip / heelflip / shuvit / front shuvit
   - pop → catch → trick → catch = late trick
   - Landing mid-trick slams.
+- **Crests keep momentum.** Where a ramp goes flat (or flat ground tips downhill) the board
+  flies on if its speed across the new surface, `v sin(bend)`, would lift it `launch_min`
+  (6 px) or more. Slower, it rolls over.
+  - Hops up to `hop_max` (40 px) need no catch: the board levels itself, the pads stay
+    on the ground layout and the landing is a plain roll. A manual rides over them.
+  - Higher launches tip like a roll-off ledge and have to be caught.
+  - For `lip_pop_time` (0.12 s) after leaving a lip you can still pop: the pop adds to the
+    launch, so popping right at the lip goes highest. A push still going is cut short.
 - **Platforms** (ledges, boxes, bridges) are only solid from above. You land on or ride along
   their top and pass through their sides.
   - A platform's end drops you off unless it meets floor at the same height. That lets a

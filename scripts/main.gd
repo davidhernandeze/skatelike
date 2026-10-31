@@ -133,7 +133,7 @@ func _follow_balance_finger() -> void:
 
 
 func _update_layout() -> void:
-	control_panel.set_layout(runner._in_trick, runner.is_balancing())
+	control_panel.set_layout(runner.is_airborne(), runner.is_balancing())
 
 
 func _exit_tree() -> void:

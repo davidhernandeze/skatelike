@@ -91,6 +91,14 @@ class Seg:
 ## Tail pop lifts the nose (anticlockwise), nose pop lifts the tail.
 @export var jump_spin := 3.5
 @export var spin_damping := 4.0
+## A nollie's spin doesn't decay: the nose keeps going down until this angle (deg) or
+## the catch. Enough to turn the board to a near-vertical wall and past it.
+@export var nollie_spin_cap := 120.0
+## A board that turned past this angle (deg, either way) is caught back slowly: the
+## catch turns it all the way back at catch_slow_turn (deg/s) instead of snapping, so
+## it can be timed to meet a steep wall.
+@export var catch_slow_after := 90.0
+@export var catch_slow_turn := 180.0
 ## How fast the board settles to the ground angle after landing.
 @export var land_settle := 18.0
 
@@ -105,6 +113,15 @@ class Seg:
 @export var drop_ref_speed := 3.3
 ## Clamp for the speed factor.
 @export var drop_factor_range := Vector2(0.5, 2.0)
+## Over a crest (a ramp going flat, the top of a hill) the board keeps its momentum and
+## flies on if that would lift it at least this high (px): (v sin(bend))² / 2g.
+@export var launch_min := 6.0
+## Launches up to this high (px) are hops: no catch needed, the board levels itself and
+## a manual carries on over them. Higher ones are caught like a roll-off.
+@export var hop_max := 40.0
+## After flying off a crest the lip can still be popped for this long (s): the pop adds
+## to the launch.
+@export var lip_pop_time := 0.12
 
 @export_group("Physics")
 ## Rolling follows dv/dt = (F_push(t) - c_r m g cos(a) - c_d v^2) / m + g sin(a), with
@@ -166,6 +183,12 @@ class Seg:
 ## Joints bending uphill by more than this are too steep to ride (wall); bending
 ## downhill by more than this launches the board (deg).
 @export var max_transition := 25.0
+## The view follows the ground under the board up and down, keeping it between these
+## fractions of the play area's height (normal levels stay inside: the view stays put).
+@export var camera_band := Vector2(0.25, 0.88)
+## The board stays at least this fraction of the height below the top of the view.
+@export var camera_top_margin := 0.06
+@export var camera_follow := 8.0
 ## A surface this far above the board bottom at its nose counts as a wall (px).
 @export var wall_tolerance := 12.0
 
@@ -217,6 +240,10 @@ class Seg:
 @export var land_tolerance := 15.0
 ## Length of the slam animation before game over (s).
 @export var slam_duration := 0.8
+## Hardest landing the legs take, as a fall height (px): only the speed into the
+## surface counts, so dropping onto a steep ramp is fine where the same drop to flat
+## ground slams. 0 = no limit. A level can set its own (`max_fall`).
+@export var max_fall := 550.0
 @export_group("")
 
 @export var player_color := Color(1.0, 0.85, 0.3)
@@ -234,6 +261,8 @@ const WHEEL_Y := 7.0
 const WHEEL_R := 7.0
 
 var _area := Vector2.ZERO
+## Top of the view in this node's coordinates (the node is moved up by it).
+var _cam := 0.0
 var _started := false
 var _dead := false
 var _cleared := false
@@ -300,6 +329,14 @@ var _board_trick_late := false
 var _popped := false
 ## That pop was off the nose (nollie).
 var _pop_nose := false
+## The free spin is a nollie's: undamped, capped at nollie_spin_cap.
+var _nollie_spin := false
+## The board turned past catch_slow_after in this trick.
+var _past_vertical := false
+## The current trick is a hop over a crest (see hop_max).
+var _hop := false
+## Time left to pop off the lip just flown off (s).
+var _lip_t := 0.0
 ## Slam animation progress in seconds; negative when not slamming.
 var _slam_t := -1.0
 
@@ -349,6 +386,7 @@ func configure(level: Dictionary) -> void:
 			segment = Vector3(segment.x, segment.y, 0.0)
 		_segments.append(segment)
 	_random_left = level.get("random", 0)
+	max_fall = level.get("max_fall", max_fall)
 
 
 func setup(area: Vector2) -> void:
@@ -371,7 +409,11 @@ func setup(area: Vector2) -> void:
 
 
 func can_pop() -> bool:
-	return not _dead and (_grounded or _rail != null) and not _in_trick and not is_pushing()
+	if _dead or is_pushing():
+		return false
+	if _lip_t > 0.0 and not _popped and _catches == 0:
+		return true  # Just off a lip: still in time to pop it.
+	return (_grounded or _rail != null) and not _in_trick
 
 
 func is_pushing() -> bool:
@@ -389,6 +431,11 @@ func queued_pushes() -> int:
 
 func is_grounded() -> bool:
 	return _grounded
+
+
+## In the air for the air pads: hops and the moment off a lip still count as riding.
+func is_airborne() -> bool:
+	return _airborne
 
 
 ## How far along the level the board is, 0..1 (approximate).
@@ -453,13 +500,16 @@ func pop(nose: bool, strength := 1.0) -> void:
 	if not can_pop():
 		return
 	var power := lerpf(min_pop, 1.0, _unit(strength))
-	_take_off()
+	if _grounded or _rail != null:
+		_take_off()
+	_lip_t = 0.0
 	_velocity_y -= jump_velocity * power
 	_from_rail = _rail != null
 	_grounded = false
 	_start_trick(0.0 if contrary else jump_spin * power * (1.0 if nose else -1.0))
 	_popped = not contrary
 	_pop_nose = nose
+	_nollie_spin = nose and not contrary
 	popped.emit(nose, power)
 	_update_airborne()
 
@@ -668,18 +718,46 @@ func _process(delta: float) -> void:
 			if _board_trick_left <= 0.0:
 				_slam(_board_trick + " not caught")
 				return
+		_lip_t -= delta
 		_step_hold(delta)
 		_step_air(delta)
 	if _dead:
 		return
 	_update_airborne()
 	_step_rotation(delta)
+	_follow_ground(delta)
 	var sliding := _rail != null and _rail.ledge and not _fifty
 	_slide = move_toward(_slide, 1.0 if sliding else 0.0, delta / slide_swing_time)
 	if _grounded and not _in_trick and _pos.x >= _goal_x:
 		_cleared = true
 		level_cleared.emit()
 	queue_redraw()
+
+
+## Moves the view so the floor under the board stays inside camera_band (e.g. down a
+## tall ramp), and the board below the top margin. When that floor is far below the
+## board (falling along a tall wall), the board is kept nearer the middle instead.
+## Over a pit there's nothing to follow: a board falling in leaves the view and dies.
+func _follow_ground(delta: float) -> void:
+	var target := _cam
+	var below := _seg_at(_pos.x)
+	var ground := INF
+	if below != null:
+		ground = below.y_at(_pos.x)
+		var framed := ground
+		if _grounded:
+			# Look ahead along the ground, so a fast ride down a tall ramp stays in view.
+			var ahead := _seg_at(_pos.x + _speed * 0.3)
+			if ahead != null:
+				framed = maxf(ground, ahead.y_at(_pos.x + _speed * 0.3))
+		target = clampf(_cam, framed - _area.y * camera_band.y, ground - _area.y * camera_band.x)
+		if ground - _pos.y > _area.y * 0.65:
+			target = minf(target, _pos.y - _area.y * camera_band.x)  # Board not near the top.
+	_cam = lerpf(_cam, target, 1.0 - exp(-camera_follow * delta))
+	if is_finite(ground) and (_grounded or _rail != null):
+		_cam = maxf(_cam, ground - _area.y * 0.95)  # Riding down fast: keep up with it.
+	_cam = minf(_cam, _pos.y - _area.y * camera_top_margin)
+	position.y = -_cam
 
 
 ## Integrates the speed along the surface for one frame (see the Physics group).
@@ -725,6 +803,8 @@ func _step_ground() -> void:
 	# Hand over to the next surface once the back wheel rolls past the end of this one.
 	while _pos.x - w > _support.x1:
 		var next := _continuation(_support)
+		if next != null and _over_crest(next):
+			return
 		if next == null:
 			if _support.next == null and not _support.ledge:
 				break  # End of generated floor (never reached in play).
@@ -758,18 +838,55 @@ func _step_ground() -> void:
 
 
 func _leave_ground() -> void:
+	var lip := _support.next != null and _joint(_support, _support.next) == &"launch"
 	if is_pushing():
-		_slam("pushing")
-		return
+		if not lip:
+			_slam("pushing")
+			return
+		_stop_pushing()
 	if _support.ledge:
 		_drop_off()  # Off the end of a platform: no catch needed.
 		return
 	# Off a floor ledge: the nose tips down and the board has to be caught.
+	_roll_off()
+	if lip:
+		_lip_t = lip_pop_time
+
+
+## Nose tips down off the edge: the board has to be caught.
+func _roll_off() -> void:
 	_grounded = false
 	_take_off()
 	var factor := clampf(drop_ref_speed * pixels_per_meter / _speed, drop_factor_range.x, drop_factor_range.y)
 	_start_trick(drop_spin * factor)
 	dropped.emit()
+
+
+## The back wheel is passing a crest onto `next` (a smooth joint): flies on if the speed
+## across `next` lifts the board launch_min (hop_max during a manual, which rides over
+## hops). Returns whether it took off.
+func _over_crest(next: Seg) -> bool:
+	var bend := next.angle() - _support.angle()
+	if bend <= 0.0:
+		return false
+	var across := _speed * sin(bend)
+	var height := across * across / (2.0 * gravity)
+	if height < (hop_max if is_balancing() else launch_min):
+		return false
+	_stop_pushing()
+	_ground_angle = _support.angle()
+	if height <= hop_max:
+		_drop_off()
+		_hop = true
+	else:
+		_roll_off()
+	_lip_t = lip_pop_time
+	return true
+
+
+func _stop_pushing() -> void:
+	_push_left = 0.0
+	_push_queue.clear()
 
 
 func _step_grind() -> void:
@@ -830,8 +947,8 @@ func _step_air(delta: float) -> void:
 	var prev_y := _pos.y
 	_velocity_y += gravity * delta
 	_pos.y += _velocity_y * delta
-	if _pos.y > _area.y:
-		_die()
+	if _pos.y > _cam + _area.y:
+		_die()  # Fell out of view: there was no ground under it to follow.
 		return
 	if _velocity_y >= 0.0 and _catches == 2:
 		# Rails and platform edges only hold a board with the balance ready, at its middle.
@@ -887,6 +1004,18 @@ func _take_off() -> void:
 	_speed *= cos(_ground_angle)
 
 
+## Slams if touching down on `surface` now would be harder than a max_fall drop.
+func _too_hard(surface: Seg) -> bool:
+	if max_fall <= 0.0:
+		return false
+	var a := surface.angle()
+	var into := maxf(_velocity_y * cos(a) - _speed * sin(a), 0.0)  # Speed into the surface.
+	if into * into <= 2.0 * gravity * max_fall:
+		return false
+	_slam("fell too far")
+	return true
+
+
 ## Touching down on `surface`: keeps the velocity's component along it as the new
 ## speed; the part into the surface is absorbed by the legs.
 func _touch_down(surface: Seg) -> void:
@@ -916,13 +1045,17 @@ func _start_trick(spin: float) -> void:
 	_board_trick = &""
 	_board_trick_done = &""
 	_grounded = false
+	_nollie_spin = false
+	_past_vertical = false
+	_hop = false
 	_set_balance(0.0)
 	_angular_velocity = spin
 
 
 func _update_airborne() -> void:
-	if _in_trick != _airborne:
-		_airborne = _in_trick
+	var airborne := _in_trick and not _hop and _lip_t <= 0.0
+	if airborne != _airborne:
+		_airborne = airborne
 		airborne_changed.emit(_airborne)
 
 
@@ -930,15 +1063,18 @@ func _land(on: Seg) -> void:
 	if on.stairs > 0:
 		_slam("landed on the stairs")
 		return
+	if _too_hard(on):
+		return
 	_touch_down(on)
 	_grounded = true
 	_support = on
 	_ground_angle = on.angle()
 	_pos.y = on.y_at(_pos.x)
-	var was_trick := _in_trick
+	var was_trick := _in_trick and not (_hop and _catches == 0)
 	_in_trick = false
 	_locked = false
 	_from_rail = false
+	_lip_t = 0.0
 	if not was_trick:
 		landed.emit("roll")
 		return
@@ -972,6 +1108,8 @@ func _land(on: Seg) -> void:
 
 ## Locks onto a rail or platform edge with the balance ready: like landing a manual on it.
 func _start_grind(rail: Seg) -> void:
+	if _too_hard(rail):
+		return
 	_touch_down(rail)
 	_ground_angle = rail.angle()
 	_pos.y = rail.y_at(_pos.x)
@@ -1011,10 +1149,17 @@ func _step_rotation(delta: float) -> void:
 		var target := _ground_angle + _balance_tilt  # The angle it touched down at.
 		_angle = lerpf(_angle, target, 1.0 - exp(-land_settle * delta))
 	elif _locked:
-		_angle = lerpf(_angle, _lock_angle, 1.0 - exp(-lock_snap * delta))
+		if _past_vertical:
+			_angle = move_toward(_angle, _lock_angle, deg_to_rad(catch_slow_turn) * delta)
+		else:
+			_angle = lerpf(_angle, _lock_angle, 1.0 - exp(-lock_snap * delta))
+	elif _nollie_spin:
+		_angle = minf(_angle + _angular_velocity * delta, deg_to_rad(nollie_spin_cap))
 	else:
 		_angle += _angular_velocity * delta
 		_angular_velocity *= exp(-spin_damping * delta)
+	if not _grounded and _rail == null and absf(_angle) > deg_to_rad(catch_slow_after):
+		_past_vertical = true
 
 
 ## Maps a pad offset (-1..1) to 0..1.
@@ -1273,7 +1418,7 @@ func _step_slam(delta: float) -> void:
 
 func _draw() -> void:
 	for s in _segs:
-		var bottom := maxf(_area.y, maxf(s.y0, s.y1) + 1.0)
+		var bottom := maxf(_cam + _area.y, maxf(s.y0, s.y1) + 1.0)
 		var points := _surface_line(s)
 		points.append_array([Vector2(s.x1, bottom), Vector2(s.x0, bottom)])
 		# UVs in world space (scrolled by distance travelled) so the texture moves with the ground.
