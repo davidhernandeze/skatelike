@@ -49,6 +49,9 @@ It's the same Godot project, started in server mode by `scripts/online.gd` (auto
   interfaces.
 - **Logs** go to stdout: listening, connects, joins (with room counts), disconnects.
   `printerr` and exit code 1 if the port can't be bound.
+- **Silent riders** are dropped: riders in a room send 10 batches a second, so one that
+  sends nothing for 5 s (`IDLE_MS`) is taken out of the room and disconnected. If it was
+  still there, it reconnects and rejoins.
 - **State** lives in memory only. A restart just drops everyone, and clients reconnect
   every 3 s.
 - **Main loop:** capped at `SERVER_FPS` (60) network polls a second. Uncapped, the
@@ -89,7 +92,7 @@ the web and Android builds.
 Godot high-level multiplayer (`WebSocketMultiplayerPeer` + RPCs on `/root/Online`). The
 client and server must come from the **same protocol version**: Godot numbers RPCs by
 their order, so a mismatch would misroute calls. Both sides announce the WebSocket
-subprotocol `Online.PROTOCOL` (now `skatelike-3`). A mismatched client fails the
+subprotocol `Online.PROTOCOL` (now `skatelike-4`). A mismatched client fails the
 handshake and keeps retrying (the menu shows it can't reach the server), and the server
 drops any rider whose protocol isn't its own. Bump `PROTOCOL` whenever the RPCs change,
 and **deploy the server and the web build together**. `server_relay` is off, so clients
@@ -98,7 +101,7 @@ can only talk to the server. If a proxy sits in front, it must pass the
 
 | RPC | Direction | Payload | Server checks |
 |---|---|---|---|
-| `_join` | client → server | room (challenge level id, e.g. `sketchy_1`), skater name | room is a level with `challenge = true`; name is 3 letters + 2 digits; room has fewer than 32 riders |
+| `_join` | client → server | room (challenge level id, e.g. `sketchy_1`), skater name, session (a random int per app run) | room is a level with `challenge = true`; name is 3 letters + 2 digits; room has fewer than 32 riders. Any other connection with the same session is dropped first: the app reconnected (a phone changing network leaves its old connection hanging) |
 | `_leave` | client → server | none | none |
 | `_snapshot` | client → server | `PackedByteArray`: `var_to_bytes` of `Runner.get_state()` | at most 4096 bytes; rider is in a room; at most one per 400 ms. Kept (replacing the last, and the actions held with it) and relayed to the room |
 | `_actions` | client → server | `through` (int, steps), `PackedFloat64Array` of [tick, action, a, b] per action | a multiple of 4 floats, at most 64 actions; rider is in a room; at most one batch per 40 ms; `through` never goes back. Held (up to 512 actions since the snapshot) and relayed to the room |

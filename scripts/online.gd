@@ -38,7 +38,7 @@ signal ghost_actions(id: int, through: int, actions: PackedFloat64Array)
 signal status_changed(status: StringName)
 
 ## WebSocket subprotocol: the ghost-room protocol version.
-const PROTOCOL := "skatelike-3"
+const PROTOCOL := "skatelike-4"
 const DEFAULT_PORT := 8910
 const DEFAULT_URL := "wss://skatelike.com/online"
 ## Batches of actions sent per second.
@@ -51,6 +51,9 @@ const MIN_SNAPSHOT_MS := 400
 const MAX_BATCH_ACTIONS := 64
 const MIN_BATCH_MS := 40
 const MAX_HELD_ACTIONS := 512
+## Riders in a room send SEND_RATE batches a second: one silent this long is gone (e.g.
+## its phone changed network and the old connection hangs) and is dropped (ms).
+const IDLE_MS := 5000
 const RETRY_SECONDS := 3.0
 ## Server main loop rate (frames, i.e. network polls, per second).
 const SERVER_FPS := 60
@@ -60,10 +63,16 @@ var status: StringName = &"off"
 
 ## Client: challenge room joined ("" = none).
 var _room := ""
+## Client: this run of the app. Reconnecting (on another network, say) with the same one
+## tells the server the old connection is gone.
+var _session := randi()
 var _retry_left := 0.0
-## Server: peer id -> {room: String, skater: String, snapshot: PackedByteArray (latest),
-## actions: PackedFloat64Array (since it), through: int, last_snapshot, last_batch: int (ms)}.
+## Server: peer id -> {room: String, skater: String, session: int, snapshot:
+## PackedByteArray (latest), actions: PackedFloat64Array (since it), through: int,
+## last_snapshot, last_batch: int (ms)}.
 var _riders := {}
+## Server: time until the next check for silent riders (s).
+var _idle_check_left := 1.0
 
 
 func _ready() -> void:
@@ -92,7 +101,7 @@ func join(room: String) -> void:
 	if not Profile.online:
 		return
 	if status == &"online":
-		_join.rpc_id(1, _room, Profile.skater_name)
+		_join.rpc_id(1, _room, Profile.skater_name, _session)
 	else:
 		_connect()
 
@@ -138,7 +147,7 @@ func _disconnect() -> void:
 func _on_connected() -> void:
 	# Join first: whoever reacts to going online (Main resending its run) is then in the room.
 	if _room != "":
-		_join.rpc_id(1, _room, Profile.skater_name)
+		_join.rpc_id(1, _room, Profile.skater_name, _session)
 	_set_status(&"online")
 
 
@@ -150,6 +159,7 @@ func _on_lost() -> void:
 
 func _process(delta: float) -> void:
 	if is_server:
+		_drop_idle(delta)
 		return
 	if status != &"offline" or not Profile.online:
 		return
@@ -218,6 +228,22 @@ func _on_rider_connected(id: int) -> void:
 	print("rider %d connected" % id)
 
 
+## Once a second: disconnects riders in a room that have gone silent (they reconnect and
+## rejoin if they're still there).
+func _drop_idle(delta: float) -> void:
+	_idle_check_left -= delta
+	if _idle_check_left > 0.0:
+		return
+	_idle_check_left = 1.0
+	var now := Time.get_ticks_msec()
+	for id in _riders.keys():
+		var rider: Dictionary = _riders[id]
+		if rider.room != "" and now - rider.last_batch > IDLE_MS:
+			print("rider %d silent: dropped" % id)
+			_leave_room(id)
+			multiplayer.multiplayer_peer.disconnect_peer(id)
+
+
 func _on_rider_disconnected(id: int) -> void:
 	_leave_room(id)
 	_riders.erase(id)
@@ -251,15 +277,23 @@ static func _is_challenge(room: String) -> bool:
 # --- RPCs: client -> server ---------------------------------------------------------
 
 @rpc("any_peer", "call_remote", "reliable")
-func _join(room: String, skater: String) -> void:
+func _join(room: String, skater: String, session: int) -> void:
 	if not is_server:
 		return
 	var id := multiplayer.get_remote_sender_id()
+	# The same app on a new connection: its old one is gone, whatever TCP still thinks.
+	for other in _riders.keys():
+		if other != id and _riders[other].session == session:
+			print("rider %d replaced by %d" % [other, id])
+			_leave_room(other)
+			_riders.erase(other)
+			multiplayer.multiplayer_peer.disconnect_peer(other)
 	if not _is_challenge(room) or not Profile.is_valid(skater) or _room_members(room).size() >= MAX_ROOM:
 		return
 	_leave_room(id)
-	_riders[id] = {room = room, skater = skater, snapshot = PackedByteArray(),
-			actions = PackedFloat64Array(), through = 0, last_snapshot = 0, last_batch = 0}
+	_riders[id] = {room = room, skater = skater, session = session, snapshot = PackedByteArray(),
+			actions = PackedFloat64Array(), through = 0, last_snapshot = 0,
+			last_batch = Time.get_ticks_msec()}
 	for other in _room_members(room):
 		if other != id:
 			_ghost_joined.rpc_id(other, id, skater)

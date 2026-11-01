@@ -18,8 +18,14 @@ extends Node2D
 ## How far behind the newest actions a ghost plays (steps): enough that the next batch
 ## (Online.SEND_RATE a second) is normally in before it's needed.
 @export var delay_steps := 30
-## Ghosts with nothing new for this long are hidden (s).
-@export var stale_time := 3.0
+## A ghost this many delays behind (just started from an older snapshot, or after a
+## stall) jumps straight to delay_steps behind, simulated without being drawn, instead of
+## visibly speeding up to catch up.
+@export var jump_behind := 3.0
+## Riders send Online.SEND_RATE batches a second: a ghost with nothing new for this long
+## is hidden (s), and dropped after forget_time.
+@export var stale_time := 1.0
+@export var forget_time := 10.0
 
 ## Each id: {skater, sim: Runner (null until the first snapshot), snapshots: [state]
 ## not reached yet, actions: [[tick, action, a, b]] not applied yet, through: steps
@@ -37,6 +43,14 @@ func _ready() -> void:
 	Online.ghost_left.connect(_on_left)
 	Online.ghost_snapshot.connect(_on_snapshot)
 	Online.ghost_actions.connect(_on_actions)
+	Online.status_changed.connect(func(status: StringName) -> void:
+		if status != &"online":
+			_clear())  # On rejoining, the room sends everyone again.
+
+
+func _clear() -> void:
+	for id in _ghosts.keys():
+		_on_left(id)
 
 
 func _on_joined(id: int, skater: String) -> void:
@@ -76,21 +90,29 @@ func _on_actions(id: int, through: int, actions: PackedFloat64Array) -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
-	for ghost in _ghosts.values():
-		if ghost.sim != null:
+	for id in _ghosts.keys():
+		var ghost: Dictionary = _ghosts[id]
+		if _clock - ghost.heard > forget_time:
+			_on_left(id)
+		elif ghost.sim != null:
 			_advance(ghost, delta)
 	queue_redraw()
 
 
 ## Plays the ghost on towards delay_steps behind its newest actions: at normal speed when
-## it's there, up to half again faster when further behind, down to half speed when the
-## actions run short, and never past them.
+## it's there, a little faster (up to 1.1x) when behind, slower (down to 0.75x) when the
+## actions run short, and never past them. Far behind, it jumps.
 func _advance(ghost: Dictionary, delta: float) -> void:
 	var behind: float = ghost.through - ghost.play
-	var rate := clampf(0.5 + 0.5 * behind / delay_steps, 0.5, 1.5)
-	ghost.play = minf(ghost.play + delta * Runner.STEP_RATE * rate, ghost.through)
+	var max_steps := Runner.MAX_STEPS * 2
+	if behind > delay_steps * jump_behind:
+		ghost.play = ghost.through - delay_steps
+		max_steps = int(behind) + 1  # Catch up all at once, not drawn on the way.
+	else:
+		var rate := clampf(1.0 + 0.25 * (behind - delay_steps) / delay_steps, 0.75, 1.1)
+		ghost.play = minf(ghost.play + delta * Runner.STEP_RATE * rate, ghost.through)
 	var steps := 0
-	while ghost.sim.tick < int(ghost.play) and steps < Runner.MAX_STEPS * 2:
+	while ghost.sim.tick < int(ghost.play) and steps < max_steps:
 		_check_snapshot(ghost)  # May restart it: a new sim.
 		_apply_actions(ghost)
 		ghost.sim.step()
