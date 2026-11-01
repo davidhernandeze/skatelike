@@ -74,9 +74,10 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 
 - **Catch or slam.** Every pop, and every roll-off of a floor ledge (the nose tips down),
   must be caught before landing, and the board angle must match the ground within
-  `land_tolerance` (15°). Rolling off a platform, or off the end of a rail or slide, needs no
-  catch: the board levels itself to the ground below. You can still catch (for a manual,
-  say). Hopping off a rail with a pop does need a catch.
+  `land_tolerance` (15°). Rolling off a platform, or off the end of a rail or slide, and
+  hopping over a crest need no catch, but the landing rules still hold: the board keeps
+  the angle it left at, so if that's more than 15° off the ground it lands on, catch to
+  fix it. You can also catch for a manual. Hopping off a rail with a pop does need a catch.
 - **Manuals and grinds: hold CATCH.** Holding CATCH readies the balance (the board tilts
   12° toward the held side) for as long as it's held. Whatever the board touches down on
   meanwhile decides the trick: a rail grinds, a platform top slides, the floor is a manual.
@@ -95,9 +96,11 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 - **Crests keep momentum.** Where a ramp goes flat (or flat ground tips downhill) the board
   flies on if its speed across the new surface, `v sin(bend)`, would lift it `launch_min`
   (6 px) or more. Slower, it rolls over.
-  - Hops up to `hop_max` (40 px) need no catch: the board keeps the angle it left the
-    ramp at and settles onto the ground when it lands. The pads stay on the ground layout
-    and the landing is a plain roll. A manual rides over them.
+  - Hops up to `hop_max` (40 px) need no catch, but the board keeps the angle it left
+    the ramp at. Small ones (up to `hop_level_free`, 20 px) land at any angle. Higher, one
+    off a ramp steeper than 15° onto flat needs a catch to land. The
+    pads switch to the air layout (with CATCH) once the lip-pop window is over. A hop
+    rolled through counts as a plain roll. A manual rides over them.
   - Higher launches tip like a roll-off ledge and have to be caught.
   - For `lip_pop_time` (0.12 s) after leaving a lip you can still pop: the pop adds to the
     launch, so popping right at the lip goes highest. A push still going is cut short.

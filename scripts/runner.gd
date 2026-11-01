@@ -116,10 +116,12 @@ class Seg:
 ## Over a crest (a ramp going flat, the top of a hill) the board keeps its momentum and
 ## flies on if that would lift it at least this high (px): (v sin(bend))² / 2g.
 @export var launch_min := 6.0
-## Launches up to this high (px) are hops: no catch needed, the board keeps the angle it
-## left at until the wheels touch down, and a manual carries on over them. Higher ones
-## are caught like a roll-off.
+## Launches up to this high (px) are hops: like a drop-off, no catch needed, but the
+## board keeps the angle it left at and must still land within land_tolerance (catch to
+## fix it). A manual carries on over them. Higher ones are caught like a roll-off.
 @export var hop_max := 40.0
+## Hops up to this high (px) land at any angle, uncaught: too short to need levelling.
+@export var hop_level_free := 20.0
 ## After flying off a crest the lip can still be popped for this long (s): the pop adds
 ## to the launch.
 @export var lip_pop_time := 0.12
@@ -354,8 +356,9 @@ var _pop_nose := false
 var _nollie_spin := false
 ## The board turned past catch_slow_after in this trick.
 var _past_vertical := false
-## The current trick is a hop over a crest (see hop_max).
+## The current trick is a hop over a crest (see hop_max), and how high it goes (px).
 var _hop := false
+var _hop_height := 0.0
 ## Time left to pop off the lip just flown off (s).
 var _lip_t := 0.0
 ## Slam animation progress in seconds; negative when not slamming.
@@ -973,6 +976,7 @@ func _over_crest(next: Seg) -> bool:
 	if height <= hop_max:
 		_drop_off()
 		_hop = true
+		_hop_height = height
 	else:
 		_roll_off()
 	_lip_t = lip_pop_time
@@ -1083,15 +1087,15 @@ func _step_air(delta: float) -> void:
 		_slam("wall")
 
 
-## Rolling off a platform or a rail end: no catch needed, the board levels itself to
-## the ground below. Catching still works (for a manual, say).
+## Rolling off a platform or a rail end: no catch needed, but the board keeps its angle
+## and the landing rules hold, so a catch can be needed to land (or wanted, for a manual).
 func _drop_off() -> void:
 	_grounded = false
 	_take_off()
 	_start_trick(0.0)
 	_needs_catch = false
 	_locked = true
-	_lock_angle = _angle
+	_lock_angle = _ground_angle  # The surface it left (a grind's tilt ends with it).
 	dropped.emit()
 
 
@@ -1123,10 +1127,6 @@ func _touch_down(surface: Seg) -> void:
 
 
 func _step_hold(delta: float) -> void:
-	if not _needs_catch and _catches == 0 and not _hop:
-		var below := _seg_at(_pos.x)
-		if below != null:
-			_lock_angle = below.angle()  # Uncaught drop-off: level out to the ground.
 	if _holding and _catches == 1 and _board_trick == &"":
 		_hold_t += delta
 		if _hold_t >= hold_delay:
@@ -1151,7 +1151,7 @@ func _start_trick(spin: float) -> void:
 
 
 func _update_airborne() -> void:
-	var airborne := _in_trick and not _hop and _lip_t <= 0.0
+	var airborne := _in_trick and _lip_t <= 0.0
 	if airborne != _airborne:
 		_airborne = airborne
 		airborne_changed.emit(_airborne)
@@ -1174,7 +1174,8 @@ func _land(on: Seg, x: float) -> void:
 	_support = on
 	_ground_angle = on.angle()
 	_pos.y = on.y_at(_pos.x)
-	var was_trick := _in_trick and not (_hop and _catches == 0)
+	var was_trick := _in_trick
+	var hop := _hop
 	_in_trick = false
 	_hop = false
 	_locked = false
@@ -1203,8 +1204,13 @@ func _land(on: Seg, x: float) -> void:
 		callout.emit(manual, true)
 		return
 	var error := rad_to_deg(absf(_angle - _ground_angle))
+	if hop and _catches == 0 and _hop_height <= hop_level_free:
+		error = 0.0  # A small hop: the wheels just come down, at any angle.
 	if error > land_tolerance:
 		_slam("off by %d°" % roundi(error))
+		return
+	if hop and _catches == 0:
+		landed.emit("roll")  # Rolled through a hop: nothing to score.
 		return
 	landed.emit(trick + "clean" if trick else "clean")
 	if _popped:
