@@ -204,7 +204,7 @@ func _unfreeze() -> void:
 ## Keeps the box in the half of the play area away from the board.
 func _place_box() -> void:
 	var area := play_area.get_global_rect()
-	var board_y := (runner.get_global_transform() * runner.board_position()).y
+	var board_y := (runner.get_global_transform() * runner.view_position()).y
 	# Zero height at the anchor line, so the box takes its text's height and grows
 	# up from the bottom or down from the top.
 	var low := board_y < area.get_center().y

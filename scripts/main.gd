@@ -33,8 +33,13 @@ var flow: FlowButton
 var ghosts: Node2D
 ## Fingers holding CATCH.
 var _catch_holds := 0
-## Time until the next pose goes to the ghost room (s).
-var _pose_left := 0.0
+## Actions not yet sent to the ghost room: [tick, action, a, b] each.
+var _actions := PackedFloat64Array()
+## The latest snapshot and every action since, to send again on (re)connecting.
+var _last_snapshot: Array = []
+var _actions_since := PackedFloat64Array()
+## Time until the next batch of actions goes to the ghost room (s).
+var _send_left := 0.0
 ## The level as defined (not cut at a checkpoint), for finding checkpoints in it.
 var _level: Dictionary
 ## A checkpoint counts as reached this close before its mark, on the ground (px).
@@ -68,6 +73,10 @@ func _ready() -> void:
 		runner.add_child(ghosts)
 		runner.move_child(ghosts, 0)  # Under the callouts.
 		Online.join(_level.id)
+		runner.acted.connect(func(at_tick: int, action: int, a: float, b: float) -> void:
+			_actions.append_array([at_tick, action, a, b])
+			_actions_since.append_array([at_tick, action, a, b]))
+		Online.status_changed.connect(_on_online_status)
 	if level.get("tutorial", false):
 		runner.forgiving = true  # No slams in the tutorial.
 		tutorial = Tutorial.new()
@@ -99,7 +108,7 @@ func _ready() -> void:
 	runner.slammed.connect(_on_slammed)
 	runner.balance_changed.connect(_on_balance_changed)
 	runner.callout.connect(callouts.show_callout)
-	balance_pad.point_expired.connect(runner.lose_balance)
+	balance_pad.point_expired.connect(func() -> void: runner.act(Runner.Act.LOSE_BALANCE))
 	runner.landed.connect(func(style: String) -> void: last_input.text += "\n" + style)
 	runner.level_cleared.connect(_on_level_cleared)
 	runner.game_over.connect(_on_game_over)
@@ -117,7 +126,7 @@ func _process(delta: float) -> void:
 		_follow_balance_finger()
 	_update_checkpoint()
 	if ghosts:
-		_send_pose(delta)
+		_send_run(delta)
 
 
 ## The finger still down from landing plays the balance trick: sliding over balance
@@ -128,7 +137,7 @@ func _follow_balance_finger() -> void:
 			tutorial.accept(&"balance", Vector2.ZERO)
 		if balance_pop_pad.get_global_rect().has_point(at) and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
 			balance_pop_pad.flash()
-			runner.balance_pop()
+			runner.act(Runner.Act.BALANCE_POP)
 			return
 
 
@@ -141,15 +150,30 @@ func _exit_tree() -> void:
 		Online.leave()
 
 
-## Sends the board pose to the ghost room Online.POSE_RATE times a second.
-func _send_pose(delta: float) -> void:
-	_pose_left -= delta
-	if _pose_left > 0.0:
+## Just connected (late, or again): the room gets the run so far, from the latest
+## snapshot on.
+func _on_online_status(status: StringName) -> void:
+	if status == &"online" and not _last_snapshot.is_empty():
+		Online.send_snapshot(_last_snapshot)
+		Online.send_actions(runner.tick, _actions_since)
+		_actions = PackedFloat64Array()
+		_send_left = 1.0 / Online.SEND_RATE  # The server drops batches sent too close.
+
+
+## Sends the run to the ghost room so others can replay it: the actions, Online.SEND_RATE
+## times a second, and the runner's snapshots as they're taken.
+func _send_run(delta: float) -> void:
+	var snapshot := runner.take_snapshot()
+	if not snapshot.is_empty():
+		_last_snapshot = snapshot
+		_actions_since = _actions.duplicate()  # Not sent yet: they're after it.
+		Online.send_snapshot(snapshot)
+	_send_left -= delta
+	if _send_left > 0.0:
 		return
-	_pose_left = 1.0 / Online.POSE_RATE
-	var pose := runner.board_pose()
-	var at := runner.to_level(pose[0])
-	Online.send_pose(PackedFloat32Array([at.x, at.y, pose[1], pose[2].x, pose[2].y]))
+	_send_left = 1.0 / Online.SEND_RATE
+	Online.send_actions(runner.tick, _actions)
+	_actions = PackedFloat64Array()
 
 
 ## Records the furthest marked segment coming up while riding calmly (on the ground,
@@ -184,18 +208,18 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 		return
 	match action:
 		&"tail_pop":
-			runner.pop(false, -local_pos.y)
+			runner.act(Runner.Act.POP, 0.0, -local_pos.y)
 		&"nose_pop":
-			runner.pop(true, -local_pos.y)
+			runner.act(Runner.Act.POP, 1.0, -local_pos.y)
 		&"push":
-			runner.push(-local_pos.y)
+			runner.act(Runner.Act.PUSH, -local_pos.y)
 		&"balance", &"balance_pop":
 			pass  # Only the finger held from the landing plays these (_follow_balance_finger).
 		&"lock_tilt":
 			_catch_holds += 1
-			runner.press_catch(local_pos.x)
+			runner.act(Runner.Act.PRESS_CATCH, local_pos.x)
 		&"trick":
-			runner.board_trick(trick_pad.trick_at(local_pos))
+			runner.act(Runner.Act.BOARD_TRICK, Runner.TRICKS.find(trick_pad.trick_at(local_pos)))
 		&"flow":
 			flow.activate()
 
@@ -214,8 +238,8 @@ func _on_pad_released(action: StringName) -> void:
 	if action == &"lock_tilt":
 		_catch_holds = maxi(_catch_holds - 1, 0)
 		if _catch_holds == 0:
-			runner.release_catch()
-			runner.end_balance()
+			runner.act(Runner.Act.RELEASE_CATCH)
+			runner.act(Runner.Act.END_BALANCE)
 
 
 ## `speed` in px/s, shown in km/h.

@@ -68,6 +68,11 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   gravity (`gravity`, 3000 px/s² ≈ 2.5 g) stays game-tuned for snappy pops.
 - Grinds use `rail_friction` (0) and `ledge_friction` (8) as factors on c_r. Drag still
   applies.
+- **Fixed steps.** The physics runs in fixed steps of 1/120 s (`Runner.STEP_RATE`), whatever
+  the frame rate, and the drawing blends the last two steps. So a run plays out the same on
+  every device (a 144 Hz phone used to jump about 8% higher than a 30 fps one), and it can
+  be replayed exactly from the player's actions (ghosts). Everything the player does goes
+  through `Runner.act()`, stamped with the step it applies before.
 - The stats show speed in km/h.
 
 ## Trick rules
@@ -279,9 +284,12 @@ or retrying).
 - `scripts/online.gd` (autoload `Online`) is both the WebSocket client and the server. Run
   with `-- --server [--port=8910]`, or export the "Linux Server" preset, for a headless
   relay with one room per challenge.
-- Each client sends its board pose 10 times a second in level coordinates
-  (`Runner.to_level`), so different screen sizes line up. `scripts/ghosts.gd` eases
-  between updates and draws the boards with `Runner.draw_board_at`.
+- Each client sends what the rider does rather than where they are: their actions
+  (`Runner.act`), stamped with the physics step, in batches 10 times a second, and a
+  snapshot of their state (`Runner.get_state`) every second. `scripts/ghosts.gd` runs each
+  ghost as a hidden `Runner` of the same level, started from a snapshot and fed the actions
+  about 0.25 s behind, so it rides exactly like the rider did (flips, catches, slams). When
+  it reaches a later snapshot's step it checks it, and restarts from it if it drifted.
 - Deployment notes, URL selection (same host `/online` on the web), TLS and the protocol
   are in [`docs/online.md`](docs/online.md).
 

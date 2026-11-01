@@ -2,18 +2,25 @@ extends Node
 ## Online ghosts: other skaters riding the same challenge show up as faded boards with
 ## their names. Purely visual, no competition, nothing is simulated on the server.
 ##
+## Riders don't send where they are but what they do: their actions (Runner.act), each
+## stamped with the physics step it applied before, and every second a snapshot of
+## their state (Runner.get_state). Ghosts replay that on their own Runner a little
+## behind, and a snapshot both lets a late joiner start and corrects any drift.
+##
 ## One script for both ends, autoloaded as Online so the RPC path (/root/Online) is the
 ## same on client and server. Transport is WebSocket (the only one web builds have) with
 ## Godot's high-level multiplayer.
 ##
 ## Client (the game): with Profile.online on, starting a challenge joins that challenge's
-## room; Main then sends the board pose POSE_RATE times a second (send_pose), and the
-## poses of everyone else in the room arrive through ghost_moved.
+## room; Main then sends its actions SEND_RATE times a second (send_actions) and its
+## snapshots as they're taken (send_snapshot), and everyone else's arrive through
+## ghost_actions and ghost_snapshot.
 ##
 ## Server: the same project run headless, `godot --headless --path . -- --server
 ## [--port=8910]` (or an export with the dedicated_server feature). It listens for plain
-## WebSocket (put TLS in front of it), keeps one room per challenge, and POSE_RATE times a
-## second sends each rider one message with the room's fresh poses. See docs/online.md.
+## WebSocket (put TLS in front of it), keeps one room per challenge and relays what each
+## rider sends to the rest of the room, keeping their latest snapshot and the actions
+## since, for whoever joins next. See docs/online.md.
 ##
 ## Client and server must be built from the same version of this script (Godot numbers
 ## RPCs by their order). PROTOCOL, the WebSocket subprotocol both sides announce, makes a
@@ -22,23 +29,28 @@ extends Node
 
 signal ghost_joined(id: int, skater: String)
 signal ghost_left(id: int)
-## pose: POSE_SIZE floats, see send_pose().
-signal ghost_moved(id: int, pose: PackedFloat32Array)
+## A rider's state (Runner.get_state()), to start or correct their ghost from.
+signal ghost_snapshot(id: int, state: Array)
+## A rider's actions as [tick, action, a, b] each (see Runner.act()); every action before
+## step `through` has now been sent.
+signal ghost_actions(id: int, through: int, actions: PackedFloat64Array)
 ## &"off", &"connecting", &"online" or &"offline" (failed or lost; retried while online is on).
 signal status_changed(status: StringName)
 
 ## WebSocket subprotocol: the ghost-room protocol version.
-const PROTOCOL := "skatelike-2"
+const PROTOCOL := "skatelike-3"
 const DEFAULT_PORT := 8910
 const DEFAULT_URL := "wss://skatelike.com/online"
-## level x, level y, angle, scale x, scale y (see Runner.board_pose and to_level).
-const POSE_SIZE := 5
-## Poses per second: sent by each client, and batched out by the server.
-const POSE_RATE := 10.0
-## Server limits: riders per room, and the shortest time between accepted poses per rider
-## (a little under 1 / POSE_RATE, for jitter).
+## Batches of actions sent per second.
+const SEND_RATE := 10.0
+## Server limits: riders per room; per rider, the biggest snapshot and action batch, the
+## shortest time between them, and the most actions kept since the last snapshot.
 const MAX_ROOM := 32
-const MIN_POSE_INTERVAL_MS := 70
+const MAX_SNAPSHOT_BYTES := 4096
+const MIN_SNAPSHOT_MS := 400
+const MAX_BATCH_ACTIONS := 64
+const MIN_BATCH_MS := 40
+const MAX_HELD_ACTIONS := 512
 const RETRY_SECONDS := 3.0
 ## Server main loop rate (frames, i.e. network polls, per second).
 const SERVER_FPS := 60
@@ -49,11 +61,9 @@ var status: StringName = &"off"
 ## Client: challenge room joined ("" = none).
 var _room := ""
 var _retry_left := 0.0
-## Server: peer id -> {room: String, skater: String, last_pose: int (ms),
-## pose: PackedFloat32Array (latest), fresh: bool (not broadcast yet)}.
+## Server: peer id -> {room: String, skater: String, snapshot: PackedByteArray (latest),
+## actions: PackedFloat64Array (since it), through: int, last_snapshot, last_batch: int (ms)}.
 var _riders := {}
-## Server: time until the next pose broadcast (s).
-var _broadcast_left := 0.0
 
 
 func _ready() -> void:
@@ -93,10 +103,16 @@ func leave() -> void:
 	_room = ""
 
 
-## Sends this rider's pose to the room: Runner.to_level(center), angle, scale.
-func send_pose(pose: PackedFloat32Array) -> void:
+## Sends this rider's state to the room (Runner.get_state()).
+func send_snapshot(state: Array) -> void:
 	if status == &"online" and _room != "":
-		_pose.rpc_id(1, pose)
+		_snapshot.rpc_id(1, var_to_bytes(state))
+
+
+## Sends this rider's actions to the room: all of them before step `through`.
+func send_actions(through: int, actions: PackedFloat64Array) -> void:
+	if status == &"online" and _room != "":
+		_actions.rpc_id(1, through, actions)
 
 
 func _connect() -> void:
@@ -120,9 +136,10 @@ func _disconnect() -> void:
 
 
 func _on_connected() -> void:
-	_set_status(&"online")
+	# Join first: whoever reacts to going online (Main resending its run) is then in the room.
 	if _room != "":
 		_join.rpc_id(1, _room, Profile.skater_name)
+	_set_status(&"online")
 
 
 func _on_lost() -> void:
@@ -133,7 +150,6 @@ func _on_lost() -> void:
 
 func _process(delta: float) -> void:
 	if is_server:
-		_step_broadcast(delta)
 		return
 	if status != &"offline" or not Profile.online:
 		return
@@ -182,7 +198,7 @@ func _start_server() -> void:
 		return
 	multiplayer.multiplayer_peer = peer
 	multiplayer.server_relay = false  # Clients only ever talk to the server.
-	# Headless, the main loop would spin as fast as it can; poses arrive POSE_RATE times
+	# Headless, the main loop would spin as fast as it can; batches arrive SEND_RATE times
 	# a second, so polling at SERVER_FPS keeps latency low at a fraction of the CPU.
 	Engine.max_fps = SERVER_FPS
 	multiplayer.peer_connected.connect(_on_rider_connected)
@@ -200,36 +216,6 @@ func _on_rider_connected(id: int) -> void:
 		peer.disconnect_peer(id)
 		return
 	print("rider %d connected" % id)
-
-
-## Sends each rider, POSE_RATE times a second, one message with the poses that came in
-## from the others in their room since the last one. Nothing when nothing is new.
-func _step_broadcast(delta: float) -> void:
-	_broadcast_left -= delta
-	if _broadcast_left > 0.0:
-		return
-	_broadcast_left += 1.0 / POSE_RATE
-	if _broadcast_left < 0.0:
-		_broadcast_left = 1.0 / POSE_RATE  # Fell behind: don't burst.
-	var fresh_by_room := {}
-	for id in _riders:
-		var rider: Dictionary = _riders[id]
-		if rider.fresh and rider.room != "":
-			rider.fresh = false
-			if not fresh_by_room.has(rider.room):
-				fresh_by_room[rider.room] = []
-			fresh_by_room[rider.room].append(id)
-	for room in fresh_by_room:
-		var fresh: Array = fresh_by_room[room]
-		for member in _room_members(room):
-			var ids := PackedInt32Array()
-			var poses := PackedFloat32Array()
-			for id in fresh:
-				if id != member:
-					ids.append(id)
-					poses.append_array(_riders[id].pose)
-			if not ids.is_empty():
-				_ghost_poses.rpc_id(member, ids, poses)
 
 
 func _on_rider_disconnected(id: int) -> void:
@@ -272,11 +258,17 @@ func _join(room: String, skater: String) -> void:
 	if not _is_challenge(room) or not Profile.is_valid(skater) or _room_members(room).size() >= MAX_ROOM:
 		return
 	_leave_room(id)
-	_riders[id] = {room = room, skater = skater, last_pose = 0, pose = PackedFloat32Array(), fresh = false}
+	_riders[id] = {room = room, skater = skater, snapshot = PackedByteArray(),
+			actions = PackedFloat64Array(), through = 0, last_snapshot = 0, last_batch = 0}
 	for other in _room_members(room):
 		if other != id:
 			_ghost_joined.rpc_id(other, id, skater)
-			_ghost_joined.rpc_id(id, other, _riders[other].skater)
+			var rider: Dictionary = _riders[other]
+			_ghost_joined.rpc_id(id, other, rider.skater)
+			# Enough to start their ghost mid-run.
+			if not rider.snapshot.is_empty():
+				_ghost_snapshot.rpc_id(id, other, rider.snapshot)
+				_ghost_actions.rpc_id(id, other, rider.through, rider.actions)
 	print("rider %d (%s) joined %s: %d riding" % [id, skater, room, _room_members(room).size()])
 
 
@@ -286,19 +278,43 @@ func _leave() -> void:
 		_leave_room(multiplayer.get_remote_sender_id())
 
 
-@rpc("any_peer", "call_remote", "unreliable_ordered")
-func _pose(pose: PackedFloat32Array) -> void:
-	if not is_server or pose.size() != POSE_SIZE:
+@rpc("any_peer", "call_remote", "reliable")
+func _snapshot(state: PackedByteArray) -> void:
+	if not is_server or state.size() > MAX_SNAPSHOT_BYTES:
 		return
 	var id := multiplayer.get_remote_sender_id()
 	if not _riders.has(id) or _riders[id].room == "":
 		return
+	var rider: Dictionary = _riders[id]
 	var now := Time.get_ticks_msec()
-	if now - _riders[id].last_pose < MIN_POSE_INTERVAL_MS:
+	if now - rider.last_snapshot < MIN_SNAPSHOT_MS:
 		return
-	_riders[id].last_pose = now
-	_riders[id].pose = pose
-	_riders[id].fresh = true  # Goes out with the next broadcast.
+	rider.last_snapshot = now
+	rider.snapshot = state
+	rider.actions = PackedFloat64Array()  # Older ones aren't needed to start from it.
+	for other in _room_members(rider.room):
+		if other != id:
+			_ghost_snapshot.rpc_id(other, id, state)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _actions(through: int, actions: PackedFloat64Array) -> void:
+	if not is_server or actions.size() % 4 != 0 or actions.size() > MAX_BATCH_ACTIONS * 4:
+		return
+	var id := multiplayer.get_remote_sender_id()
+	if not _riders.has(id) or _riders[id].room == "":
+		return
+	var rider: Dictionary = _riders[id]
+	var now := Time.get_ticks_msec()
+	if now - rider.last_batch < MIN_BATCH_MS or through < rider.through:
+		return
+	rider.last_batch = now
+	rider.through = through
+	if rider.actions.size() + actions.size() <= MAX_HELD_ACTIONS * 4:
+		rider.actions.append_array(actions)
+	for other in _room_members(rider.room):
+		if other != id:
+			_ghost_actions.rpc_id(other, id, through, actions)
 
 
 # --- RPCs: server -> client ---------------------------------------------------------
@@ -313,10 +329,13 @@ func _ghost_left(id: int) -> void:
 	ghost_left.emit(id)
 
 
-## A batch of poses: ids[i]'s pose is poses[i * POSE_SIZE] onwards.
-@rpc("authority", "call_remote", "unreliable_ordered")
-func _ghost_poses(ids: PackedInt32Array, poses: PackedFloat32Array) -> void:
-	if poses.size() != ids.size() * POSE_SIZE:
-		return
-	for i in ids.size():
-		ghost_moved.emit(ids[i], poses.slice(i * POSE_SIZE, (i + 1) * POSE_SIZE))
+@rpc("authority", "call_remote", "reliable")
+func _ghost_snapshot(id: int, state: PackedByteArray) -> void:
+	var decoded = bytes_to_var(state)  # Never objects: only plain values come through.
+	if decoded is Array:
+		ghost_snapshot.emit(id, decoded)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _ghost_actions(id: int, through: int, actions: PackedFloat64Array) -> void:
+	ghost_actions.emit(id, through, actions)

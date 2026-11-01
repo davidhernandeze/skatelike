@@ -50,6 +50,31 @@ signal callout(text: String, sustained: bool)
 ## A balance trick started or ended: &"manual", &"grind", &"fifty" (a 50-50 grind) or
 ## &"" (none).
 signal balance_changed(mode: StringName)
+## The player did `action` (Act) with arguments a and b, applied before step `at_tick`.
+## Replaying the same actions at the same ticks plays the run out the same (ghosts).
+signal acted(at_tick: int, action: int, a: float, b: float)
+
+## Everything the player can do, as recorded and replayed: see act().
+enum Act { POP, PUSH, PRESS_CATCH, RELEASE_CATCH, BOARD_TRICK, BALANCE_POP, END_BALANCE, LOSE_BALANCE }
+const TRICKS: Array[StringName] = [&"kickflip", &"heelflip", &"shuvit", &"front shuvit"]
+## Physics runs in fixed steps, so a run plays out the same at any frame rate and on any
+## device, and can be replayed from its actions; drawing blends between steps.
+const STEP_RATE := 120
+const STEP := 1.0 / STEP_RATE
+## At most this many steps per frame; a longer stall just slows the game down.
+const MAX_STEPS := 12
+## A snapshot of the state is kept every this many steps (see get_state()).
+const SNAPSHOT_STEPS := 120
+## The state a snapshot holds (besides the play area and the surfaces ridden).
+const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &"_distance",
+	&"_score", &"_pos", &"_velocity_y", &"_grounded", &"_ground_angle", &"_in_trick",
+	&"_airborne", &"_angle", &"_angular_velocity", &"_locked", &"_lock_angle",
+	&"_first_lock_angle", &"_catches", &"_holding", &"_hold_t", &"_hold_offset",
+	&"_needs_catch", &"_manual_dir", &"_riding_manual", &"_fifty", &"_balance_tilt",
+	&"_from_rail", &"_board_trick", &"_board_trick_left", &"_slide", &"_board_trick_done",
+	&"_board_trick_late", &"_popped", &"_pop_nose", &"_nollie_spin", &"_past_vertical",
+	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
+	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue"]
 
 ## A straight surface from (x0, y0) to (x1, y1): floor (solid below), the top of a
 ## platform (solid only from above) or a rail.
@@ -282,6 +307,26 @@ const WHEEL_Y := 7.0
 const WHEEL_R := 7.0
 
 var _area := Vector2.ZERO
+## Steps run so far.
+var tick := 0
+## Stepped by its owner with step() instead of by frames (a ghost's simulation).
+var manual := false
+## Time not yet stepped (s).
+var _acc := 0.0
+## State after the step before the last one, and the blend of it with the last one
+## that's drawn this frame.
+var _prev_pos := Vector2.ZERO
+var _prev_angle := 0.0
+var _prev_distance := 0.0
+var _prev_cam := 0.0
+var _view_pos := Vector2.ZERO
+var _view_angle := 0.0
+var _view_dx := 0.0
+var _view_cam := 0.0
+## Snapshot taken at the latest multiple of SNAPSHOT_STEPS, not yet collected.
+var _snapshot: Array = []
+## Random terrain, seeded per level so it comes out the same for everyone.
+var _rng := RandomNumberGenerator.new()
 ## Top of the view in this node's coordinates (the node is moved up by it).
 var _cam := 0.0
 ## How fast the view is moving down (px/s).
@@ -418,6 +463,7 @@ func configure(level: Dictionary) -> void:
 		_segments.append(segment)
 	_random_left = level.get("random", 0)
 	max_fall = level.get("max_fall", max_fall)
+	_rng.seed = hash(level.get("id", ""))
 
 
 func setup(area: Vector2) -> void:
@@ -437,6 +483,8 @@ func setup(area: Vector2) -> void:
 	for segment in _segments:
 		_length += segment.width + segment.get("gap", 0.0) if segment is Dictionary else segment.x
 	_fill_platforms()
+	_settle_view()
+	_snapshot = get_state()
 
 
 func can_pop() -> bool:
@@ -474,9 +522,15 @@ func progress() -> float:
 	return 1.0 if _cleared else clampf(minf(_distance, _slam_distance) / _length, 0.0, 0.99)
 
 
-## How far the level has scrolled in all (px), for things pinned to a spot in it.
+## How far the level has scrolled in all as drawn this frame (px), for things pinned to
+## a spot in it.
 func scrolled() -> float:
-	return _distance
+	return _distance - _view_dx
+
+
+## The board's position as drawn this frame (between the last two steps).
+func view_position() -> Vector2:
+	return _view_pos
 
 
 ## Bottom center of the board, in this node's coordinates.
@@ -697,6 +751,155 @@ func _trick_prefix() -> String:
 
 
 func _process(delta: float) -> void:
+	if manual:
+		return
+	_acc += delta
+	var steps := 0
+	while _acc >= STEP:
+		_acc -= STEP
+		step()
+		steps += 1
+		if steps >= MAX_STEPS:
+			_acc = 0.0
+			break
+	set_view(_acc / STEP)
+
+
+## Runs one fixed step of the game.
+func step() -> void:
+	_prev_pos = _pos
+	_prev_angle = _angle
+	_prev_distance = _distance
+	_prev_cam = _cam
+	_step(STEP)
+	tick += 1
+	if tick % SNAPSHOT_STEPS == 0:
+		_snapshot = get_state()
+
+
+## Draws the game `alpha` of the way from the step before the last to the last.
+func set_view(alpha: float) -> void:
+	_view_pos = _prev_pos.lerp(_pos, alpha)
+	_view_angle = lerpf(_prev_angle, _angle, alpha)
+	_view_dx = (1.0 - alpha) * (_distance - _prev_distance)
+	_view_cam = lerpf(_prev_cam, _cam, alpha)
+	position.y = -_view_cam
+	queue_redraw()
+
+
+## Draws the latest step as it is (no blend with the one before).
+func _settle_view() -> void:
+	_prev_pos = _pos
+	_prev_angle = _angle
+	_prev_distance = _distance
+	_prev_cam = _cam
+	set_view(1.0)
+
+
+## The latest snapshot (see get_state()) if it hasn't been collected yet, else [].
+func take_snapshot() -> Array:
+	var taken := _snapshot
+	_snapshot = []
+	return taken
+
+
+## Does what the player did (Act) and reports it (acted), for ghosts to replay: a is
+## the pop side (1 = nose), the press offset or the board trick (index in TRICKS); b the
+## pop strength. Push strength is a.
+func act(action: int, a := 0.0, b := 0.0) -> void:
+	acted.emit(tick, action, a, b)
+	match action:
+		Act.POP:
+			pop(a > 0.5, b)
+		Act.PUSH:
+			push(a)
+		Act.PRESS_CATCH:
+			press_catch(a)
+		Act.RELEASE_CATCH:
+			release_catch()
+		Act.BOARD_TRICK:
+			board_trick(TRICKS[clampi(int(a), 0, TRICKS.size() - 1)])
+		Act.BALANCE_POP:
+			balance_pop()
+		Act.END_BALANCE:
+			end_balance()
+		Act.LOSE_BALANCE:
+			lose_balance()
+
+
+## Everything needed to carry on from this step: [play area, STATE values..., the
+## surface ridden and the rail or ledge ground, as [x0, y0, x1, y1] from the level's
+## start (or null)]. Restore it with set_state() on a fresh runner of the same level.
+func get_state() -> Array:
+	var state: Array = [_area]
+	for name: StringName in STATE:
+		state.append(get(name))
+	state.append(_surface_key(_support))
+	state.append(_surface_key(_rail))
+	return state
+
+
+## Restores get_state()'s `state` on a runner just configured for the same level (not
+## set up yet): lays the level out for that play area and scrolls it to where the
+## state was.
+func set_state(state: Array) -> void:
+	setup(state[0])
+	var values := state.slice(1, 1 + STATE.size())
+	_scroll(values[STATE.find(&"_distance")])
+	for i in STATE.size():
+		if STATE[i] == &"_push_queue":
+			_push_queue.assign(values[i])
+		else:
+			set(STATE[i], values[i])
+	_support = _find_surface(state[-2], _segs + _ledges)
+	_rail = _find_surface(state[-1], _rails + _ledges)
+	if _support == null:
+		_support = _seg_at(_pos.x)
+	_settle_view()
+
+
+## Whether `state` (from get_state()) is this one, within rounding.
+func matches_state(state: Array) -> bool:
+	var mine := get_state()
+	if mine.size() != state.size():
+		return false
+	for i in mine.size():
+		var a = mine[i]
+		var b = state[i]
+		if typeof(a) != typeof(b):
+			return false
+		match typeof(a):
+			TYPE_FLOAT:
+				if absf(a - b) > 0.01 and not (is_inf(a) and is_inf(b)):
+					return false
+			TYPE_VECTOR2, TYPE_VECTOR4:
+				if not (a - b).is_zero_approx() and (a - b).length() > 0.01:
+					return false
+			TYPE_ARRAY:
+				if a.size() != b.size():
+					return false
+			_:
+				if a != b:
+					return false
+	return true
+
+
+func _surface_key(s: Seg) -> Variant:
+	if s == null:
+		return null
+	return Vector4(s.x0 + _distance, s.y0, s.x1 + _distance, s.y1)
+
+
+func _find_surface(key: Variant, among: Array) -> Seg:
+	if key == null:
+		return null
+	for s: Seg in among:
+		if (_surface_key(s) - key).length() < 0.5:
+			return s
+	return null
+
+
+func _step(delta: float) -> void:
 	if _slam_t >= 0.0:
 		_step_slam(delta)
 		return
@@ -721,16 +924,7 @@ func _process(delta: float) -> void:
 		_score = score
 		score_changed.emit(_score)
 
-	_shift_world(dx)
-	while _segs.size() > 1 and _segs[0].x1 < -100.0 and _segs[0] != _support:
-		_segs.pop_front()
-	while not _rails.is_empty() and _rails[0].x1 < -100.0 and _rails[0] != _rail:
-		_rails.pop_front()
-	while not _platforms.is_empty() and _platforms[0].top.back().x1 < -100.0 \
-			and not (_support in _platforms[0].top) and not (_rail in _platforms[0].top):
-		for ledge in _platforms.pop_front().top:
-			_ledges.erase(ledge)
-	_fill_platforms()
+	_scroll(dx)
 
 	if _rail != null:
 		_step_grind()
@@ -756,7 +950,6 @@ func _process(delta: float) -> void:
 	if _grounded and not _in_trick and _pos.x >= _goal_x:
 		_cleared = true
 		level_cleared.emit()
-	queue_redraw()
 
 
 ## Moves the view so the floor under the board stays inside camera_band (e.g. down a
@@ -774,6 +967,21 @@ func _ground_ahead(dist: float) -> float:
 			return s.y1
 		s = next
 	return s.y_at(x)
+
+
+## Scrolls the level left by dx (px), dropping what's gone off the left and adding
+## what comes in on the right.
+func _scroll(dx: float) -> void:
+	_shift_world(dx)
+	while _segs.size() > 1 and _segs[0].x1 < -100.0 and _segs[0] != _support:
+		_segs.pop_front()
+	while not _rails.is_empty() and _rails[0].x1 < -100.0 and _rails[0] != _rail:
+		_rails.pop_front()
+	while not _platforms.is_empty() and _platforms[0].top.back().x1 < -100.0 \
+			and not (_support in _platforms[0].top) and not (_rail in _platforms[0].top):
+		for ledge in _platforms.pop_front().top:
+			_ledges.erase(ledge)
+	_fill_platforms()
 
 
 ## Scrolls the level left by dx (px) under the board.
@@ -843,7 +1051,6 @@ func _follow_ground(delta: float) -> void:
 	if held != cam:
 		_cam_v = (held - _cam) / delta
 	_cam = held
-	position.y = -_cam
 
 
 ## Integrates the speed along the surface for one frame (see the Physics group).
@@ -1374,7 +1581,7 @@ func _append_random_platform() -> void:
 	var top := _area.y * 0.35
 	var bottom := _area.y * 0.85
 	var max_rise := minf(step_up.y, jump_velocity * jump_velocity / (2.0 * gravity) * 0.6)
-	var up := randf() < step_up_chance
+	var up := _rng.randf() < step_up_chance
 	# Force the direction near the vertical limits so steps never flatten out.
 	if last_y - step_up.x < top:
 		up = false
@@ -1382,13 +1589,13 @@ func _append_random_platform() -> void:
 		up = true
 	var y := last_y
 	if up:
-		y = maxf(y - randf_range(step_up.x, max_rise), top)
+		y = maxf(y - _rng.randf_range(step_up.x, max_rise), top)
 	else:
-		y = minf(y + randf_range(step_down.x, step_down.y), bottom)
-	var width := randf_range(platform_width.x, platform_width.y)
+		y = minf(y + _rng.randf_range(step_down.x, step_down.y), bottom)
+	var width := _rng.randf_range(platform_width.x, platform_width.y)
 	var rise := 0.0
-	if randf() < slope_chance:
-		rise = tan(deg_to_rad(randf_range(random_slope.x, random_slope.y))) * width
+	if _rng.randf() < slope_chance:
+		rise = tan(deg_to_rad(_rng.randf_range(random_slope.x, random_slope.y))) * width
 		rise = clampf(y + rise, top, bottom) - y
 	_append_platform(width, y - last_y, rise)
 
@@ -1415,7 +1622,7 @@ func _append_platform(width: float, step: float, rise: float, gap := 0.0) -> voi
 	else:
 		_last_arrival_time = 0.0
 	# Random gaps scale with speed so they're measured in time, not pixels.
-	gap += _speed * randf_range(gap_time.x, gap_time.y)
+	gap += _speed * _rng.randf_range(gap_time.x, gap_time.y)
 	var from := Vector2(last.x1 + gap, last.y1 + step)
 	last.next = Seg.new(from, from + Vector2(width, rise))
 	_segs.append(last.next)
@@ -1549,7 +1756,6 @@ func _step_slam(delta: float) -> void:
 	_step_loose(delta)
 	_velocity_y = _body_v.y  # For the view.
 	_follow_ground(delta)
-	queue_redraw()
 	if _slam_t >= slam_duration:
 		_slam_t = -1.0
 		game_over.emit()
@@ -1596,8 +1802,11 @@ func _step_loose(delta: float) -> void:
 
 
 func _draw() -> void:
+	# The level is drawn where it was between the last two steps; the board likewise
+	# (board_pose()).
+	draw_set_transform(Vector2(_view_dx, 0.0))
 	for s in _segs:
-		var bottom := maxf(_cam + _area.y, maxf(s.y0, s.y1) + 1.0)
+		var bottom := maxf(maxf(_cam, _view_cam) + _area.y, maxf(s.y0, s.y1) + 1.0)
 		var points := _surface_line(s)
 		points.append_array([Vector2(s.x1, bottom), Vector2(s.x0, bottom)])
 		# UVs in world space (scrolled by distance travelled) so the texture moves with the ground.
@@ -1610,6 +1819,7 @@ func _draw() -> void:
 	_draw_platforms()
 	_draw_rails()
 	_draw_goal()
+	draw_set_transform(Vector2.ZERO)
 	_draw_board()
 
 
@@ -1718,17 +1928,17 @@ func board_pose() -> Array:
 	# The board is placed so an anchor point in local space sits on a point in the
 	# world: the wheel contact midpoint, or the rolling wheel during a manual.
 	var board_scale := board_size / Vector2(96.0, 28.0)
-	var anchor := _pos
+	var anchor := _view_pos
 	var local_anchor := Vector2(0.0, 14.0)
 	if (_grounded or _rail != null) and _tilt_dir() != 0.0 and _slam_t < 0.0:
 		var wheel := _riding_manual  # Manual (-1) rolls on the back wheel, nose manual (+1) on the front.
-		anchor = _pos + Vector2(wheel * _wheel_offset(), 0.0).rotated(_ground_angle)
+		anchor = _view_pos + Vector2(wheel * _wheel_offset(), 0.0).rotated(_ground_angle)
 		local_anchor = Vector2(wheel * WHEEL_X, 14.0)
 	if _board_trick != &"" and _slam_t < 0.0:
 		var phase := 1.0 - _board_trick_left / trick_time
 		if _board_trick.ends_with("flip"):
 			# Roll around the long axis about the middle of the board.
-			anchor = _pos + (Vector2(0.0, -7.0) * board_scale).rotated(_angle)
+			anchor = _view_pos + (Vector2(0.0, -7.0) * board_scale).rotated(_view_angle)
 			local_anchor = Vector2(0.0, -7.0)
 			board_scale.y *= cos(phase * TAU)
 		else:
@@ -1741,9 +1951,9 @@ func board_pose() -> Array:
 		var k := smoothstep(0.0, 1.0, _slide)
 		board_scale.x *= lerpf(1.0, cos(deg_to_rad(slide_angle)), k)
 		if _rail != null and _rail.ledge:
-			anchor = _pos
+			anchor = _view_pos
 			local_anchor = local_anchor.lerp(Vector2(signf(_riding_manual) * 40.0, -1.0), k)
-	return [anchor - (local_anchor * board_scale).rotated(_angle), _angle, board_scale]
+	return [anchor - (local_anchor * board_scale).rotated(_view_angle), _view_angle, board_scale]
 
 
 ## Draws a board on `canvas` at a pose from board_pose(), faded by `alpha` and tinted
@@ -1764,9 +1974,10 @@ func draw_board_at(canvas: CanvasItem, center: Vector2, angle: float, board_scal
 ## Level coordinates: px from where the level's first segment starts (x) and from the
 ## start platform's height (y). They're the same on every screen size, so ghosts of
 ## other players line up; screen coordinates depend on the play area's size.
+## Both work on what's drawn this frame (between the last two steps).
 func to_level(screen: Vector2) -> Vector2:
-	return Vector2(screen.x + _distance - _origin.x, screen.y - _origin.y)
+	return Vector2(screen.x + _distance - _view_dx - _origin.x, screen.y - _origin.y)
 
 
 func from_level(level: Vector2) -> Vector2:
-	return Vector2(level.x - _distance + _origin.x, level.y + _origin.y)
+	return Vector2(level.x - _distance + _view_dx + _origin.x, level.y + _origin.y)

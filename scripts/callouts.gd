@@ -38,7 +38,7 @@ func slam() -> void:
 	_items.append({
 		text = "slam!", color = slam_color, age = 0.0, life = burst_time * 1.3,
 		tilt = randf_range(-0.2, 0.2), size = font_size + 14, sustained = false, y = 0.0,
-		at = _runner.board_position() + Vector2(0.0, -lift), scrolled = _runner.scrolled(),
+		at = _runner.view_position() + Vector2(0.0, -lift), scrolled = _runner.scrolled(),
 	})
 
 
@@ -59,7 +59,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var board := _runner.board_position()
+	var board := _runner.view_position()
 	for item in _items:
 		var age: float = item.age
 		# Pop in with a little overshoot, then settle.
