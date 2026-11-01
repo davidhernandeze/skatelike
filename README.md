@@ -102,8 +102,9 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
     pads switch to the air layout (with CATCH) once the lip-pop window is over. A hop
     rolled through counts as a plain roll. A manual rides over them.
   - Higher launches tip like a roll-off ledge and have to be caught.
-  - For `lip_pop_time` (0.12 s) after leaving a lip you can still pop: the pop adds to the
-    launch, so popping right at the lip goes highest. A push still going is cut short.
+  - For `lip_pop_time` (0.12 s) after leaving a lip (a crest, a bend too sharp to
+    follow, or the end of a kicker) you can still pop: the pop adds to the launch, so
+    popping right at the lip goes highest. A push still going is cut short.
 - **Platforms** (ledges, boxes, bridges) are only solid from above. You land on or ride along
   their top and pass through their sides.
   - A platform's end drops you off unless it meets floor at the same height. That lets a
@@ -227,6 +228,7 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 | Sketchy #2 | Rail yard: gaps only rails cross (one 1200 px), stair rails, downhill rails over drops |
 | Sketchy #3 | Rooftops: decks and boxes over gaps, islands at different heights, a kicker, high ollies; no rails |
 | Sketchy #4 | Bomb hill: downhills, rail-less stair sets to clear in one ollie, landing ramps, islands, long uphills to push |
+| Vert | Drop into a 3400 px near-vertical wall with a nollie timed to meet it, then a 40° kicker out of the bottom over a 1050 px pit: pop at its lip |
 
 ## Menu
 

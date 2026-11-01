@@ -885,9 +885,11 @@ func _step_pushes(delta: float) -> void:
 
 
 func _step_ground() -> void:
+	# The wheels sit w apart along the surface: only w cos(slope) across, which on a steep
+	# wall is very little.
 	var w := _wheel_offset()
 	# Hand over to the next surface once the back wheel rolls past the end of this one.
-	while _pos.x - w > _support.x1:
+	while _pos.x - w * cos(_support.angle()) > _support.x1:
 		var next := _continuation(_support)
 		if next != null and _over_crest(next):
 			return
@@ -908,7 +910,7 @@ func _step_ground() -> void:
 		if joint == &"step_up" and _support.next.x0 - _support.x1 <= 1.0:
 			_slam("wall")
 			return
-		if _pos.x + w > _support.x1:
+		if _pos.x + w * cos(angle) > _support.x1:
 			if joint == &"too_steep":
 				_slam("too steep")
 				return
@@ -916,8 +918,10 @@ func _step_ground() -> void:
 			# turn its speed forward for a moment before the take-off.
 			if next != null and _crest_height(next) < _launch_height():
 				# Wheels on two surfaces: the board spans the bend.
-				var back := Vector2(_pos.x - w, _support.y_at(_pos.x - w))
-				var front := Vector2(_pos.x + w, next.y_at(_pos.x + w))
+				var back_x := _pos.x - w * cos(angle)
+				var front_x := _pos.x + w * cos(next.angle())
+				var back := Vector2(back_x, _support.y_at(back_x))
+				var front := Vector2(front_x, next.y_at(front_x))
 				angle = (front - back).angle()
 				y = (back.y + front.y) * 0.5
 			# Ledge or launch ahead: the front wheel hangs, the back wheel carries the board.
@@ -926,7 +930,9 @@ func _step_ground() -> void:
 
 
 func _leave_ground() -> void:
-	var lip := _support.next != null and _joint(_support, _support.next) == &"launch"
+	# A lip: a bend too sharp to follow, or a ramp going up that ends (a kicker).
+	var lip := (_support.next != null and _joint(_support, _support.next) == &"launch") \
+			or (not _support.ledge and _support.angle() < 0.0)
 	if is_pushing():
 		if not lip:
 			_slam("pushing")
@@ -1259,7 +1265,9 @@ func _step_rotation(delta: float) -> void:
 	if _grounded or _rail != null:
 		_angular_velocity = 0.0
 		var target := _ground_angle + _balance_tilt  # The angle it touched down at.
-		_angle = lerpf(_angle, target, 1.0 - exp(-land_settle * delta))
+		# Fast through a curve, it turns as quickly as it rolls round it.
+		var settle := maxf(land_settle, _speed / _wheel_offset())
+		_angle = lerpf(_angle, target, 1.0 - exp(-settle * delta))
 	elif _locked:
 		if _past_vertical:
 			_angle = move_toward(_angle, _lock_angle, deg_to_rad(catch_slow_turn) * delta)

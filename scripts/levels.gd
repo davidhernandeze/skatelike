@@ -201,8 +201,11 @@ const LIST := [
 	# near-vertical wall (rolling on just launches off it). A nollie keeps turning nose
 	# down up to nollie_spin_cap while the wall is still below; once a board passes 90°
 	# the catch turns it back slowly (catch_slow_turn), so the catch is timed for it to
-	# meet the wall's angle as it touches down. Then out of the pipe onto the far deck.
-	{id = "vert", name = "Vert", start_y = 0.43, checkpoints = false, challenge = true, segments = [
+	# meet the wall's angle as it touches down. Then a kicker out of the bottom, over a
+	# pit only a pop at its lip clears (about 10 frames, from just before it to
+	# lip_pop_time after), landing on a gentle downhill. max_fall is raised so the
+	# highest of those pops can land.
+	{id = "vert", name = "Vert", start_y = 0.43, checkpoints = false, challenge = true, max_fall = 650, segments = [
 		Vector2(300, 0),
 		Vector3(350, 0, -55),
 		{width = 3400 / tan(deg_to_rad(85.0)), rise = 3400, mark = "vert"},
@@ -210,24 +213,15 @@ const LIST := [
 		Vector3(50, 0, 50 * tan(deg_to_rad(45.0))),
 		Vector3(60, 0, 60 * tan(deg_to_rad(25.0))),
 		Vector3(70, 0, 70 * tan(deg_to_rad(5.0))),
-		Vector2(200, 0),
-		Vector3(70, 0, -70 * tan(deg_to_rad(5.0))),
-		Vector3(60, 0, -60 * tan(deg_to_rad(25.0))),
-		Vector3(50, 0, -50 * tan(deg_to_rad(45.0))),
-		Vector3(200, 0, -200 * tan(deg_to_rad(60.0))),
-		# Rounded over in 5° steps: sharper bends would throw the board off the top.
-		Vector3(18, 0, -18 * tan(deg_to_rad(55.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(50.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(45.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(40.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(35.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(30.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(25.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(20.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(15.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(10.0))),
-		Vector3(18, 0, -18 * tan(deg_to_rad(5.0))),
-		Vector2(600, 0),
+		Vector2(1000, 0),
+		# Kicker out of the bottom: 40° jumps furthest at the 12 m/s the drop gives (steeper
+		# loses too much speed climbing it). Rolling off it falls short: pop at the lip.
+		Vector3(20, 0, -20 * tan(deg_to_rad(15.0))),
+		Vector3(20, 0, -20 * tan(deg_to_rad(30.0))),
+		{width = 20, rise = -20 * tan(deg_to_rad(40.0)), mark = "kicker"},
+		# Landing: gently downhill to soften the impact, still landable caught level.
+		{width = 900, gap = 1050, rise = 900 * tan(deg_to_rad(14.0))},
+		Vector2(400, 0),
 	]},
 ]
 
