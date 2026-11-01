@@ -32,11 +32,13 @@ func show_callout(text: String, sustained := false) -> void:
 	})
 
 
+## "slam!" where the rider fell; it stays there while the loose board tumbles on.
 func slam() -> void:
 	end_sustained()
 	_items.append({
 		text = "slam!", color = slam_color, age = 0.0, life = burst_time * 1.3,
 		tilt = randf_range(-0.2, 0.2), size = font_size + 14, sustained = false, y = 0.0,
+		at = _runner.board_position() + Vector2(0.0, -lift), scrolled = _runner.scrolled(),
 	})
 
 
@@ -64,6 +66,8 @@ func _draw() -> void:
 		var grow := clampf(age / 0.15, 0.0, 1.0)
 		var scale_k := lerpf(0.4, 1.0, grow) + sin(grow * PI) * 0.2
 		var pos := board + Vector2(0.0, -lift)
+		if item.has("at"):
+			pos = item.at - Vector2(_runner.scrolled() - item.scrolled, 0.0)  # Stays put in the level.
 		var alpha := 1.0
 		if item.sustained:
 			# Shake while the trick lasts.

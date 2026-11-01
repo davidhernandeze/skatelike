@@ -95,8 +95,9 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 - **Crests keep momentum.** Where a ramp goes flat (or flat ground tips downhill) the board
   flies on if its speed across the new surface, `v sin(bend)`, would lift it `launch_min`
   (6 px) or more. Slower, it rolls over.
-  - Hops up to `hop_max` (40 px) need no catch: the board levels itself, the pads stay
-    on the ground layout and the landing is a plain roll. A manual rides over them.
+  - Hops up to `hop_max` (40 px) need no catch: the board keeps the angle it left the
+    ramp at and settles onto the ground when it lands. The pads stay on the ground layout
+    and the landing is a plain roll. A manual rides over them.
   - Higher launches tip like a roll-off ledge and have to be caught.
   - For `lip_pop_time` (0.12 s) after leaving a lip you can still pop: the pop adds to the
     launch, so popping right at the lip goes highest. A push still going is cut short.
@@ -132,7 +133,7 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - Grinding again before touching the floor counts as a double grind.
 - **Callouts.** Landed tricks pop up next to the board in the graffiti font: "ollie!",
   "nollie!", "kickflip!", "nollie heelflip!". Manuals, grinds and slides ("5-0 grind!", "tailslide!") stay up and
-  shake for as long as they last. Slams show a red "slam!".
+  shake for as long as they last. Slams show a red "slam!" on the spot where the rider fell.
 - **Flow.** The round FLOW button above the pads is a meter. Landed tricks fill it, and
   harder tricks fill it more:
 
@@ -154,6 +155,14 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   kept across restarts.
 - **Slams.** Other causes: hitting a wall, a transition that's too steep, rolling off a ledge
   while pushing, or stopping.
+  - On a slam the board goes loose for `slam_duration` (1 s) before the restart: it keeps
+    the velocity it had (on a landing, the speed it came down at), tumbles, bounces off
+    and slides along surfaces, and stops against steps. The view follows it.
+- **View.** The view follows the floor under the board up and down, keeping it inside
+  `camera_band`, with a look-ahead that stops at lips and gaps. In the air it frames the
+  board instead (`camera_air_band`). It moves on a critically damped spring
+  (`camera_follow`), and it takes on the board's speed as the board nears an edge of the
+  screen, so long falls and fast rides stay in view without jolts.
 
 ## Tutorial
 
