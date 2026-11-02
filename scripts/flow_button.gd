@@ -4,20 +4,23 @@ extends Pad
 ## and combos faster. Once full, tapping it starts flow state: the game runs in slow
 ## motion for `duration` seconds of real time, so inputs can be made slower.
 ##
-## A combo is a chain of scoring tricks with less than combo_window seconds of plain
-## riding between them (time in the air or balancing doesn't count). Each trick in the
-## chain raises the multiplier by combo_step, up to max_multiplier.
+## A line is a chain of tricks without the wheels coming down in between: each air trick
+## (a board trick, or an ollie/nollie) and each manual, grind or slide landed into joins
+## it, and the n-th one scores n times its value (up to max_multiplier), as does
+## balancing meanwhile. A clean landing (wheels down) adds its trick and closes the line;
+## a slam loses it.
 
 signal tapped
+## The line so far changed: its tricks in order, and how it ended (&"" while going on,
+## &"landed" or &"slammed").
+signal line_changed(tricks: PackedStringArray, ended: StringName)
 
 @export var radius := 56.0
 ## Length of flow state, in real seconds.
 @export var duration := 5.0
 ## Game speed during flow state, as a fraction of the normal speed.
 @export var time_scale := 0.35
-@export var combo_window := 1.2
-@export var combo_step := 0.25
-@export var max_multiplier := 3.0
+@export var max_multiplier := 10.0
 
 @export_group("Meter per trick")
 ## Fractions of a full meter, before the combo multiplier.
@@ -39,8 +42,8 @@ var runner: Runner
 var base_time_scale := 1.0
 
 var _meter := 0.0
-var _combo := 0
-var _since_trick := 0.0
+## The line so far.
+var _line := PackedStringArray()
 ## Real time (ms) when flow state ends; 0 when not in flow.
 var _flow_until := 0
 
@@ -66,8 +69,9 @@ func fill() -> void:
 	_meter = 1.0
 
 
+## The current line's multiplier: its length (at least 1).
 func multiplier() -> float:
-	return minf(1.0 + combo_step * maxi(_combo - 1, 0), max_multiplier)
+	return clampf(_line.size(), 1.0, max_multiplier)
 
 
 ## Starts flow state if the meter is full.
@@ -78,27 +82,36 @@ func activate() -> void:
 	Engine.time_scale = base_time_scale * time_scale
 
 
-## Scores a landing reported by Runner.landed.
-func on_landed(style: String) -> void:
-	var value := 0.0
-	if style.contains("grind") or style.contains("slide"):
-		value = grind_value + (double_bonus if style.begins_with("double") else 0.0)
-	elif style == "to manual":
-		value = 0.0  # A slide running onto the floor: already scored.
-	elif style.contains("manual"):
-		value = manual_value
-	elif style != "roll" and runner._popped:
-		value = pop_value
-	if style.contains("flip") or style.contains("shuvit"):
-		value += board_trick_value + (late_bonus if style.begins_with("late") else 0.0)
-	if value > 0.0:
-		_combo += 1
-		_since_trick = 0.0
-		_gain(value * multiplier())
+## Scores a landing's parts (Runner.line_event): each joins the line and scores at its
+## place in it; the wheels coming down close the line.
+func on_line_event(air: String, balance: String, wheels_down: bool) -> void:
+	if air != "":
+		var value := pop_value
+		if runner._board_trick_done != &"":
+			# Once per flip turn and shuvit half turn: a double kickflip counts twice, a 360
+			# flip three times.
+			value += board_trick_value * runner.board_trick_units() + (late_bonus if air.begins_with("late") else 0.0)
+		_add(air, value)
+	if balance != "":
+		var value := manual_value
+		if balance.contains("grind") or balance.contains("slide"):
+			value = grind_value + (double_bonus if balance.begins_with("double") else 0.0)
+		_add(balance, value)
+	if wheels_down and not _line.is_empty():
+		line_changed.emit(_line, &"landed")
+		_line = PackedStringArray()
+
+
+func _add(trick: String, value: float) -> void:
+	_line.append(trick)
+	_gain(value * multiplier())
+	line_changed.emit(_line, &"")
 
 
 func on_slammed() -> void:
-	_combo = 0
+	if not _line.is_empty():
+		line_changed.emit(_line, &"slammed")
+	_line = PackedStringArray()
 
 
 func _gain(amount: float) -> void:
@@ -129,10 +142,6 @@ func _process(delta: float) -> void:
 	elif runner != null and not get_tree().paused:
 		if runner.is_balancing():
 			_gain((grind_rate if runner.is_grinding() else manual_rate) * multiplier() * delta)
-		elif runner.is_grounded():
-			_since_trick += delta
-			if _since_trick > combo_window:
-				_combo = 0
 	queue_redraw()
 
 
@@ -150,6 +159,6 @@ func _draw() -> void:
 	var font := get_theme_default_font()
 	var text := "FLOW" if full or in_flow() else "%d%%" % floori(_meter * 100.0)
 	draw_string(font, Vector2(0.0, center.y + 9.0), text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 26)
-	if _combo > 1 and not in_flow():
-		draw_string(font, Vector2(0.0, center.y + 34.0), "x%.2f" % multiplier(), HORIZONTAL_ALIGNMENT_CENTER,
+	if _line.size() > 1 and not in_flow():
+		draw_string(font, Vector2(0.0, center.y + 34.0), "x%d" % multiplier(), HORIZONTAL_ALIGNMENT_CENTER,
 				size.x, 18, color.lightened(0.5))

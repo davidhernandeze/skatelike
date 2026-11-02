@@ -106,11 +106,32 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
     goes live, steered from the middle. The pad shows the reference line and the finger.
   - The needle runs only on the player's device; what's recorded for ghosts is the
     outcome (losing the balance), like any other action.
-- **Flips and shuvits.** A board trick must be caught within `trick_time` (0.4 s). Shuvits
-  finish their half turn faster (`shuvit_spin_time`, 0.2 s).
-  - pop → trick → catch = kickflip / heelflip / shuvit / front shuvit
+- **Flips and shuvits.** The board keeps spinning until it's caught: a flip one full turn
+  per `trick_time` (0.4 s), a shuvit half a turn per `shuvit_spin_time` (0.2 s). The catch
+  counts the turns, rounded, at least one: kickflip, double kickflip, triple kickflip;
+  shuvit, 360 shuvit, 540 shuvit (heelflips and front shuvits alike). So a double needs
+  about 0.6 s of spin before the catch: a big pop or a drop.
+  - pop → trick → catch = kickflip / heelflip / shuvit / front shuvit (or more turns)
   - pop → catch → trick → catch = late trick
-  - Landing mid-trick slams.
+  - Landing still spinning slams.
+- **Combos.** Each trick tapped opens (or keeps open) a window of `combo_unit` (0.2 s) more,
+  and tricks tapped while it's open join the combo: flips add flip turns, shuvits add half
+  turns. The board spins the whole combo in one loop, both ways at once, and loops it until
+  caught; the catch counts the loops. The first flip and the first shuvit tapped set which
+  way each goes. Combos still need the catch.
+
+  | Taps | Trick |
+  |---|---|
+  | shuvit + kickflip | varial kickflip |
+  | shuvit ×2 + kickflip | 360 flip |
+  | front shuvit + kickflip | hardflip |
+  | front shuvit + heelflip | varial heelflip |
+  | shuvit + heelflip | inward heelflip |
+  | front shuvit ×2 + heelflip | laser flip |
+  | anything else | built from its parts: "540 shuvit kickflip", "double kickflip" |
+
+  A named combo looped twice is a "double 360 flip". Flow counts each flip turn and shuvit
+  half turn, so a 360 flip earns three times a kickflip's bonus.
 - **Crests keep momentum.** Where a ramp goes flat (or flat ground tips downhill) the board
   flies on if its speed across the new surface, `v sin(bend)`, would lift it `launch_min`
   (6 px) or more. Slower, it rolls over.
@@ -162,13 +183,17 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   | Trick | Meter |
   |---|---|
   | ollie / nollie | 3% |
-  | flip or shuvit | +7% (late: +3% more) |
+  | flip or shuvit | +7% per flip turn or shuvit half turn (late: +3% more) |
   | manual | 5%, then 3% per second balanced |
   | grind or slide | 7% (double: +5%), then 5% per second balanced |
 
-  Tricks chained with less than 1.2 s of plain riding between them make a combo. Each one
-  raises the multiplier by 0.25, up to x3, and the button shows it. A slam resets the
-  combo. When the meter is full, tap the button for flow state: 5 real seconds at 35%
+  **Lines.** Tricks chained without the wheels coming down make a line: each air trick (a
+  board trick, or an ollie/nollie) and each manual, grind or slide landed into joins it,
+  and the n-th one scores n times its value (up to x10), as does balancing meanwhile. So
+  kickflip onto a nosegrind, heelflip out into a nose manual, nollie out is "kickflip, x2
+  nosegrind, x3 heelflip, x4 nose manual, x5 nollie", shown under the score, with the
+  multiplier on the button. A clean landing (or lifting out of a manual or slide) adds its
+  trick and ends the line; a slam loses it (shown in red). When the meter is full, tap the button for flow state: 5 real seconds at 35%
   game speed, with the ring counting down. Everything slows, including trick and balance
   timers, so you can make inputs more slowly. Tuning is on `FlowButton`
   (`scripts/flow_button.gd`).
@@ -347,7 +372,9 @@ scripts/
   pad.gd             a tappable pad (flash, dimming, pie indicator, split label)
   trick_pad.gd       four-sector trick pad that follows the pop side
   callouts.gd        trick onomatopoeias next to the board
-  flow_button.gd     flow meter, combos and slow-motion flow state
+  flow_button.gd     flow meter, lines and slow-motion flow state
+  line_label.gd      the line in progress, under the score
+  balance_meter.gd   the balance needle drawn above the board
   icons.gd           UI symbols (arrows, menu bars, check) drawn as shapes: the web build's
                      font has no glyphs for them and no system fonts to fall back on
   tutorial.gd        tutorial steps: freezes, instructions, pad highlights

@@ -53,6 +53,10 @@ signal balance_changed(mode: StringName)
 ## The player did `action` (Act) with arguments a and b, applied before step `at_tick`.
 ## Replaying the same actions at the same ticks plays the run out the same (ghosts).
 signal acted(at_tick: int, action: int, a: float, b: float)
+## A landing's parts for lines (see FlowButton): the air trick ("kickflip", "nollie", or
+## "" for none), the manual or grind it went into ("" for none), and whether the wheels
+## came down (which ends the line).
+signal line_event(air: String, balance: String, wheels_down: bool)
 
 ## Everything the player can do, as recorded and replayed: see act().
 enum Act { POP, PUSH, PRESS_CATCH, RELEASE_CATCH, BOARD_TRICK, BALANCE_POP, END_BALANCE, LOSE_BALANCE }
@@ -71,7 +75,8 @@ const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &
 	&"_airborne", &"_angle", &"_angular_velocity", &"_locked", &"_lock_angle",
 	&"_first_lock_angle", &"_catches", &"_holding", &"_hold_t", &"_hold_offset",
 	&"_needs_catch", &"_manual_dir", &"_riding_manual", &"_fifty", &"_balance_tilt",
-	&"_from_rail", &"_board_trick", &"_board_trick_left", &"_slide", &"_board_trick_done",
+	&"_from_rail", &"_board_trick", &"_board_trick_t", &"_board_trick_turns", &"_trick_flips", &"_trick_shuvs",
+	&"_trick_flip_kind", &"_trick_shuv_kind", &"_trick_window", &"_slide", &"_board_trick_done",
 	&"_board_trick_late", &"_popped", &"_pop_nose", &"_nollie_spin", &"_past_vertical",
 	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
 	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue"]
@@ -271,10 +276,16 @@ class Seg:
 @export var platform_tint := Color(0.78, 0.76, 0.86)
 
 @export_group("Board tricks")
-## How long a flip or shuvit takes; it must be caught within this time (s).
+## A flip keeps rolling, one turn per trick_time (s), and a shuvit keeps turning, half a
+## turn per shuvit_spin_time (s), until caught; the catch counts the turns (rounded,
+## at least one): a double kickflip, a 360 shuvit. Landing still spinning slams.
 @export var trick_time := 0.4
-## Shuvits finish their half turn in this time (s); the catch window is still trick_time.
 @export var shuvit_spin_time := 0.2
+## Combos: each trick tapped keeps the combo open this much longer (s), and tricks tapped
+## while it's open join it: flips add flip turns, shuvits half turns (two shuvits and a
+## kickflip make a 360 flip). The board spins the whole combo in one cycle, both ways
+## at once, and loops it until caught; the catch counts the loops.
+@export var combo_unit := 0.2
 
 @export_group("Landing")
 ## Allowed difference between the board angle and the ground angle at touchdown (deg).
@@ -385,8 +396,26 @@ var _platforms: Array[Dictionary] = []
 var _ledges: Array[Seg] = []
 ## Board trick in progress: &"kickflip", &"heelflip", &"shuvit", &"front shuvit" or &"".
 var _board_trick := &""
-## Time left to catch the board trick in progress (s).
-var _board_trick_left := 0.0
+## Time the board trick in progress has been spinning (s).
+var _board_trick_t := 0.0
+## Loops of its combo the board trick done (caught) made.
+var _board_trick_turns := 1
+## The combo: flips and shuvit half turns per loop, which way each goes (the first one
+## tapped decides), and how long more tricks can still join it (s).
+var _trick_flips := 0
+var _trick_shuvs := 0
+var _trick_flip_kind := &""
+var _trick_shuv_kind := &""
+var _trick_window := 0.0
+## Combos with their own names: [shuvit kind, degrees, flip kind] -> name.
+const COMBO_NAMES := {
+	[&"shuvit", 180, &"kickflip"]: "varial kickflip",
+	[&"shuvit", 360, &"kickflip"]: "360 flip",
+	[&"front shuvit", 180, &"kickflip"]: "hardflip",
+	[&"front shuvit", 180, &"heelflip"]: "varial heelflip",
+	[&"shuvit", 180, &"heelflip"]: "inward heelflip",
+	[&"front shuvit", 360, &"heelflip"]: "laser flip",
+}
 ## 0..1: how far the board is swung into a slide (eases towards 1 on a ledge, 0 otherwise).
 var _slide := 0.0
 ## Board trick completed (caught) in the current jump, or &"".
@@ -562,10 +591,12 @@ func end_balance() -> void:
 	var rail := _rail
 	_set_balance(0.0)
 	if rail == null:
+		line_event.emit("", "", true)  # Wheels down.
 		return
 	if rail.ledge:
 		_support = rail
 		_grounded = true
+		line_event.emit("", "", true)  # Rolling along the ledge top.
 	else:
 		_from_rail = true
 		_drop_off()
@@ -646,6 +677,8 @@ func lock_tilt(offset: float) -> void:
 	if not _in_trick or _dead:
 		return
 	if _board_trick != &"":
+		_board_trick_turns = maxi(1, roundi(_board_trick_t / _trick_cycle()))
+		_trick_window = 0.0
 		_board_trick_done = _board_trick
 		_board_trick = &""
 		_catches = 1
@@ -708,20 +741,69 @@ func time_to_touchdown(rails := true) -> float:
 	return INF
 
 
+## A board trick can start (after a pop, one per jump), or join the combo still open.
 func can_board_trick() -> bool:
-	return _in_trick and _popped and not _dead and not _grounded \
-			and _board_trick == &"" and _board_trick_done == &"" and _catches < 2
+	if not _in_trick or not _popped or _dead or _grounded or _catches >= 2:
+		return false
+	return (_board_trick == &"" and _board_trick_done == &"") or (_board_trick != &"" and _trick_window > 0.0)
 
 
-## Starts a flip or shuvit (&"kickflip", &"heelflip", &"shuvit", &"front shuvit");
-## it has to be caught within trick_time.
+## Starts a flip or shuvit (&"kickflip", &"heelflip", &"shuvit", &"front shuvit"), or adds
+## it to the combo still open (see combo_unit). It spins until caught.
 func board_trick(kind: StringName) -> void:
 	if not can_board_trick():
 		return
-	_board_trick = kind
-	_board_trick_left = trick_time
-	_board_trick_late = _catches > 0
+	if _board_trick == &"":
+		_trick_flips = 0
+		_trick_shuvs = 0
+		_trick_flip_kind = &""
+		_trick_shuv_kind = &""
+		_trick_window = 0.0
+		_board_trick_t = 0.0
+		_board_trick_turns = 1
+		_board_trick_late = _catches > 0
+	if kind.ends_with("shuvit"):
+		_trick_shuvs += 1
+		if _trick_shuv_kind == &"":
+			_trick_shuv_kind = kind
+	else:
+		_trick_flips += 1
+		if _trick_flip_kind == &"":
+			_trick_flip_kind = kind
+	_trick_window += combo_unit
+	_board_trick = StringName(_combo_name(1))
 	trick_started.emit(_board_trick_name())
+
+
+## Time for one loop of the combo: its flips at trick_time each and its shuvit half
+## turns at shuvit_spin_time each, whichever takes longer (both finish together).
+func _trick_cycle() -> float:
+	return maxf(maxf(_trick_flips * trick_time, _trick_shuvs * shuvit_spin_time), 0.01)
+
+
+## The combo's name over `loops` loops: "kickflip", "double kickflip", "360 shuvit",
+## "360 flip", "double 360 flip", "540 shuvit double kickflip".
+func _combo_name(loops: int) -> String:
+	if loops > 1 and _trick_flips == 1 and _trick_shuvs > 0:
+		var once := _combo_name(1)
+		if once in COMBO_NAMES.values():
+			return ["", "", "double ", "triple ", "quadruple "][mini(loops, 4)] + once  # "double 360 flip"
+	var flips := _trick_flips * loops
+	var degrees := _trick_shuvs * loops * 180
+	var flip := ""
+	if flips > 0:
+		flip = ["", "", "double ", "triple ", "quadruple "][mini(flips, 4)] + _trick_flip_kind
+	if degrees == 0:
+		return flip
+	if flips == 1 and COMBO_NAMES.has([_trick_shuv_kind, degrees, _trick_flip_kind]):
+		return COMBO_NAMES[[_trick_shuv_kind, degrees, _trick_flip_kind]]
+	var shuv := String(_trick_shuv_kind) if degrees == 180 else "%d %s" % [degrees, _trick_shuv_kind]
+	return shuv if flips == 0 else shuv + " " + flip
+
+
+## Flip turns and shuvit half turns of the board trick caught this jump (for scoring).
+func board_trick_units() -> int:
+	return (_trick_flips + _trick_shuvs) * _board_trick_turns
 
 
 ## Board angle for a first catch at offset -1..1 on the catch pad.
@@ -732,9 +814,12 @@ func _tilt_for(offset: float) -> float:
 	return deg_to_rad(t * lock_max_angle)
 
 
-## Name of the current or completed board trick, e.g. "late kickflip".
+## Name of the current or completed board trick, e.g. "late kickflip", with its loops
+## once caught: "double kickflip", "360 shuvit", "360 flip".
 func _board_trick_name() -> String:
-	var kind := _board_trick if _board_trick != &"" else _board_trick_done
+	var kind := String(_board_trick)
+	if _board_trick == &"" and _board_trick_done != &"":
+		kind = _combo_name(_board_trick_turns)
 	return ("late " if _board_trick_late else "") + kind
 
 
@@ -743,6 +828,16 @@ func _pop_callout(trick: String) -> String:
 	if trick == "":
 		return "nollie" if _pop_nose else "ollie"
 	return ("nollie " if _pop_nose else "") + trick
+
+
+## The air part of a landing for lines: the board trick ("kickflip", "nollie 360 flip"),
+## else "ollie" or "nollie" after a pop, else "" (a drop-off or hop).
+func _air_name() -> String:
+	if _board_trick_done != &"":
+		return _pop_callout(_board_trick_name())
+	if _popped:
+		return "nollie" if _pop_nose else "ollie"
+	return ""
 
 
 ## Board trick prefix for a landing name ("kickflip "), or "" without one.
@@ -933,10 +1028,8 @@ func _step(delta: float) -> void:
 		_step_ground()
 	else:
 		if _board_trick != &"":
-			_board_trick_left -= delta
-			if _board_trick_left <= 0.0:
-				_slam(_board_trick + " not caught")
-				return
+			_board_trick_t += delta
+			_trick_window = maxf(_trick_window - delta, 0.0)
 		_lip_t -= delta
 		_step_hold(delta)
 		_step_air(delta)
@@ -1213,6 +1306,7 @@ func _step_grind() -> void:
 			if _fifty:
 				_set_balance(0.0)
 				landed.emit("roll")
+				line_event.emit("", "", true)
 			else:
 				_set_balance(_riding_manual, null, false, _balance_tilt)
 				landed.emit("to manual")
@@ -1402,6 +1496,7 @@ func _land(on: Seg, x: float) -> void:
 	_lip_t = 0.0
 	if not was_trick:
 		landed.emit("roll")
+		line_event.emit("", "", true)
 		return
 	if _board_trick != &"":
 		_slam("landed mid-" + _board_trick)
@@ -1420,6 +1515,7 @@ func _land(on: Seg, x: float) -> void:
 		_set_balance(signf(tilt), null, false, deg_to_rad(tilt))
 		var manual := trick + ("nose manual" if tilt > 0.0 else "manual")
 		landed.emit(manual)
+		line_event.emit(_air_name(), "nose manual" if tilt > 0.0 else "manual", false)
 		callout.emit(manual, true)
 		return
 	var error := rad_to_deg(absf(_angle - _ground_angle))
@@ -1430,8 +1526,10 @@ func _land(on: Seg, x: float) -> void:
 		return
 	if hop and _catches == 0:
 		landed.emit("roll")  # Rolled through a hop: nothing to score.
+		line_event.emit("", "", true)
 		return
 	landed.emit(trick + "clean" if trick else "clean")
+	line_event.emit(_air_name(), "", true)
 	if _popped:
 		callout.emit(_pop_callout(trick.strip_edges()), false)
 
@@ -1450,6 +1548,7 @@ func _start_grind(rail: Seg) -> void:
 		_slam("landed mid-" + _board_trick)
 		return
 	var trick := ("double " if _from_rail else "") + _trick_prefix()
+	var grind := "double " if _from_rail else ""
 	# Named from how the board meets it, whatever side CATCH was held on.
 	var tilt := _tilt_against(_ground_angle)
 	if absf(tilt) > grind_max_angle:
@@ -1458,14 +1557,16 @@ func _start_grind(rail: Seg) -> void:
 	if absf(tilt) <= fifty_band:
 		# 50-50: both trucks on it, board level along it.
 		_set_balance(1.0, rail, true)
-		trick += "50-50 grind"
+		grind += "50-50 grind"
 	else:
 		_set_balance(signf(tilt), rail, false, deg_to_rad(tilt))
 		if rail.ledge:
-			trick += "noseslide" if tilt > 0.0 else "tailslide"
+			grind += "noseslide" if tilt > 0.0 else "tailslide"
 		else:
-			trick += "nosegrind" if tilt > 0.0 else "5-0 grind"
+			grind += "nosegrind" if tilt > 0.0 else "5-0 grind"
+	trick = ("double " if _from_rail else "") + _trick_prefix() + grind.trim_prefix("double ")
 	landed.emit(trick)
+	line_event.emit(_air_name(), grind, false)
 	callout.emit(trick, true)
 
 
@@ -1941,16 +2042,15 @@ func board_pose() -> Array:
 		anchor = _view_pos + Vector2(wheel * _wheel_offset(), 0.0).rotated(_ground_angle)
 		local_anchor = Vector2(wheel * WHEEL_X, 14.0)
 	if _board_trick != &"" and _slam_t < 0.0:
-		var phase := 1.0 - _board_trick_left / trick_time
-		if _board_trick.ends_with("flip"):
-			# Roll around the long axis about the middle of the board.
+		var loop := _board_trick_t / _trick_cycle()
+		if _trick_flips > 0:
+			# Flips roll around the long axis about the middle of the board.
 			anchor = _view_pos + (Vector2(0.0, -7.0) * board_scale).rotated(_view_angle)
 			local_anchor = Vector2(0.0, -7.0)
-			board_scale.y *= cos(phase * TAU)
-		else:
-			# Shuvit: half a turn around the vertical axis, quicker than the catch window.
-			var spin := clampf(phase * trick_time / shuvit_spin_time, 0.0, 1.0)
-			board_scale.x *= cos(spin * PI)
+			board_scale.y *= cos(loop * _trick_flips * TAU)
+		if _trick_shuvs > 0:
+			# Shuvits turn around the vertical axis, half a turn each.
+			board_scale.x *= cos(loop * _trick_shuvs * PI)
 	if _slide > 0.0 and _slam_t < 0.0:
 		# Slide: the board swings across the ledge (seen end-on, so it shortens) and
 		# rests on its tail or nose, with the trucks hanging over the edge.

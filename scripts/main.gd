@@ -65,8 +65,16 @@ func _ready() -> void:
 	flow.base_time_scale = game_speed
 	add_child(flow)
 	flow.tapped.connect(func() -> void: _on_pad_pressed(&"flow", Time.get_ticks_usec(), Vector2.ZERO))
-	runner.landed.connect(flow.on_landed)
+	runner.line_event.connect(flow.on_line_event)
+	var line_label := LineLabel.new()
+	play_area.add_child(line_label)
+	line_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	line_label.offset_top = 84.0
+	line_label.offset_left = 16.0
+	line_label.offset_right = -16.0
+	flow.line_changed.connect(line_label.show_line)
 	runner.slammed.connect(func(_reason: String) -> void: flow.on_slammed())
+	runner.forgiven.connect(func(_reason: String) -> void: flow.on_slammed())  # Line lost.
 	Profile.load_profile()
 	if _level.get("challenge", false) and Profile.online:
 		ghosts = preload("res://scripts/ghosts.gd").new()
