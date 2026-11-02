@@ -108,7 +108,10 @@ func _ready() -> void:
 	runner.slammed.connect(_on_slammed)
 	runner.balance_changed.connect(_on_balance_changed)
 	runner.callout.connect(callouts.show_callout)
-	balance_pad.point_expired.connect(func() -> void: runner.act(Runner.Act.LOSE_BALANCE))
+	balance_pad.fell.connect(func() -> void: runner.act(Runner.Act.LOSE_BALANCE))
+	var meter := BalanceMeter.new()
+	meter.pad = balance_pad
+	runner.add_child(meter)
 	runner.landed.connect(func(style: String) -> void: last_input.text += "\n" + style)
 	runner.level_cleared.connect(_on_level_cleared)
 	runner.game_over.connect(_on_game_over)
@@ -129,16 +132,19 @@ func _process(delta: float) -> void:
 		_send_run(delta)
 
 
-## The finger still down from landing plays the balance trick: sliding over balance
-## points clears them, sliding up into POP pops out. Runs while frozen too.
+## The finger still down from landing plays the balance trick: sliding it left or right
+## steers the balance needle, sliding it up into POP pops out. Runs while frozen too.
 func _follow_balance_finger() -> void:
-	for at: Vector2 in control_panel.touches_of(&"lock_tilt"):
-		if balance_pad.sweep(at) > 0 and tutorial:
-			tutorial.accept(&"balance", Vector2.ZERO)
-		if balance_pop_pad.get_global_rect().has_point(at) and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
-			balance_pop_pad.flash()
-			runner.act(Runner.Act.BALANCE_POP)
-			return
+	var fingers: Array[Vector2] = control_panel.touches_of(&"lock_tilt")
+	if fingers.is_empty():
+		return
+	var at: Vector2 = fingers[0]
+	balance_pad.steer(at.x)
+	if tutorial and balance_pad.finger_centered():
+		tutorial.accept(&"balance", Vector2.ZERO)
+	if balance_pop_pad.get_global_rect().has_point(at) and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
+		balance_pop_pad.flash()
+		runner.act(Runner.Act.BALANCE_POP)
 
 
 func _update_layout() -> void:
@@ -264,7 +270,7 @@ func _on_slammed(reason: String) -> void:
 
 
 ## While a manual or grind is ridden the pads switch to the balance layout: POP (from
-## the end being ridden) over the balance points (harder on 5-0s, nosegrinds and slides).
+## the end being ridden) over the balance strip (harder on 5-0s, nosegrinds and slides).
 func _on_balance_changed(mode: StringName) -> void:
 	var balancing := mode != &""
 	if not balancing:

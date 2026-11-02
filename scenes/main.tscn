@@ -216,5 +216,5 @@ mouse_filter = 2
 script = ExtResource("6_balance")
 action = &"balance"
 color = Color(0.3, 0.8, 0.9, 1)
-label = "BALANCE"
+label = "◀  BALANCE  ▶"
 font_size = 22

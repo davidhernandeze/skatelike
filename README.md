@@ -26,7 +26,7 @@ played with the one finger still down from holding CATCH. New taps on these pads
 | Pad | Action |
 |---|---|
 | POP (top row) | Slide the finger up into it to pop out: the nose for nose tricks (nose manual, nosegrind, noseslide), the tail for tail tricks and 50-50s. A normal pop: catch it. |
-| BALANCE (bottom row, where CATCH was) | Slide the finger onto each balance point before its ring runs out. An expired point while you hold slams. |
+| BALANCE (bottom row, where CATCH was) | Slide the held finger left or right to keep the balance needle (the meter above the board) up. It falling off an end slams. |
 | (lift the finger) | Ends the trick cleanly: a manual puts the wheels down, a grind drops off the rail (no catch needed), a slide keeps rolling along the ledge top. |
 
 **In the air** (after a pop or rolling off a ledge)
@@ -94,7 +94,17 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - Letting go before touchdown just cancels it: no slam. So over a rail you can let the
     rail pass, then press and hold again to land a manual on the floor under it.
 - **Balancing** is one long press, from holding CATCH in the air to lifting the finger:
-  slide it over the balance points, up into POP to pop out, or lift it to finish.
+  slide it left or right to balance, up into POP to pop out, or lift it to finish.
+  - A **meter above the board** shows the balance needle, so the eyes stay on the board.
+    The needle tips away from the middle by itself, faster the further it's gone, with a
+    little random drift, and gets slowly harder the longer it's held (`ramp`). The finger
+    leans it back: finger left pushes it left. Off either end: a slam.
+  - It starts **settling**: the steering reference glides from where the finger landed to
+    the pad's middle while the needle is held up, so you slide the finger to the middle
+    wherever it landed and have room both ways. Once it's there (or after 1 s) the needle
+    goes live, steered from the middle. The pad shows the reference line and the finger.
+  - The needle runs only on the player's device; what's recorded for ghosts is the
+    outcome (losing the balance), like any other action.
 - **Flips and shuvits.** A board trick must be caught within `trick_time` (0.4 s). Shuvits
   finish their half turn faster (`shuvit_spin_time`, 0.2 s).
   - pop → trick → catch = kickflip / heelflip / shuvit / front shuvit
@@ -131,7 +141,7 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
     | past the limit (`grind_max_angle` 27°, floor `manual_max_angle` 20°) | slam | slam | nose/tail strike |
 
     The board keeps the angle it touched down at. A 50-50 uses the normal (manual)
-    balance points and either pop ollies off it. A level catch with a middle hold on a
+    balance and either pop ollies off it. A level catch with a middle hold on a
     flat rail is a 50-50. A slightly tail-down catch with a nose-side hold on an 8°
     downhill rail ends up level with it: also a 50-50.
   - A grind is a manual on the rail or edge, with harder balance settings. On rails it's a
@@ -181,8 +191,8 @@ The first entry in the level menu. Lessons go from riding to balancing to tricks
 building on the last:
 
 1. **Riding:** push, ollie and catch, rolling off a ledge, nollie.
-2. **Manual:** catch, hold CATCH, slide the finger onto the balance points, lift it to
-   finish. This is the first balance lesson because it's on flat ground.
+2. **Manual:** catch, hold CATCH, slide the finger to the middle and balance the needle,
+   lift it to finish. This is the first balance lesson because it's on flat ground.
 3. **Board tricks:** flip or shuvit, the step ups on your own, a late trick.
 4. **Rail:** hold onto the rail (level is a 50-50), balance like the manual, slide up into
    POP to ollie out, catch.
@@ -192,7 +202,7 @@ building on the last:
 At each spot the game freezes, shows the instruction and highlights the pad to use. For
 the hold lessons you press and keep holding CATCH. The game resumes after 0.35 s with your
 finger still down, and "Keep holding" shows if you let go sooner. Balance steps wait for
-the held finger to slide onto a point, into POP, or to lift. Lifting early just ends that
+the held finger to slide to the pad's middle, into POP, or to lift. Lifting early just ends that
 balance and skips the rest of its lesson.
 
 **No slams.** The tutorial runs the Runner in `forgiving` mode: a missed catch, an expired
@@ -212,10 +222,10 @@ picks up at that lesson. A checkpoint counts as reached once you're riding calml
 or clearing it, starts the next run from the beginning.
 
 The freeze pauses the scene tree. Main processes always, while the world and the balance
-points are pausable, so the pads keep taking input. Steps live in `scripts/tutorial.gd` and
+needle are pausable, so the pads keep taking input. Steps live in `scripts/tutorial.gd` and
 trigger on spots marked in the level (`mark = "name"`, see `Runner.marks`; any level's
 marked segments are also its checkpoints) and on board
-state (near the apex, mid-trick, balance points showing).
+state (near the apex, mid-trick, balancing).
 
 ## Levels
 
