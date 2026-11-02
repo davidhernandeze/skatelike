@@ -206,6 +206,12 @@ func _layout_world() -> void:
 func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) -> void:
 	# Pop and push strength come from touch height (top = strongest),
 	# the tilt lock angle from touch x.
+	# During a manual, a second finger on POP pops out too (on grinds only the held one does).
+	if action == &"balance_pop" and runner.is_balancing() and not runner.is_grinding() \
+			and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
+		balance_pop_pad.flash()
+		runner.act(Runner.Act.BALANCE_POP)
+		return
 	if action == &"balance" or action == &"balance_pop":
 		if tutorial:
 			tutorial.hint_balance_tap()

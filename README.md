@@ -94,7 +94,8 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - Letting go before touchdown just cancels it: no slam. So over a rail you can let the
     rail pass, then press and hold again to land a manual on the floor under it.
 - **Balancing** is one long press, from holding CATCH in the air to lifting the finger:
-  slide it left or right to balance, up into POP to pop out, or lift it to finish.
+  slide it left or right to balance, up into POP to pop out, or lift it to finish. In a
+  manual, a tap on POP with another finger pops out too.
   - A **meter above the board** shows the balance needle, so the eyes stay on the board.
     The needle tips away from the middle by itself, faster the further it's gone, with a
     little random drift, and gets slowly harder the longer it's held (`ramp`). The finger
