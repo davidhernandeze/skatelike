@@ -79,10 +79,12 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 
 - **Catch or slam.** Every pop, and every roll-off of a floor ledge (the nose tips down),
   must be caught before landing, and the board angle must match the ground within
-  `land_tolerance` (15°). Rolling off a platform, or off the end of a rail or slide, and
-  hopping over a crest need no catch, but the landing rules still hold: the board keeps
-  the angle it left at, so if that's more than 15° off the ground it lands on, catch to
-  fix it. You can also catch for a manual. Hopping off a rail with a pop does need a catch.
+  `land_tolerance` (15°). Rolling off a platform and hopping over a crest need no catch,
+  but the landing rules still hold: the board keeps the angle it left at, so if that's
+  more than 15° off the ground it lands on, catch to fix it. Leaving a grind (off the end
+  of a rail or slide, or lifting the finger) needs nothing: the board levels out to the
+  ground below by itself. You can still catch for a manual. Hopping off a rail with a pop
+  does need a catch.
 - **Manuals and grinds: hold CATCH.** Holding CATCH readies the balance (the board tilts
   12° toward the held side) for as long as it's held. Whatever the board touches down on
   meanwhile decides the trick: a rail grinds, a platform top slides, the floor is a manual.

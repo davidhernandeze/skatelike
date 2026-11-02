@@ -1300,8 +1300,9 @@ func _step_air(delta: float) -> void:
 		_slam("wall")
 
 
-## Rolling off a platform or a rail end: no catch needed, but the board keeps its angle
-## and the landing rules hold, so a catch can be needed to land (or wanted, for a manual).
+## Rolling off a platform or a rail end: no catch needed. Off a platform the board keeps
+## its angle and the landing rules hold, so a catch can be needed to land (or wanted, for
+## a manual); off a grind (_from_rail) it levels out to the ground below by itself.
 func _drop_off() -> void:
 	_grounded = false
 	_take_off()
@@ -1340,6 +1341,11 @@ func _touch_down(surface: Seg) -> void:
 
 
 func _step_hold(delta: float) -> void:
+	if _from_rail and not _needs_catch and _catches == 0:
+		# Off the end of a grind: the board levels out to the ground below by itself.
+		var below := _seg_at(_pos.x)
+		if below != null:
+			_lock_angle = below.angle()
 	if _holding and _catches == 1 and _board_trick == &"":
 		_hold_t += delta
 		if _hold_t >= hold_delay:
