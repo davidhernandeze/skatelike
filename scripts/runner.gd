@@ -286,6 +286,10 @@ class Seg:
 ## kickflip make a 360 flip). The board spins the whole combo in one cycle, both ways
 ## at once, and loops it until caught; the catch counts the loops.
 @export var combo_unit := 0.2
+## Kicking a trick works against the pop's spin: each tap turns the board's pitch spin
+## around at this fraction of its speed (a kickflip off an ollie brings the nose back
+## down at half the speed it was coming up).
+@export var trick_counter_spin := 0.5
 
 @export_group("Landing")
 ## Allowed difference between the board angle and the ground angle at touchdown (deg).
@@ -771,6 +775,8 @@ func board_trick(kind: StringName) -> void:
 		if _trick_flip_kind == &"":
 			_trick_flip_kind = kind
 	_trick_window += combo_unit
+	_angular_velocity *= -trick_counter_spin
+	_nollie_spin = false  # Turned back, a nollie's spin dies out like any other.
 	_board_trick = StringName(_combo_name(1))
 	trick_started.emit(_board_trick_name())
 

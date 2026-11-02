@@ -114,6 +114,9 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - pop → trick → catch = kickflip / heelflip / shuvit / front shuvit (or more turns)
   - pop → catch → trick → catch = late trick
   - Landing still spinning slams.
+  - Kicking a trick works against the pop's spin: each tap turns the board's pitch spin
+    around at half its speed (`trick_counter_spin`), so a kickflip off an ollie brings
+    the nose back down, and a nollie's spin turns back and dies out.
 - **Combos.** Each trick tapped opens (or keeps open) a window of `combo_unit` (0.2 s) more,
   and tricks tapped while it's open join the combo: flips add flip turns, shuvits add half
   turns. The board spins the whole combo in one loop, both ways at once, and loops it until
