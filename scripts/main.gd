@@ -81,6 +81,8 @@ func _ready() -> void:
 	flow.color = Color(1.0, 0.75, 0.25)
 	flow.runner = runner
 	flow.base_time_scale = game_speed
+	# Free ride levels (not lessons or gaps): flow state without restrictions.
+	flow.unlimited = not _level.has("lesson") and not _level.get("challenge", false)
 	add_child(flow)
 	flow.tapped.connect(func() -> void: _on_pad_pressed(&"flow", Time.get_ticks_usec(), Vector2.ZERO))
 	runner.line_event.connect(flow.on_line_event)

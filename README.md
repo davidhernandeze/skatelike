@@ -297,7 +297,9 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   trick and ends the line; a slam loses it (shown in red). When the meter is full, tap the button for flow state: 5 real seconds at 35%
   game speed, with the ring counting down. Everything slows, including trick and balance
   timers, so you can make inputs more slowly. Tuning is on `FlowButton`
-  (`scripts/flow_button.gd`).
+  (`scripts/flow_button.gd`). On free ride levels (not lessons or gaps) flow has no
+  restrictions (`FlowButton.unlimited`): the button is always full, a tap turns slow motion
+  on for as long as you like, and another tap turns it off.
 - **Stats.** The STATS button next to the menu button shows the speed and a log of recent
   inputs (pop strength, catches, landings, slam reasons). Hidden by default; the choice is
   kept across restarts.

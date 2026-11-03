@@ -40,6 +40,11 @@ signal line_changed(tricks: PackedStringArray, ended: StringName)
 var runner: Runner
 ## Engine.time_scale outside flow state.
 var base_time_scale := 1.0
+## No restrictions (free ride levels): the meter is always full, and a tap turns flow
+## state on for as long as it's wanted, another tap off.
+var unlimited := false
+## In unrestricted flow state (see unlimited).
+var _free_flow := false
 
 var _meter := 0.0
 ## The line so far.
@@ -61,7 +66,7 @@ func is_full() -> bool:
 
 
 func in_flow() -> bool:
-	return _flow_until > 0
+	return _flow_until > 0 or _free_flow
 
 
 ## The current line's multiplier: its length (at least 1).
@@ -84,8 +89,12 @@ func resume() -> void:
 		_held_left = -1
 
 
-## Starts flow state if the meter is full.
+## Starts flow state if the meter is full; unrestricted, turns it on or off.
 func activate() -> void:
+	if unlimited:
+		_free_flow = not _free_flow
+		Engine.time_scale = base_time_scale * (time_scale if _free_flow else 1.0)
+		return
 	if not is_full() or in_flow():
 		return
 	_flow_until = Time.get_ticks_msec() + int(duration * 1000.0)
@@ -144,7 +153,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if in_flow():
+	if unlimited:
+		_meter = 1.0  # Always ready.
+	elif in_flow():
 		var left := _flow_until - Time.get_ticks_msec()
 		_meter = clampf(left / (duration * 1000.0), 0.0, 1.0)
 		if left <= 0:
