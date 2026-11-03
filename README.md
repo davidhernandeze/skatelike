@@ -4,7 +4,8 @@ A portrait mobile skate game prototype made with Godot 4.7. The ground scrolls p
 that stays at a fixed spot on screen. The board keeps its speed on flat ground; you push to
 go faster, pop over steps and off
 ledges, and catch every trick before landing. Everything is drawn in code with basic shapes.
-The only asset is the graffiti font used for trick callouts.
+The only assets are the graffiti font used for trick callouts and the sound effects (see
+Credits).
 
 Live at **https://skatelike.com** (web export, served from the servi2 infra repo).
 
@@ -385,6 +386,7 @@ scripts/
   flow_button.gd     flow meter, lines and slow-motion flow state
   line_label.gd      the line in progress, under the score
   balance_meter.gd   the balance needle drawn above the board
+  sfx.gd             board sounds: pops, catches, landings, slams, rolling and grinding loops
   icons.gd           UI symbols (arrows, menu bars, check) drawn as shapes: the web build's
                      font has no glyphs for them and no system fonts to fall back on
   tutorial.gd        tutorial steps: freezes, instructions, pad highlights
@@ -452,3 +454,12 @@ tools/android-release.sh <server>      # same, then rsync to android.skatelike.c
 The script sets a fresh `version/code` for each build, so every APK installs over the
 previous one. It restores `export_presets.cfg` when it's done. Server-side steps are in
 `docs/skatelike.md` in the infra repo.
+
+## Credits
+
+Sound effects are cut from ["Skateboarding Tricks"](https://freesound.org/people/SoundBiterSFX/sounds/746602/)
+by SoundBiterSFX, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The
+clips in `assets/sfx/` (pop, landings, catch, slam, and the rolling and grinding loops,
+crossfaded to repeat) are trimmed, faded, mixed to mono and normalized from it. The trick
+callout font is Bubblez Graffiti by GGBotNet (SIL Open Font License 1.1, in
+`assets/fonts/`). The menu's Credits page lists both.

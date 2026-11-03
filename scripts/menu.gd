@@ -39,6 +39,8 @@ func _show(new_page: String) -> void:
 			_show_levels(true)
 		"profile":
 			_show_profile()
+		"credits":
+			_show_credits()
 		_ when page.begins_with("board:"):
 			_show_board(page.trim_prefix("board:"))
 		_:
@@ -47,6 +49,7 @@ func _show(new_page: String) -> void:
 			_add_button("Practice", _show.bind("practice"))
 			_add_button("Challenges", _show.bind("challenges"))
 			_add_button("Profile", _show.bind("profile"))
+			_add_button("Credits", _show.bind("credits"))
 
 
 func _show_levels(challenges: bool) -> void:
@@ -248,6 +251,19 @@ func _add_online_switch() -> void:
 
 
 ## Skater name editor: a column per character, with buttons to step through its charset.
+## The assets the game uses and their licenses (CC BY 4.0 asks for the sounds' credit).
+func _show_credits() -> void:
+	_add_back("main")
+	_add_label("Credits", 40, Color(1.0, 0.85, 0.3))
+	for credit in [
+		["Sounds", "\"Skateboarding Tricks\" by SoundBiterSFX\nfreesound.org/s/746602\nCC BY 4.0, cut and mixed for the game"],
+		["Trick callout font", "Bubblez Graffiti by GGBotNet\nSIL Open Font License 1.1"],
+		["Engine", "Godot Engine\nMIT license"],
+	]:
+		_add_label(credit[0], 26, Color(0.75, 0.78, 0.9))
+		_add_label(credit[1], 18, Color(0.6, 0.63, 0.72))
+
+
 func _show_profile() -> void:
 	_add_back("main")
 	_add_label("SKATER NAME", 36, Color(0.75, 0.78, 0.9))

@@ -117,6 +117,9 @@ func _ready() -> void:
 	runner.balance_changed.connect(_on_balance_changed)
 	runner.callout.connect(callouts.show_callout)
 	balance_pad.fell.connect(func() -> void: runner.act(Runner.Act.LOSE_BALANCE))
+	var sfx := Sfx.new()
+	sfx.runner = runner
+	runner.add_child(sfx)
 	var meter := BalanceMeter.new()
 	meter.pad = balance_pad
 	runner.add_child(meter)
