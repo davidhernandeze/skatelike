@@ -358,7 +358,9 @@ below it, so they never hide behind it; hiding it with TIPS restores the normal 
 ## Pause
 
 The pause button (top left) stops the game under a dim full-screen veil with **Home**
-(back to the menu) and **Play** (resume). The game also pauses by itself whenever it loses
+(back to the menu), **Restart** (the level from the start) and **Play** (resume). Next to
+the pause button, on every level, the **restart** button (a circular arrow) starts the
+level over at once. A restart counts the run so far for best progress, like a slam. The game also pauses by itself whenever it loses
 focus: another window on desktop, another tab or app on the web, the app going to the
 background on mobile. It never resumes by itself.
 

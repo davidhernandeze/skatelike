@@ -1,10 +1,12 @@
 class_name PauseMenu
 extends CanvasLayer
-## The pause screen: a dim full-screen veil over the game with PAUSED and two big
-## buttons, Home (back to the menu) and Play (back to the game). It keeps working while
-## the tree is paused; Main pauses and resumes the game around it.
+## The pause screen: a dim full-screen veil over the game with PAUSED and three big
+## buttons, Home (back to the menu), Restart (the level from the start) and Play (back
+## to the game). It keeps working while the tree is paused; Main pauses and resumes the
+## game around it.
 
 signal home
+signal restart
 signal play
 
 const VEIL := Color(0.03, 0.03, 0.06, 0.72)
@@ -34,9 +36,10 @@ func _ready() -> void:
 	column.add_child(title)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 48)
+	row.add_theme_constant_override("separation", 24)
 	column.add_child(row)
 	row.add_child(_button("HOME", Icons.home_texture(96), home))
+	row.add_child(_button("RESTART", Icons.restart_texture(96), restart))
 	row.add_child(_button("PLAY", Icons.triangle_texture(Vector2.RIGHT, 96), play))
 
 
@@ -48,7 +51,7 @@ func _button(text: String, icon: Texture2D, pressed: Signal) -> Button:
 	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 	button.expand_icon = false
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(220, 220)
-	button.add_theme_font_size_override("font_size", 36)
+	button.custom_minimum_size = Vector2(196, 220)
+	button.add_theme_font_size_override("font_size", 30)
 	button.pressed.connect(func() -> void: pressed.emit())
 	return button

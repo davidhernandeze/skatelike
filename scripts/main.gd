@@ -72,6 +72,7 @@ func _ready() -> void:
 	pause_menu = PauseMenu.new()
 	add_child(pause_menu)
 	pause_menu.play.connect(resume)
+	pause_menu.restart.connect(restart)
 	pause_menu.home.connect(func() -> void:
 		get_tree().paused = false
 		_to_menu())
@@ -122,6 +123,13 @@ func _ready() -> void:
 	play_area.resized.connect(_layout_world)
 	control_panel.pad_pressed.connect(_on_pad_pressed)
 	control_panel.pad_released.connect(_on_pad_released)
+	# Restart, next to pause: the level from the start, on every level. (Copied before
+	# pause is connected: a copy takes the connections along.)
+	var restart_button := menu_button.duplicate() as Button
+	restart_button.name = "Restart"
+	restart_button.icon = Icons.restart_texture(32)
+	menu_button.add_sibling(restart_button)
+	restart_button.pressed.connect(restart)
 	menu_button.icon = Icons.pause_texture(32)
 	menu_button.pressed.connect(pause)
 	stats_button.button_pressed = show_stats
@@ -465,5 +473,13 @@ func _to_menu() -> void:
 
 
 func _on_game_over() -> void:
+	Levels.record(Levels.current, runner.progress())
+	get_tree().reload_current_scene.call_deferred()
+
+
+## Starts the level over from the start (the restart button, or Restart on the pause
+## screen). The run so far counts for best progress, as a slam would.
+func restart() -> void:
+	get_tree().paused = false
 	Levels.record(Levels.current, runner.progress())
 	get_tree().reload_current_scene.call_deferred()

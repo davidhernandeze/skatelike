@@ -52,6 +52,28 @@ static func home_texture(size: int, color := Color.WHITE) -> ImageTexture:
 	return _rasterize(size, size, [roof, walls], color)
 
 
+## A circular arrow: the restart symbol. A ring, open at the top right, with an arrowhead
+## on its end pointing round clockwise.
+static func restart_texture(size: int, color := Color.WHITE) -> ImageTexture:
+	var s := float(size)
+	var center := Vector2(s, s) * 0.5
+	var outer := s * 0.4
+	var inner := s * 0.27
+	var ring := PackedVector2Array()
+	var from := deg_to_rad(-60.0)
+	var to := deg_to_rad(230.0)  # Clockwise on screen from upper right round to the top.
+	for i in 25:
+		ring.append(center + Vector2.from_angle(lerpf(from, to, i / 24.0)) * outer)
+	for i in 25:
+		ring.append(center + Vector2.from_angle(lerpf(to, from, i / 24.0)) * inner)
+	# Arrowhead at the ring's start (upper right), pointing back along it (clockwise).
+	var tip_dir := Vector2.from_angle(from - PI * 0.5)
+	var base := center + Vector2.from_angle(from) * (outer + inner) * 0.5
+	var across := Vector2.from_angle(from) * s * 0.2
+	var head := PackedVector2Array([base + across, base - across, base + tip_dir * s * 0.22])
+	return _rasterize(size, size, [ring, head], color)
+
+
 ## A check mark.
 static func check_texture(size: int, color := Color.WHITE) -> ImageTexture:
 	var s := float(size)
