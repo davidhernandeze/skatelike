@@ -30,6 +30,28 @@ static func menu_texture(size: int, color := Color.WHITE) -> ImageTexture:
 	return _rasterize(size, size, shapes, color)
 
 
+## Two vertical bars: the pause symbol.
+static func pause_texture(size: int, color := Color.WHITE) -> ImageTexture:
+	var s := float(size)
+	var shapes := []
+	for x in [0.2, 0.6]:
+		shapes.append(PackedVector2Array([
+			Vector2(x, 0.12) * s, Vector2(x + 0.2, 0.12) * s, Vector2(x + 0.2, 0.88) * s, Vector2(x, 0.88) * s,
+		]))
+	return _rasterize(size, size, shapes, color)
+
+
+## A house: the home symbol.
+static func home_texture(size: int, color := Color.WHITE) -> ImageTexture:
+	var s := float(size)
+	var roof := PackedVector2Array([Vector2(0.5, 0.08) * s, Vector2(0.95, 0.5) * s, Vector2(0.05, 0.5) * s])
+	var walls := PackedVector2Array([
+		Vector2(0.18, 0.46) * s, Vector2(0.82, 0.46) * s, Vector2(0.82, 0.92) * s, Vector2(0.58, 0.92) * s,
+		Vector2(0.58, 0.66) * s, Vector2(0.42, 0.66) * s, Vector2(0.42, 0.92) * s, Vector2(0.18, 0.92) * s,
+	])
+	return _rasterize(size, size, [roof, walls], color)
+
+
 ## A check mark.
 static func check_texture(size: int, color := Color.WHITE) -> ImageTexture:
 	var s := float(size)

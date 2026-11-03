@@ -75,6 +75,15 @@ func _input(event: InputEvent) -> void:
 			return
 
 
+## Lets go of every finger on a pad (each reports its release), e.g. when the game
+## pauses: a lift during the pause would otherwise never be seen.
+func release_all() -> void:
+	var held := _touches.values()
+	_touches.clear()
+	for touch in held:
+		pad_released.emit(touch.action)
+
+
 func _collect_pads(node: Node) -> void:
 	for child in node.get_children():
 		if child is Pad:

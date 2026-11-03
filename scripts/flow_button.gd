@@ -69,6 +69,21 @@ func multiplier() -> float:
 	return clampf(_line.size(), 1.0, max_multiplier)
 
 
+## Flow state lasts real seconds: a pause holds them, and resume() gives them back.
+var _held_left := -1
+
+
+func hold() -> void:
+	if in_flow():
+		_held_left = _flow_until - Time.get_ticks_msec()
+
+
+func resume() -> void:
+	if _held_left >= 0:
+		_flow_until = Time.get_ticks_msec() + _held_left
+		_held_left = -1
+
+
 ## Starts flow state if the meter is full.
 func activate() -> void:
 	if not is_full() or in_flow():

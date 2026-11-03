@@ -29,6 +29,8 @@ static var show_tips := true
 ]
 ## The explanation panel and goal, on lessons only.
 var lesson: Lesson
+## The pause screen (see pause()).
+var pause_menu: PauseMenu
 ## Flow meter and slow-motion button, just above the control panel.
 var flow: FlowButton
 ## Online ghosts and name tags, on challenges with the online switch on.
@@ -55,7 +57,19 @@ func _ready() -> void:
 	if Levels.checkpoint != "":
 		level = Levels.from_checkpoint(_level, Levels.checkpoint)
 	runner.configure(level)
+	# Pausing stops the game (everything under Layout, and the flow button) while Main
+	# keeps the ghost room fed and the pause screen keeps taking input.
+	get_tree().paused = false  # A reload can come from a paused game (e.g. a timer).
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	$Layout.process_mode = Node.PROCESS_MODE_PAUSABLE
+	pause_menu = PauseMenu.new()
+	add_child(pause_menu)
+	pause_menu.play.connect(resume)
+	pause_menu.home.connect(func() -> void:
+		get_tree().paused = false
+		_to_menu())
 	flow = FlowButton.new()
+	flow.process_mode = Node.PROCESS_MODE_PAUSABLE
 	flow.action = &"flow"
 	flow.color = Color(1.0, 0.75, 0.25)
 	flow.runner = runner
@@ -87,8 +101,8 @@ func _ready() -> void:
 	play_area.resized.connect(_layout_world)
 	control_panel.pad_pressed.connect(_on_pad_pressed)
 	control_panel.pad_released.connect(_on_pad_released)
-	menu_button.icon = Icons.menu_texture(32)
-	menu_button.pressed.connect(_to_menu)
+	menu_button.icon = Icons.pause_texture(32)
+	menu_button.pressed.connect(pause)
 	stats_button.button_pressed = show_stats
 	stats_button.toggled.connect(_show_stats)
 	_show_stats(show_stats)
@@ -120,6 +134,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if get_tree().paused:
+		if ghosts:
+			_send_run(delta)  # Empty batches: the room keeps us while paused.
+		return
 	push_pad.set_pie(runner.push_progress(), runner.queued_pushes())
 	for pad in pop_pads:
 		pad.set_enabled(not runner.is_pushing())
@@ -337,7 +355,32 @@ func _on_level_cleared() -> void:
 	_to_menu()
 
 
+## Stops the game under the pause screen. Fingers on the pads are let go (their lifts
+## during the pause would be lost).
+func pause() -> void:
+	if get_tree().paused:
+		return
+	control_panel.release_all()
+	flow.hold()
+	get_tree().paused = true
+	pause_menu.visible = true
+
+
+func resume() -> void:
+	pause_menu.visible = false
+	get_tree().paused = false
+	flow.resume()
+
+
+## Switching away (another window, tab or app) pauses the game; Play resumes it.
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED,
+			NOTIFICATION_WM_WINDOW_FOCUS_OUT] and is_inside_tree() and runner and runner._started:
+		pause()
+
+
 func _to_menu() -> void:
+	get_tree().paused = false
 	get_tree().change_scene_to_file.call_deferred(MENU_SCENE)
 
 

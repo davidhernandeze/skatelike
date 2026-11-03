@@ -242,6 +242,18 @@ tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run b
 | 1 | Pushing: tap PUSH, higher kicks harder, taps line up during a kick, no pops while pushing. Flat ground, then two uphills too steep to coast | reach 25 km/h |
 | 2 | Ollie & catch: TAIL POP (higher pops higher), the board turns nose up until caught, CATCH (middle = level) before landing. Flat ground, then pits 120, 160 and 200 px wide (clear at the start speed) | land 3 ollies |
 
+## Pause
+
+The pause button (top left) stops the game under a dim full-screen veil with **Home**
+(back to the menu) and **Play** (resume). The game also pauses by itself whenever it loses
+focus: another window on desktop, another tab or app on the web, the app going to the
+background on mobile. It never resumes by itself.
+
+Pausing stops everything under `Layout` (the world, sounds, ghosts, the pads) and the
+flow button, whose real-time slow motion is held; Main and the pause screen keep running,
+so the ghost room still gets (empty) action batches and doesn't drop a paused rider.
+Fingers on the pads are let go when it pauses. `scripts/pause_menu.gd`.
+
 ## Checkpoints
 
 Any level with marked segments (`mark = "name"`, see `Runner.marks`) has checkpoints. A
@@ -375,6 +387,7 @@ scripts/
   balance_meter.gd   the balance needle drawn above the board
   sfx.gd             board sounds: pops, catches, landings, slams, rolling and grinding loops
   lesson.gd          a lesson's explanation panel, input demo and goal
+  pause_menu.gd      the pause screen (Home / Play)
   icons.gd           UI symbols (arrows, menu bars, check) drawn as shapes: the web build's
                      font has no glyphs for them and no system fonts to fall back on
   balance_pad.gd     the balance needle for manuals and grinds, steered by the held finger
