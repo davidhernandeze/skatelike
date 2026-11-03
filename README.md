@@ -400,8 +400,7 @@ scripts/
   ghosts.gd          draws other riders' boards and the name tags
   safe_area.gd       keeps UI clear of notches and home indicators
 assets/fonts/
-  BubblezGraffiti-Regular.ttf   callout font by GGBotNet
-  BubblezGraffiti-OFL.txt       its license (SIL Open Font License 1.1; keep it with the font)
+  Graffiti.ttf       callout font, from dafont.com/graffiti.font (author and license not stated)
 docs/
   online.md          online server handoff: running, TLS/URL, protocol
 server/              scoreboard API (Node + Postgres), see server/README.md
@@ -461,5 +460,6 @@ Sound effects are cut from ["Skateboarding Tricks"](https://freesound.org/people
 by SoundBiterSFX, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The
 clips in `assets/sfx/` (pop, landings, catch, slam, and the rolling and grinding loops,
 crossfaded to repeat) are trimmed, faded, mixed to mono and normalized from it. The trick
-callout font is Bubblez Graffiti by GGBotNet (SIL Open Font License 1.1, in
-`assets/fonts/`). The menu's Credits page lists both.
+callout font is "Graffiti" from [dafont.com](https://www.dafont.com/graffiti.font) (in
+`assets/fonts/`): the font names no author and dafont states no license (it's a 1996
+Fontographer font), so its terms of use are unknown. The menu's Credits page lists both.

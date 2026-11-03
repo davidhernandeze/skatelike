@@ -3,7 +3,7 @@ extends Node2D
 ## Runner, so it shares its coordinates. Bursts pop in, float up and fade; sustained
 ## ones (manuals, grinds) follow the board and shake until end_sustained().
 
-@export var font: Font = preload("res://assets/fonts/BubblezGraffiti-Regular.ttf")
+@export var font: Font = preload("res://assets/fonts/Graffiti.ttf")
 ## Manuals, grinds and slams; pop tricks use pop_font_size.
 @export var font_size := 46
 @export var pop_font_size := 38
@@ -82,6 +82,10 @@ func _draw() -> void:
 		var tilt: float = item.tilt + (sin(age * 40.0) * 0.06 if item.sustained else 0.0)
 		var size: int = item.size
 		var width := font.get_string_size(item.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		# Long names are kept on screen: nudged in from the edges (or centered if wider).
+		var half := width * 0.5 * scale_k + 12.0
+		var screen_w := _runner._area.x
+		pos.x = screen_w * 0.5 if half * 2.0 > screen_w else clampf(pos.x, half, screen_w - half)
 		var at := Vector2(-width * 0.5, size * 0.35)
 		draw_set_transform(pos, tilt, Vector2.ONE * scale_k)
 		draw_string_outline(font, at, item.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, roundi(size * 0.22),

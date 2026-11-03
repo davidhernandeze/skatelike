@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://dfsvc54ieqrp0"
-path="res://.godot/imported/BubblezGraffiti-Regular.ttf-7b82ce734d830aa70678064140bc1f8a.fontdata"
+uid="uid://bq5etrubyl0ld"
+path="res://.godot/imported/Graffiti.ttf-c867e70f692e0018fcf8e7e54162758a.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/BubblezGraffiti-Regular.ttf"
-dest_files=["res://.godot/imported/BubblezGraffiti-Regular.ttf-7b82ce734d830aa70678064140bc1f8a.fontdata"]
+source_file="res://assets/fonts/Graffiti.ttf"
+dest_files=["res://.godot/imported/Graffiti.ttf-c867e70f692e0018fcf8e7e54162758a.fontdata"]
 
 [params]
 

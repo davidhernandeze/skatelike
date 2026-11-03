@@ -262,7 +262,7 @@ func _show_credits() -> void:
 	_add_label("Credits", 40, Color(1.0, 0.85, 0.3))
 	for credit in [
 		["Sounds", "\"Skateboarding Tricks\" by SoundBiterSFX\nfreesound.org/s/746602\nCC BY 4.0, cut and mixed for the game"],
-		["Trick callout font", "Bubblez Graffiti by GGBotNet\nSIL Open Font License 1.1"],
+		["Trick callout font", "Graffiti (dafont.com/graffiti.font)\nauthor unknown, license not stated"],
 		["Engine", "Godot Engine\nMIT license"],
 	]:
 		_add_label(credit[0], 26, Color(0.75, 0.78, 0.9))
