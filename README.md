@@ -240,7 +240,26 @@ tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run b
 | # | Lesson | Goal |
 |---|---|---|
 | 1 | Pushing: tap PUSH, higher kicks harder, taps line up during a kick, no pops while pushing. Flat ground, then two uphills too steep to coast | reach 25 km/h |
-| 2 | Ollie & catch: TAIL POP (higher pops higher), the board turns nose up until caught, CATCH (middle = level) before landing. Flat ground, then pits 120, 160 and 200 px wide (clear at the start speed) | land 3 ollies |
+| 2 | Ollie & catch: TAIL POP (higher pops higher), the board turns nose up until caught, CATCH (middle = level) before landing. Pits 120, 160 and 200 px wide | land 3 ollies |
+| 3 | Pop height: low or full pops; step ups of 40 to 130 px need a full pop, early | reach the flag |
+| 4 | Drops: rolling off a ledge tips the nose down (catch it); pop off for more air | reach the flag |
+| 5 | Nollie: NOSE POP, the board turns nose down; the Ollie lesson's pits | land 3 nollies |
+| 6 | Catch angle: CATCH's side tilts the board; gaps onto 23° landing ramps a level catch can't land | reach the flag |
+| 7 | Crests & lips: hops off a ramp's crest, then a kicker over a 340 px gap | reach the flag |
+| 8 | Flip tricks: TRICK after a pop (pop side's column shuvits, the other flips), catch to stop the spin. Long Jump's drops | land a kickflip |
+| 9 | Doubles: the catch counts the turns | land a double kickflip |
+| 10 | Late tricks: catch, trick, catch | land a late trick |
+| 11 | Combo tricks: quick taps join (two shuvits and a kickflip) | land a 360 flip |
+| 12 | Manuals: hold CATCH on a side onto flat, balance the needle, lift to finish | land a manual |
+| 13 | Manual pops: slide into POP or tap it with another finger; that's a line | a line of 3 tricks |
+| 14 | Rails: hold CATCH onto a rail (50-50, 5-0, nosegrind), balance, pop out or ride off. The Rails level | land 2 grinds |
+| 15 | Ledges: slides on platform tops, lift to roll on. The Ledges level | land a slide |
+| 16 | Double grinds: two rails 150 px apart, pop off the first onto the second | land a double grind |
+| 17 | Lines & flow: chain tricks for x2, x3...; FLOW and slow motion | a line of 4 tricks |
+| 18 | Vert: the Vert challenge's ramp, explained | reach the flag |
+
+While the panel shows, the camera keeps the ground (with room for a pop) and the board
+below it, so they never hide behind it; hiding it with TIPS restores the normal framing.
 
 ## Pause
 
@@ -269,6 +288,7 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 
 | Level | What it's for |
 |---|---|
+| Downhill cruise | 30,000 px at 0.7°, where gravity about makes up for rolling resistance and drag: speed holds (3.3 to about 5 m/s over the minute), so you can manual the whole way |
 | Flat | Pushing and riding |
 | Push | Uphill and downhill slopes |
 | Single jump | One step up to pop onto |

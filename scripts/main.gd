@@ -31,6 +31,8 @@ static var show_tips := true
 var lesson: Lesson
 ## The pause screen (see pause()).
 var pause_menu: PauseMenu
+## The line in progress, under the score (or under the lesson panel).
+var _line_label: LineLabel
 ## Flow meter and slow-motion button, just above the control panel.
 var flow: FlowButton
 ## Online ghosts and name tags, on challenges with the online switch on.
@@ -78,12 +80,12 @@ func _ready() -> void:
 	flow.tapped.connect(func() -> void: _on_pad_pressed(&"flow", Time.get_ticks_usec(), Vector2.ZERO))
 	runner.line_event.connect(flow.on_line_event)
 	var line_label := LineLabel.new()
+	_line_label = line_label
 	play_area.add_child(line_label)
 	line_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	line_label.offset_top = 84.0
 	if level.has("lesson"):
 		_add_lesson(level.lesson)
-		line_label.offset_top = lesson.offset_bottom + 8.0
 	line_label.offset_left = 16.0
 	line_label.offset_right = -16.0
 	flow.line_changed.connect(line_label.show_line)
@@ -138,6 +140,8 @@ func _process(delta: float) -> void:
 		if ghosts:
 			_send_run(delta)  # Empty batches: the room keeps us while paused.
 		return
+	if lesson:
+		_frame_below_lesson()
 	push_pad.set_pie(runner.push_progress(), runner.queued_pushes())
 	for pad in pop_pads:
 		pad.set_enabled(not runner.is_pushing())
@@ -166,6 +170,7 @@ func _follow_balance_finger() -> void:
 func _add_lesson(spec: Dictionary) -> void:
 	lesson = Lesson.new()
 	lesson.runner = runner
+	lesson.flow = flow
 	for pad: Pad in control_panel._pads:
 		lesson.pads[pad.action] = pad
 	play_area.add_child(lesson)
@@ -191,7 +196,24 @@ func _add_lesson(spec: Dictionary) -> void:
 		show_tips = on
 		lesson.visible = on
 		tips.icon = Icons.box_texture(40, on))
+	_frame_below_lesson()
 	stats_button.get_parent().add_child(tips)  # Last in the top bar: the right edge.
+
+
+## While the explanation panel shows, the view keeps the ground (with room for a pop) and
+## the board below it, so neither hides behind it. Its height follows the text.
+func _frame_below_lesson() -> void:
+	var defaults: Runner = Runner.new()
+	var band := defaults.camera_band
+	var air_band := defaults.camera_air_band
+	defaults.free()
+	if lesson.visible and play_area.size.y > 0.0:
+		var under := (lesson.offset_bottom + 12.0) / play_area.size.y
+		band.x = maxf(band.x, under + 0.22)
+		air_band.x = maxf(air_band.x, under + 0.04)
+	runner.camera_band = band
+	runner.camera_air_band = air_band
+	_line_label.offset_top = lesson.offset_bottom + 8.0 if lesson.visible else 84.0
 
 
 func _update_layout() -> void:

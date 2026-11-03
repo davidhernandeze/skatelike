@@ -69,6 +69,286 @@ const LIST := [
 		{width = 900, gap = 160},
 		{width = 1000, gap = 200},
 	]},
+	{id = "lesson_pop", name = "Pop height", start_y = 0.82, checkpoints = false, lesson = {
+		title = "3. Pop height",
+		text = "Low on TAIL POP pops a little, the top pops full. Step ups need a full pop, early: the nose has to clear the edge. Catch before the board passes upright.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.4}, {pad = &"tail_pop", at = Vector2(0.0, 0.6), hold = 0.12},
+			{layout = &"air"}, {wait = 0.15}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{layout = &"ground"}, {wait = 0.9}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{layout = &"ground"}, {wait = 1.6},
+		],
+	}, segments = [
+		Vector2(900, 0),
+		# Step ups, higher and higher: the last ones need a full pop.
+		{width = 700, step = -40},
+		{width = 700, step = -80},
+		{width = 800, step = -110},
+		{width = 800, step = -130},
+		Vector2(500, 0),
+	]},
+	{id = "lesson_drops", name = "Drops", start_y = 0.35, checkpoints = false, lesson = {
+		title = "4. Drops",
+		text = "Rolling off a ledge tips the nose down: catch it before you land. Pop off the edge instead for more air. Don't push right at an edge.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.8}, {layout = &"air"}, {wait = 0.3},
+			{pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12}, {wait = 0.6},
+			{layout = &"ground"}, {wait = 1.4},
+		],
+	}, segments = [
+		Vector2(900, 100),  # Drops, deeper and deeper.
+		Vector2(700, 160),
+		Vector2(800, 220),
+		Vector2(600, 0),
+	]},
+	{id = "lesson_nollie", name = "Nollie", start_y = 0.75, checkpoints = false, lesson = {
+		title = "5. Nollie",
+		text = "NOSE POP pops off the front: a nollie. The board turns nose down until you catch it, so catch it early.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.4}, {pad = &"nose_pop", at = Vector2(0.0, -0.7), hold = 0.12},
+			{layout = &"air"}, {wait = 0.25}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.6},
+		],
+		goal = {trick = "nollie", count = 3},
+	}, segments = [
+		Vector2(1400, 0),
+		{width = 900, gap = 120},
+		{width = 900, gap = 160},
+		{width = 1000, gap = 200},
+	]},
+	{id = "lesson_angle", name = "Catch angle", start_y = 0.4, checkpoints = false, lesson = {
+		title = "6. Catch angle",
+		text = "Where you tap CATCH tilts the board: left lifts the nose, right drops it. Landing on a downhill? Catch on the right to match it.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.4}, {pad = &"tail_pop", at = Vector2(0.0, -0.7), hold = 0.12},
+			{layout = &"air"}, {wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.75, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.6},
+		],
+	}, segments = [
+		Vector2(900, 0),
+		# Gaps onto steep landing ramps (about 23°, under the 25° the board can ride off
+		# onto flat): a level catch slams.
+		{width = 600, gap = 200, step = 60, rise = 250},
+		Vector2(300, 0),
+		Vector3(700, 0, -150),  # Uphill: bleeds off the speed from the ramp.
+		{width = 900, gap = 200, step = 40, rise = 380},
+		Vector2(700, 0),
+	]},
+	{id = "lesson_crests", name = "Crests & lips", start_y = 0.78, checkpoints = false, lesson = {
+		title = "7. Crests & lips",
+		text = "Ramps throw you on with your speed: small hops land by themselves. At a kicker, pop right at the lip to fly further. Push for speed first.",
+		demo = [
+			{layout = &"ground"}, {pad = &"push", at = Vector2(0.0, -0.7), hold = 0.12}, {wait = 0.1},
+			{pad = &"push", at = Vector2(0.0, -0.7), hold = 0.12}, {wait = 0.8},
+			{pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.4},
+		],
+	}, segments = [
+		Vector2(1400, 0),
+		Vector3(400, 0, -120),  # A ramp onto flat: crest it fast for a hop.
+		Vector2(1000, 0),
+		Vector3(260, 0, -90),  # A kicker over a gap: pop at its lip.
+		{width = 800, gap = 340, step = 60},
+		Vector2(500, 0),
+	]},
+	{id = "lesson_flip", name = "Flip tricks", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+		title = "8. Flip tricks",
+		text = "After a pop, tap TRICK: the column on your pop's side does shuvits, the other flips. The board spins until you CATCH it. Big drops give time.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"trick", at = Vector2(0.55, 0.5), hold = 0.12},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "kickflip"},
+	}, segments = [
+		Vector2(800, 580),  # Screen-high drops, with pop steps back up between them.
+		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
+		Vector2(800, 550),
+	]},
+	{id = "lesson_doubles", name = "Doubles", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+		title = "9. Doubles",
+		text = "The catch counts the turns: wait for two full flips before you CATCH for a double kickflip. Leave time to land.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"trick", at = Vector2(0.55, 0.5), hold = 0.12},
+			{wait = 0.8}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.5}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "double kickflip"},
+	}, segments = [
+		Vector2(800, 580),
+		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
+		Vector2(800, 550),
+	]},
+	{id = "lesson_late", name = "Late tricks", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+		title = "10. Late tricks",
+		text = "Catch first, then tap TRICK, then CATCH again: a late trick, worth more.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.25}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.2}, {pad = &"trick", at = Vector2(0.55, 0.5), hold = 0.12},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.5}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "late", match = "starts", text = "land a late trick"},
+	}, segments = [
+		Vector2(800, 580),
+		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
+		Vector2(800, 550),
+	]},
+	{id = "lesson_combo", name = "Combo tricks", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+		title = "11. Combo tricks",
+		text = "Tricks tapped quickly join into one: two shuvits and a kickflip make a 360 flip. Then catch it.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.15}, {pad = &"trick", at = Vector2(-0.55, 0.5), hold = 0.08},
+			{pad = &"trick", at = Vector2(-0.55, 0.5), hold = 0.08}, {pad = &"trick", at = Vector2(0.55, 0.5), hold = 0.08},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.5}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "360 flip"},
+	}, segments = [
+		Vector2(800, 580),
+		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
+		Vector2(800, 550),
+	]},
+	{id = "lesson_manual", name = "Manuals", start_y = 0.55, checkpoints = false, lesson = {
+		title = "12. Manuals",
+		text = "Catch, then HOLD CATCH on a side as you land: left for a manual, right for a nose manual. Slide that finger to keep the needle up; lift it to finish.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.7), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"lock_tilt", at = Vector2(-0.6, 0.1), hold = 0.5},
+			{layout = &"balance"}, {pad = &"balance", at = Vector2(-0.3, 0.0), hold = 0.4},
+			{pad = &"balance", at = Vector2(0.3, 0.0), hold = 0.4}, {pad = &"balance", at = Vector2(0.0, 0.0), hold = 0.4},
+			{layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "manual"},
+	}, segments = [
+		Vector2(800, 0),
+		{width = 1800, step = 100},  # Drops onto long flats: land a manual and ride it.
+		{width = 1800, step = 100},
+		Vector2(600, 0),
+	]},
+	{id = "lesson_manual_pop", name = "Manual pops", start_y = 0.55, checkpoints = false, lesson = {
+		title = "13. Manual pops",
+		text = "Pop out of a manual: slide the held finger up into POP, or tap POP with another finger (smaller pops). Tricks chained like this make a line.",
+		demo = [
+			{layout = &"balance"}, {pad = &"balance", at = Vector2(-0.2, 0.0), hold = 0.5},
+			{pad = &"balance", at = Vector2(0.2, 0.0), hold = 0.5}, {pad = &"balance_pop", at = Vector2(0.0, 0.0), hold = 0.12},
+			{layout = &"air"}, {wait = 0.25}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.5}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {line = 3},
+	}, segments = [
+		Vector2(800, 0),
+		{width = 2000, step = 100},  # Manual, then pop out (and up the small step).
+		{width = 900, step = -40},
+		{width = 1800, step = 100},
+		Vector2(600, 0),
+	]},
+	{id = "lesson_rails", name = "Rails", start_y = 0.5, checkpoints = false, lesson = {
+		title = "14. Rails",
+		text = "Ollie over a rail and HOLD CATCH coming down onto it: level is a 50-50, tail down a 5-0, nose down a nosegrind. Balance; pop out or ride off the end.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.5},
+			{layout = &"balance"}, {pad = &"balance", at = Vector2(-0.2, 0.0), hold = 0.4},
+			{pad = &"balance", at = Vector2(0.2, 0.0), hold = 0.4},
+			{layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "grind", count = 2},
+	}, segments = [
+		{width = 2000, rail = Vector3(300, 1400, 70)},
+		Vector2(500, 0),
+		{width = 2400, rise = 2400 * tan(deg_to_rad(8.0)), rail = Vector3(300, 1800, 70)},
+		Vector2(500, 0),
+	]},
+	{id = "lesson_ledges", name = "Ledges", start_y = 0.6, checkpoints = false, lesson = {
+		title = "15. Ledges",
+		text = "Ledges work like rails: hold CATCH on a side onto one for a tailslide or noseslide. Lift to roll on along the top, or slide off the end.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"lock_tilt", at = Vector2(-0.6, 0.1), hold = 0.5},
+			{layout = &"balance"}, {pad = &"balance", at = Vector2(-0.2, 0.0), hold = 0.4},
+			{pad = &"balance", at = Vector2(0.2, 0.0), hold = 0.4},
+			{layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "slide", match = "contains", text = "land a slide"},
+	}, segments = [
+		{width = 1800, platform = [Vector2(300, 60), Vector2(1300, 60)]},
+		Vector2(400, 0),
+		{width = 1800, platform = [Vector2(300, 140), Vector2(1400, 0)]},
+		Vector2(500, 0),
+	]},
+	{id = "lesson_double_grind", name = "Double grinds", start_y = 0.55, checkpoints = false, lesson = {
+		title = "16. Double grinds",
+		text = "Pop off a rail and grab the next one before touching the floor: a double grind. The pop out is small, so the rails are close.",
+		demo = [
+			{layout = &"balance"}, {pad = &"balance", at = Vector2(0.0, 0.0), hold = 0.5},
+			{pad = &"balance_pop", at = Vector2(0.0, 0.0), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.5},
+			{layout = &"balance"}, {pad = &"balance", at = Vector2(0.0, 0.0), hold = 0.5},
+			{layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "double", match = "starts", text = "land a double grind"},
+	}, segments = [
+		Vector2(400, 0),
+		{width = 1400, rail = Vector3(300, 1000, 70)},  # Two rails in a row, 150 px apart.
+		{width = 1400, rail = Vector3(50, 1000, 70)},
+		Vector2(500, 0),
+	]},
+	{id = "lesson_lines", name = "Lines & flow", start_y = 0.5, checkpoints = false, lesson = {
+		title = "17. Lines & flow",
+		text = "Chain tricks without putting the wheels down: each one scores x2, x3 more. Tricks fill FLOW: tap it when full for slow motion.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.5},
+			{layout = &"balance"}, {pad = &"balance", at = Vector2(0.0, 0.0), hold = 0.5},
+			{pad = &"balance_pop", at = Vector2(0.0, 0.0), hold = 0.12},
+			{layout = &"air"}, {wait = 0.25}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {line = 4},
+	}, segments = [
+		{width = 2000, rail = Vector3(300, 1400, 70)},  # Rail, pop out, manual, pop out...
+		{width = 1800, step = 80},
+		{width = 2000, rail = Vector3(300, 1400, 70)},
+		Vector2(600, 0),
+	]},
+	{id = "lesson_vert", name = "Vert", start_y = 0.43, checkpoints = false, max_fall = 650, lesson = {
+		title = "18. Vert",
+		text = "A nollie keeps turning nose down. Pop just before the edge, wait, and catch late: past upright the board turns back slowly, to meet the wall. Then pop at the kicker's lip.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"nose_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 1.2}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.8}, {layout = &"ground"}, {wait = 1.4},
+		],
+	}, segments = [
+		Vector2(300, 0),
+		Vector3(350, 0, -55),
+		{width = 3400 / tan(deg_to_rad(85.0)), rise = 3400, mark = "vert"},
+		Vector3(40, 0, 40 * tan(deg_to_rad(65.0))),
+		Vector3(50, 0, 50 * tan(deg_to_rad(45.0))),
+		Vector3(60, 0, 60 * tan(deg_to_rad(25.0))),
+		Vector3(70, 0, 70 * tan(deg_to_rad(5.0))),
+		Vector2(1000, 0),
+		# Kicker out of the bottom: 40° jumps furthest at the 12 m/s the drop gives (steeper
+		# loses too much speed climbing it). Rolling off it falls short: pop at the lip.
+		Vector3(20, 0, -20 * tan(deg_to_rad(15.0))),
+		Vector3(20, 0, -20 * tan(deg_to_rad(30.0))),
+		{width = 20, rise = -20 * tan(deg_to_rad(40.0)), mark = "kicker"},
+		# Landing: gently downhill to soften the impact, still landable caught level.
+		{width = 900, gap = 1050, rise = 900 * tan(deg_to_rad(14.0))},
+		Vector2(400, 0),
+	]},
+	# A very gentle downhill (0.7°): gravity about makes up for rolling resistance and drag
+	# at riding speed, so you can manual all the way, about a minute.
+	{id = "cruise", name = "Downhill cruise", start_y = 0.6, segments = [
+		Vector3(30000, 0, 30000 * tan(deg_to_rad(0.7))),
+	]},
 	{id = "flat", name = "Flat", start_y = 0.7, segments = [Vector2(8000, 0)]},
 	{id = "push", name = "Push", start_y = 0.7, segments = [
 		Vector3(600, 0, 0),  # flat run-up

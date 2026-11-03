@@ -5,8 +5,8 @@ extends Node2D
 
 @export var font: Font = preload("res://assets/fonts/Graffiti.ttf")
 ## Manuals, grinds and slams; pop tricks use pop_font_size.
-@export var font_size := 46
-@export var pop_font_size := 38
+@export var font_size := 34
+@export var pop_font_size := 28
 @export var trick_color := Color(1.0, 0.85, 0.3)
 @export var balance_color := Color(0.4, 0.9, 1.0)
 @export var slam_color := Color(1.0, 0.35, 0.3)
@@ -37,7 +37,7 @@ func slam() -> void:
 	end_sustained()
 	_items.append({
 		text = "slam!", color = slam_color, age = 0.0, life = burst_time * 1.3,
-		tilt = randf_range(-0.2, 0.2), size = font_size + 14, sustained = false, y = 0.0,
+		tilt = randf_range(-0.2, 0.2), size = font_size + 10, sustained = false, y = 0.0,
 		at = _runner.view_position() + Vector2(0.0, -lift), scrolled = _runner.scrolled(),
 	})
 

@@ -9,10 +9,12 @@ extends Control
 ## lesson = {title, text, demo = [step, ...], goal = {...}}:
 ## - demo steps: {pad = action, at = Vector2(-1..1 in the pad), hold = s} taps (or holds)
 ##   a pad; {wait = s} pauses; {layout = &"ground" | &"air" | &"balance"} switches pads.
-## - goal: {speed = km/h} to reach, or {trick = "360 flip", count = n} to land n times
+## - goal: {speed = km/h} to reach; {trick = "360 flip", count = n} to land n times
 ##   (default once): a trick of a line (Runner.line_event) named that, or ending in it
-##   ("nollie 360 flip" counts as a 360 flip; a nollie isn't an ollie). No goal: reaching
-##   the flag clears it.
+##   ("nollie 360 flip" counts as a 360 flip; a nollie isn't an ollie), or with
+##   match = "contains" / "starts" one containing or starting with it; or {line = n}, a
+##   line of n tricks (FlowButton). `text` words it for the panel ("land a late trick").
+##   No goal: reaching the flag clears it.
 
 signal goal_reached
 
@@ -30,6 +32,8 @@ const DONE_COLOR := Color(0.5, 0.9, 0.5)
 const MINI_SIZE := Vector2(230.0, 150.0)
 
 var runner: Runner
+## For line goals.
+var flow: FlowButton
 ## Pads of the real control panel, by action: their colors and labels are reused.
 var pads := {}
 
@@ -67,6 +71,10 @@ func goal_met() -> bool:
 
 ## What's missing, for when the flag is reached without it.
 func goal_text() -> String:
+	if _goal.has("text"):
+		return _goal.text
+	if _goal.has("line"):
+		return "land a line of %d tricks" % _goal.line
 	if _goal.has("speed"):
 		return "reach %d km/h" % _goal.speed
 	if _goal.has("trick"):
@@ -98,6 +106,11 @@ func _ready() -> void:
 	resized.connect(_place)
 	if runner:
 		runner.line_event.connect(_on_line_event)
+	if flow:
+		flow.line_changed.connect(func(tricks: PackedStringArray, _ended: StringName) -> void:
+			if _goal.has("line") and not _met and tricks.size() >= _goal.line:
+				_reach()
+				_update_goal())
 	_place()
 
 
@@ -141,8 +154,12 @@ func _on_line_event(air: String, balance: String, _wheels_down: bool) -> void:
 	if not _goal.has("trick") or _met:
 		return
 	var trick := String(_goal.trick)
-	for name in [air, balance]:
-		if name == trick or name.ends_with(" " + trick):
+	var match_by: String = _goal.get("match", "end")
+	for name: String in [air, balance]:
+		if name == "":
+			continue
+		if (match_by == "contains" and name.contains(trick)) or (match_by == "starts" and name.begins_with(trick)) \
+				or (match_by == "end" and (name == trick or name.ends_with(" " + trick))):
 			_landed += 1
 	if _landed >= _goal.get("count", 1):
 		_reach()
