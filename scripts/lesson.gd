@@ -133,7 +133,7 @@ func _update_goal() -> void:
 		return
 	_goal_label.add_theme_color_override("font_color", DONE_COLOR if _met else GOAL_COLOR)
 	if _met:
-		_goal_label.text = "✓ Goal met: %s. Ride to the flag!" % goal_text()
+		_goal_label.text = "Goal met: %s. Ride to the flag!" % goal_text()
 	elif _goal.has("speed"):
 		_goal_label.text = "Goal: %s (best %d)" % [goal_text(), floori(_best_speed)]
 	else:
@@ -223,6 +223,23 @@ func _draw() -> void:
 			draw_string(font, Vector2(r.position.x, y), lines[i].strip_edges(), HORIZONTAL_ALIGNMENT_CENTER,
 					r.size.x, 17, TEXT_COLOR)
 	if _finger_pad != &"":
-		var at := _finger_spot()
-		draw_circle(at, 16.0 if _pressing else 13.0, Color(1, 1, 1, 0.9 if _pressing else 0.55))
-		draw_circle(at, 16.0, Color(0, 0, 0, 0.6), false, 3.0)
+		_draw_finger(_finger_spot(), _pressing)
+
+
+## A placeholder finger reaching in from the lower right: hovering just above the spot
+## (with its shadow on the pad), or pressing it (tip down, a ring rippling out).
+func _draw_finger(at: Vector2, pressing: bool) -> void:
+	const SKIN := Color(0.96, 0.8, 0.68)
+	const OUTLINE := Color(0.12, 0.08, 0.06)
+	var tip := at if pressing else at + Vector2(-4.0, -12.0)
+	if pressing:
+		var ring := fmod(_step_t * 4.0, 1.0)
+		draw_circle(at, 14.0 + ring * 12.0, Color(1, 1, 1, 0.7 * (1.0 - ring)), false, 3.0)
+	else:
+		draw_circle(at + Vector2(3.0, 3.0), 9.0, Color(0, 0, 0, 0.35))  # Shadow.
+	var knuckle := tip + Vector2(26.0, 44.0)
+	draw_line(tip, knuckle, OUTLINE, 26.0)
+	draw_circle(tip, 13.0, OUTLINE)
+	draw_line(tip, knuckle, SKIN, 20.0)
+	draw_circle(tip, 10.0, SKIN)
+	draw_circle(tip + Vector2(1.0, 2.0), 5.0, SKIN.lightened(0.35))  # Nail.

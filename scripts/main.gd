@@ -180,14 +180,21 @@ func _add_lesson(spec: Dictionary) -> void:
 	lesson.setup(spec)
 	lesson.visible = show_tips
 	lesson.goal_reached.connect(func() -> void: callouts.show_callout("goal"))
-	var tips := CheckBox.new()
-	tips.text = "Tips"
+	# A big toggle in the top right corner, its box drawn (the web font has no box glyphs).
+	var tips := Button.new()
+	tips.text = " TIPS "
+	tips.toggle_mode = true
 	tips.button_pressed = show_tips
-	tips.add_theme_font_size_override("font_size", 28)
+	tips.focus_mode = Control.FOCUS_NONE
+	tips.custom_minimum_size = Vector2(170, 72)
+	tips.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	tips.add_theme_font_size_override("font_size", 32)
+	tips.icon = Icons.box_texture(40, show_tips)
 	tips.toggled.connect(func(on: bool) -> void:
 		show_tips = on
-		lesson.visible = on)
-	stats_button.add_sibling(tips)
+		lesson.visible = on
+		tips.icon = Icons.box_texture(40, on))
+	stats_button.get_parent().add_child(tips)  # Last in the top bar: the right edge.
 
 
 func _update_layout() -> void:

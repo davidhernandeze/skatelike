@@ -40,6 +40,24 @@ static func check_texture(size: int, color := Color.WHITE) -> ImageTexture:
 	return _rasterize(size, size, [shape], color)
 
 
+## A checkbox: a square outline, with a check mark inside when `checked`.
+static func box_texture(size: int, checked: bool, color := Color.WHITE) -> ImageTexture:
+	var s := float(size)
+	var t := maxf(s * 0.1, 2.0)  # Outline thickness.
+	var shapes := [
+		PackedVector2Array([Vector2(0, 0), Vector2(s, 0), Vector2(s, t), Vector2(0, t)]),
+		PackedVector2Array([Vector2(0, s - t), Vector2(s, s - t), Vector2(s, s), Vector2(0, s)]),
+		PackedVector2Array([Vector2(0, 0), Vector2(t, 0), Vector2(t, s), Vector2(0, s)]),
+		PackedVector2Array([Vector2(s - t, 0), Vector2(s, 0), Vector2(s, s), Vector2(s - t, s)]),
+	]
+	if checked:
+		shapes.append(PackedVector2Array([
+			Vector2(0.2, 0.52) * s, Vector2(0.32, 0.4) * s, Vector2(0.44, 0.54) * s, Vector2(0.7, 0.24) * s,
+			Vector2(0.82, 0.36) * s, Vector2(0.44, 0.78) * s,
+		]))
+	return _rasterize(size, size, shapes, color)
+
+
 ## Fills polygons into a texture, 4x4 supersampled for smooth edges.
 static func _rasterize(width: int, height: int, shapes: Array, color: Color) -> ImageTexture:
 	var image := Image.create(width, height, false, Image.FORMAT_RGBA8)

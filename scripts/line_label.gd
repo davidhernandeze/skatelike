@@ -3,7 +3,7 @@ extends Label
 ## The line in progress (see FlowButton): "kickflip, x2 nosegrind, x3 heelflip", under the
 ## score. When the line ends it stays a moment (red after a slam), then fades.
 
-## Tricks shown at most: older ones are left out ("…, x7 manual, x8 ollie").
+## Tricks shown at most: older ones are left out ("..., x7 manual, x8 ollie").
 @export var max_shown := 6
 ## How long a finished line stays before fading out (s).
 @export var hold_time := 1.6
@@ -27,7 +27,7 @@ func show_line(tricks: PackedStringArray, ended: StringName) -> void:
 	var parts := PackedStringArray()
 	var first := maxi(tricks.size() - max_shown, 0)
 	if first > 0:
-		parts.append("…")
+		parts.append("...")
 	for i in range(first, tricks.size()):
 		parts.append(tricks[i] if i == 0 else "x%d %s" % [i + 1, tricks[i]])
 	text = ", ".join(parts)
