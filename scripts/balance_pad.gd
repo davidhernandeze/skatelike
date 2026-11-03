@@ -93,9 +93,8 @@ func is_settled() -> bool:
 	return _active and not _settling
 
 
-## The finger playing the balance is at global x `x`. Works while frozen too (the
-## tutorial waits for a slide). Returns how far it is from where it first touched, as a
-## fraction of the half-width.
+## The finger playing the balance is at global x `x`. Returns how far it is from where
+## it first touched, as a fraction of the half-width.
 func steer(x: float) -> float:
 	if not _active:
 		return 0.0
@@ -105,11 +104,6 @@ func steer(x: float) -> float:
 	_finger = local
 	queue_redraw()
 	return absf(local - _reference) / _half_width() if _settling else 1.0
-
-
-## The finger is near the pad's middle (where steering is measured from once settled).
-func finger_centered() -> bool:
-	return _active and not is_nan(_finger) and absf(_finger - size.x * 0.5) <= centered * _half_width()
 
 
 func _half_width() -> float:

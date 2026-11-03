@@ -27,8 +27,6 @@ static var show_tips := true
 	$Layout/ControlPanel/SafeArea/GroundPads/TailPop,
 	$Layout/ControlPanel/SafeArea/GroundPads/NosePop,
 ]
-## Guided steps, on tutorial levels only.
-var tutorial: Tutorial
 ## The explanation panel and goal, on lessons only.
 var lesson: Lesson
 ## Flow meter and slow-motion button, just above the control panel.
@@ -57,11 +55,6 @@ func _ready() -> void:
 	if Levels.checkpoint != "":
 		level = Levels.from_checkpoint(_level, Levels.checkpoint)
 	runner.configure(level)
-	# The tutorial freezes the game by pausing the tree: only the world and the
-	# balance points stop, the UI keeps taking input.
-	process_mode = Node.PROCESS_MODE_ALWAYS
-	$Layout/PlayArea/World.process_mode = Node.PROCESS_MODE_PAUSABLE
-	balance_pad.process_mode = Node.PROCESS_MODE_PAUSABLE
 	flow = FlowButton.new()
 	flow.action = &"flow"
 	flow.color = Color(1.0, 0.75, 0.25)
@@ -81,7 +74,6 @@ func _ready() -> void:
 	line_label.offset_right = -16.0
 	flow.line_changed.connect(line_label.show_line)
 	runner.slammed.connect(func(_reason: String) -> void: flow.on_slammed())
-	runner.forgiven.connect(func(_reason: String) -> void: flow.on_slammed())  # Line lost.
 	Profile.load_profile()
 	if _level.get("challenge", false) and Profile.online:
 		ghosts = preload("res://scripts/ghosts.gd").new()
@@ -92,17 +84,6 @@ func _ready() -> void:
 			_actions.append_array([at_tick, action, a, b])
 			_actions_since.append_array([at_tick, action, a, b]))
 		Online.status_changed.connect(_on_online_status)
-	if level.get("tutorial", false):
-		runner.forgiving = true  # No slams in the tutorial.
-		tutorial = Tutorial.new()
-		tutorial.runner = runner
-		tutorial.balance_pad = balance_pad
-		tutorial.play_area = play_area
-		tutorial.pads = control_panel._pads.duplicate()
-		tutorial.pads.append(flow)
-		tutorial.flow = flow
-		tutorial.start_section = Levels.checkpoint
-		add_child(tutorial)
 	play_area.resized.connect(_layout_world)
 	control_panel.pad_pressed.connect(_on_pad_pressed)
 	control_panel.pad_released.connect(_on_pad_released)
@@ -151,16 +132,14 @@ func _process(delta: float) -> void:
 
 
 ## The finger still down from landing plays the balance trick: sliding it left or right
-## steers the balance needle, sliding it up into POP pops out. Runs while frozen too.
+## steers the balance needle, sliding it up into POP pops out.
 func _follow_balance_finger() -> void:
 	var fingers: Array[Vector2] = control_panel.touches_of(&"lock_tilt")
 	if fingers.is_empty():
 		return
 	var at: Vector2 = fingers[0]
 	balance_pad.steer(at.x)
-	if tutorial and balance_pad.finger_centered():
-		tutorial.accept(&"balance", Vector2.ZERO)
-	if balance_pop_pad.get_global_rect().has_point(at) and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
+	if balance_pop_pad.get_global_rect().has_point(at):
 		balance_pop_pad.flash()
 		runner.act(Runner.Act.BALANCE_POP)
 
@@ -257,17 +236,12 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 	# Pop and push strength come from touch height (top = strongest),
 	# the tilt lock angle from touch x.
 	# During a manual, a second finger on POP pops out too (on grinds only the held one does).
-	if action == &"balance_pop" and runner.is_balancing() and not runner.is_grinding() \
-			and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
+	if action == &"balance_pop" and runner.is_balancing() and not runner.is_grinding():
 		balance_pop_pad.flash()
 		runner.act(Runner.Act.BALANCE_POP)
 		return
 	if action == &"balance" or action == &"balance_pop":
-		if tutorial:
-			tutorial.hint_balance_tap()
-		return
-	if tutorial and not tutorial.accept(action, local_pos):
-		return
+		return  # Only the finger held from the landing plays these (_follow_balance_finger).
 	match action:
 		&"tail_pop":
 			runner.act(Runner.Act.POP, 0.0, -local_pos.y)
@@ -295,8 +269,6 @@ func _show_stats(shown: bool) -> void:
 ## A finger lifted. CATCH counts its fingers: the hold ends when the last one lifts. If
 ## a manual or grind is being ridden, that ends it cleanly.
 func _on_pad_released(action: StringName) -> void:
-	if tutorial:
-		tutorial.released(action)
 	if action == &"lock_tilt":
 		_catch_holds = maxi(_catch_holds - 1, 0)
 		if _catch_holds == 0:

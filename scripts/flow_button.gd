@@ -64,11 +64,6 @@ func in_flow() -> bool:
 	return _flow_until > 0
 
 
-## Fills the meter (the tutorial uses it to show flow state).
-func fill() -> void:
-	_meter = 1.0
-
-
 ## The current line's multiplier: its length (at least 1).
 func multiplier() -> float:
 	return clampf(_line.size(), 1.0, max_multiplier)
@@ -139,7 +134,7 @@ func _process(delta: float) -> void:
 			_flow_until = 0
 			_meter = 0.0
 			Engine.time_scale = base_time_scale
-	elif runner != null and not get_tree().paused:
+	elif runner != null:
 		if runner.is_balancing():
 			_gain((grind_rate if runner.is_grinding() else manual_rate) * multiplier() * delta)
 	queue_redraw()

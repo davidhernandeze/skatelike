@@ -224,64 +224,32 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 
 ## Lessons
 
-Practice levels that teach one mechanic each, in order, replacing the tutorial (which
-stays under Free ride until the lessons cover everything it does). A lesson is a level
-with a `lesson` entry (`scripts/levels.gd`, run by `scripts/lesson.gd`):
+Practice levels that teach one mechanic each, in order (they replaced the old guided
+tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run by `scripts/lesson.gd`):
 
 - An **explanation panel** at the top of the play area: the mechanic's text, the goal and
   how it's going, and a miniature control panel where a finger loops the input to make
   (the lesson's `demo` steps: taps at a spot on a pad, holds, waits, and which pad layout).
   It never takes touches. The **Tips** checkbox in the top bar hides it (remembered).
-- A **goal** to clear it: reach a speed (`{speed = km/h}`) or land a trick
-  (`{trick = "360 flip"}`, matched in the landing's name). Reaching the flag without it
+- A **goal** to clear it: reach a speed (`{speed = km/h}`) or land a trick, n times
+  (`{trick = "360 flip", count = n}`): a trick of a line named that, or ending in it
+  ("nollie 360 flip" counts as a 360 flip; a nollie isn't an ollie). Reaching the flag without it
   says what's missing and restarts the lesson.
 - Lessons are listed first under Practice, numbered, with a check once cleared.
 
 | # | Lesson | Goal |
 |---|---|---|
 | 1 | Pushing: tap PUSH, higher kicks harder, taps line up during a kick, no pops while pushing. Flat ground, then two uphills too steep to coast | reach 25 km/h |
+| 2 | Ollie & catch: TAIL POP (higher pops higher), the board turns nose up until caught, CATCH (middle = level) before landing. Flat ground, then pits 120, 160 and 200 px wide (clear at the start speed) | land 3 ollies |
 
-## Tutorial
+## Checkpoints
 
-The first entry in the level menu. Lessons go from riding to balancing to tricks, each one
-building on the last:
-
-1. **Riding:** push, ollie and catch, rolling off a ledge, nollie.
-2. **Manual:** catch, hold CATCH, slide the finger to the middle and balance the needle,
-   lift it to finish. This is the first balance lesson because it's on flat ground.
-3. **Board tricks:** flip or shuvit, the step ups on your own, a late trick.
-4. **Rail:** hold onto the rail (level is a 50-50), balance like the manual, slide up into
-   POP to ollie out, catch.
-5. **Ledge:** hold on a side to tailslide or noseslide, lift to end it, roll off the end.
-6. **Flow state** (the meter is filled for you there).
-
-At each spot the game freezes, shows the instruction and highlights the pad to use. For
-the hold lessons you press and keep holding CATCH. The game resumes after 0.35 s with your
-finger still down, and "Keep holding" shows if you let go sooner. Balance steps wait for
-the held finger to slide to the pad's middle, into POP, or to lift. Lifting early just ends that
-balance and skips the rest of its lesson.
-
-**No slams.** The tutorial runs the Runner in `forgiving` mode: a missed catch, an expired
-point, a wall and so on put the rider back on the ground under the board, with a hint,
-instead of ending the run. The tap that resumes it is applied at the frozen
-moment, so the timing is always right. A wrong pad or a weak tap shows a hint instead (for
-example "tap higher" for a pop, or "tap near the middle line" for a flat catch). A few
-stretches in between, such as the step ups after the first flip, are left to the player.
-Steps the player already did on their own are skipped.
-
-**Checkpoints** (any level with marked segments; the tutorial no longer slams, so there
-they only matter if that's turned off). A slam doesn't send you back to the start. Each lesson begins at a
-checkpoint (the ollie step, the drop, the rail, the ledge and so on). After a slam the level
-restarts just before the last checkpoint you reached, at the same height, and the tutorial
-picks up at that lesson. A checkpoint counts as reached once you're riding calmly within
-600 px of it: on the ground and not in a manual or grind. Picking a level from the menu,
-or clearing it, starts the next run from the beginning.
-
-The freeze pauses the scene tree. Main processes always, while the world and the balance
-needle are pausable, so the pads keep taking input. Steps live in `scripts/tutorial.gd` and
-trigger on spots marked in the level (`mark = "name"`, see `Runner.marks`; any level's
-marked segments are also its checkpoints) and on board
-state (near the apex, mid-trick, balancing).
+Any level with marked segments (`mark = "name"`, see `Runner.marks`) has checkpoints. A
+slam doesn't send you back to the start: the level restarts just before the last
+checkpoint you reached, at the same height. A checkpoint counts as reached once you're
+riding calmly within 600 px of it: on the ground and not in a manual or grind. Picking a
+level from the menu, or clearing it, starts the next run from the beginning. Challenges
+and lessons turn them off (`checkpoints = false`).
 
 ## Levels
 
@@ -289,7 +257,6 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 
 | Level | What it's for |
 |---|---|
-| Tutorial | Every mechanic, with guided freezes |
 | Flat | Pushing and riding |
 | Push | Uphill and downhill slopes |
 | Single jump | One step up to pop onto |
@@ -307,7 +274,8 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 
 The main menu has three pages:
 
-- **Practice:** every level without `challenge = true`, the tutorial first.
+- **Practice:** the lessons first, numbered, then every other level without
+  `challenge = true` under Free ride.
 - **Challenges:** the **Online** switch (see below), then a table of the levels with
   `challenge = true` (Sketchy #1 to #4). Each row has the play button, your best progress
   (a check once cleared), and **Top**, the challenge's scoreboard (only with Online on).
@@ -409,8 +377,7 @@ scripts/
   lesson.gd          a lesson's explanation panel, input demo and goal
   icons.gd           UI symbols (arrows, menu bars, check) drawn as shapes: the web build's
                      font has no glyphs for them and no system fonts to fall back on
-  tutorial.gd        tutorial steps: freezes, instructions, pad highlights
-  balance_pad.gd     balance points for manuals and grinds
+  balance_pad.gd     the balance needle for manuals and grinds, steered by the held finger
   levels.gd          level definitions
   menu.gd            menu pages: main, Practice, Challenges, Profile
   toggle.gd          big on/off switch (the Online ghosts switch)

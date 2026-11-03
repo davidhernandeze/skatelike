@@ -9,8 +9,10 @@ extends Control
 ## lesson = {title, text, demo = [step, ...], goal = {...}}:
 ## - demo steps: {pad = action, at = Vector2(-1..1 in the pad), hold = s} taps (or holds)
 ##   a pad; {wait = s} pauses; {layout = &"ground" | &"air" | &"balance"} switches pads.
-## - goal: {speed = km/h} to reach, or {trick = "360 flip"} to land (the landing's name
-##   contains it). No goal: reaching the flag clears it.
+## - goal: {speed = km/h} to reach, or {trick = "360 flip", count = n} to land n times
+##   (default once): a trick of a line (Runner.line_event) named that, or ending in it
+##   ("nollie 360 flip" counts as a 360 flip; a nollie isn't an ollie). No goal: reaching
+##   the flag clears it.
 
 signal goal_reached
 
@@ -35,6 +37,8 @@ var _lesson: Dictionary
 var _goal: Dictionary
 var _met := false
 var _best_speed := 0.0
+## Tricks landed towards a trick goal.
+var _landed := 0
 var _title := Label.new()
 var _text := Label.new()
 var _goal_label := Label.new()
@@ -66,7 +70,11 @@ func goal_text() -> String:
 	if _goal.has("speed"):
 		return "reach %d km/h" % _goal.speed
 	if _goal.has("trick"):
-		return "land a " + String(_goal.trick)
+		var trick := String(_goal.trick)
+		var count: int = _goal.get("count", 1)
+		if count > 1:
+			return "land %d %ss" % [count, trick]
+		return "land %s %s" % ["an" if "aeiou".contains(trick[0]) else "a", trick]
 	return ""
 
 
@@ -89,7 +97,7 @@ func _ready() -> void:
 	_goal_label.add_theme_font_size_override("font_size", 24)
 	resized.connect(_place)
 	if runner:
-		runner.landed.connect(_on_landed)
+		runner.line_event.connect(_on_line_event)
 	_place()
 
 
@@ -101,8 +109,20 @@ func _place() -> void:
 	_title.size = Vector2(text_w, 0)
 	_text.position = Vector2(pad, pad + 48.0)
 	_text.size = Vector2(text_w, 0)
-	_goal_label.position = Vector2(pad, size.y - pad - 66.0)
 	_goal_label.size = Vector2(size.x - pad * 2.0, 0)
+	_fit()
+
+
+## The goal line goes right under the text, and the panel grows (down) to fit it all.
+func _fit() -> void:
+	var pad := 16.0
+	# Wrapped labels only grow on their own: back to their text's height.
+	_text.size = Vector2(_text.size.x, 0)
+	_goal_label.size = Vector2(_goal_label.size.x, 0)
+	_goal_label.position = Vector2(pad, _text.position.y + _text.size.y + 8.0)
+	var needed := maxf(_goal_label.position.y + _goal_label.size.y + pad, MINI_SIZE.y + pad * 2.0)
+	if absf(size.y - needed) > 1.0:
+		offset_bottom = offset_top + needed
 
 
 func _process(delta: float) -> void:
@@ -113,13 +133,20 @@ func _process(delta: float) -> void:
 			_reach()
 		_update_goal()
 	_play_demo(delta)
+	_fit()
 	queue_redraw()
 
 
-func _on_landed(style: String) -> void:
-	if _goal.has("trick") and not _met and style.contains(String(_goal.trick)):
+func _on_line_event(air: String, balance: String, _wheels_down: bool) -> void:
+	if not _goal.has("trick") or _met:
+		return
+	var trick := String(_goal.trick)
+	for name in [air, balance]:
+		if name == trick or name.ends_with(" " + trick):
+			_landed += 1
+	if _landed >= _goal.get("count", 1):
 		_reach()
-		_update_goal()
+	_update_goal()
 
 
 func _reach() -> void:
@@ -136,6 +163,8 @@ func _update_goal() -> void:
 		_goal_label.text = "Goal met: %s. Ride to the flag!" % goal_text()
 	elif _goal.has("speed"):
 		_goal_label.text = "Goal: %s (best %d)" % [goal_text(), floori(_best_speed)]
+	elif _goal.get("count", 1) > 1:
+		_goal_label.text = "Goal: %s (%d/%d)" % [goal_text(), _landed, _goal.count]
 	else:
 		_goal_label.text = "Goal: %s, then ride to the flag." % goal_text()
 
@@ -216,7 +245,7 @@ func _draw() -> void:
 		draw_rect(r, color.darkened(0.1 if lit else 0.5))
 		draw_rect(r, color, false, 2.0)
 		# The pad's label, short: its first part, a line at a time.
-		var label: String = (pad.label if pad else String(action)).get_slice("  ·", 0)
+		var label: String = (pad.label if pad and pad.label != "" else String(action).to_upper()).get_slice("  ·", 0)
 		var lines := label.split("\n")
 		for i in lines.size():
 			var y := r.get_center().y + (i - (lines.size() - 1) * 0.5) * 20.0 + 6.0

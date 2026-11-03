@@ -30,8 +30,6 @@ signal caught(catch_index: int, angle_deg: float, apex_ms: int)
 signal landed(style: String)
 ## The rider fell; the board flips and game_over follows after slam_duration.
 signal slammed(reason: String)
-## In forgiving mode, what would have been a slam; the rider was put back on the ground.
-signal forgiven(reason: String)
 ## Emitted on takeoff with the pop strength (0..1 of the full jump velocity).
 signal popped(nose: bool, strength: float)
 ## Emitted when the board leaves a ledge, platform or rail end without a pop.
@@ -136,8 +134,6 @@ class Seg:
 ## How fast the board settles to the ground angle after landing.
 @export var land_settle := 18.0
 
-## Never slam: put the rider back on the ground instead (forgiven). For the tutorial.
-@export var forgiving := false
 
 @export_group("Drop-off")
 ## Nose-down spin when the wheels leave a floor ledge at drop_ref_speed (rad/s); the
@@ -480,7 +476,7 @@ var _goal_spawned := false
 var _goal_x := INF
 ## Marked level features: segment `mark` name -> Vector2(start x, end x) of its rail,
 ## platform or floor piece. Filled as the terrain is generated and scrolled with it
-## (used by the tutorial).
+## (checkpoints use them).
 var marks := {}
 
 
@@ -1812,9 +1808,6 @@ func _die() -> void:
 func _slam(reason: String) -> void:
 	if _dead:
 		return
-	if forgiving:
-		_recover(reason)
-		return
 	_dead = true
 	_slam_t = 0.0
 	_let_go()
@@ -1835,42 +1828,6 @@ func _let_go() -> void:
 	_grounded = false
 	_rail = null
 	_slide = 0.0
-
-
-## Forgiving mode instead of a slam: back on the floor under the board (on the step it
-## hit, for a wall), level, rolling at least at start_speed, nothing in progress.
-func _recover(reason: String) -> void:
-	var under: Seg = null
-	if reason == "wall":
-		under = _seg_at(_pos.x + board_size.x * 0.5)
-	if under == null:
-		under = _seg_at(_pos.x)
-	if under == null:
-		for s in _segs:
-			if s.x0 > _pos.x:
-				under = s
-				break
-	if under == null:
-		return
-	_set_balance(0.0)
-	_in_trick = false
-	_locked = false
-	_catches = 0
-	_holding = false
-	_board_trick = &""
-	_board_trick_done = &""
-	_push_left = 0.0
-	_push_queue.clear()
-	_support = under
-	_grounded = true
-	_ground_angle = under.angle()
-	_pos.y = under.y_at(_pos.x)
-	_angle = _ground_angle
-	_angular_velocity = 0.0
-	_velocity_y = 0.0
-	_speed = maxf(_speed, start_speed * pixels_per_meter)
-	_update_airborne()
-	forgiven.emit(reason)
 
 
 func _step_slam(delta: float) -> void:

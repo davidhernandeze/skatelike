@@ -14,15 +14,14 @@ extends RefCounted
 ## floor there), filled down to the floor, or drawn as a slab `deck` px thick. Its ends
 ## join floor at the same height smoothly.
 ## `mark = "name"` records where the segment's rail, platform or floor piece starts and
-## ends (Runner.marks), for tutorial steps to trigger on. Marked segments are also
-## checkpoints: after a slam the level restarts from the last one reached.
+## ends (Runner.marks). Marked segments are checkpoints: after a slam the level
+## restarts from the last one reached.
 ## `gap = px` leaves empty space before the floor piece: a pit to jump, grind or bridge.
 ## `stairs = N` draws the piece as N stairs; they can't be landed on (ollie or grind them).
 ## `rail` can also be [Vector2(x, height), Vector2(x, height)]: a straight rail between
 ## two points (height above the piece's extended surface line), e.g. sloping across a gap.
 ## Platform points can lie over a gap too: where there's no floor below, the platform
 ## is drawn as an overhang.
-## `tutorial = true` runs the guided steps in tutorial.gd on the level.
 ## `checkpoints = false` turns checkpoints off (slams restart the level).
 ## `challenge = true` lists the level under Challenges (with its best progress) instead
 ## of Practice.
@@ -33,31 +32,14 @@ extends RefCounted
 ## A flat goal platform with the finish flag always follows the last obstacle.
 
 const LIST := [
-	# Guided tour of every mechanic; tutorial.gd freezes the game at each marked spot.
-	{id = "tutorial", name = "Tutorial", start_y = 0.35, tutorial = true, segments = [
-		Vector2(700, 0),
-		{width = 700, step = -80, mark = "ollie"},
-		{width = 700, step = 120, mark = "drop"},
-		{width = 700, step = -80, mark = "nollie"},
-		# A long flat run after a drop for the first manual: balance, then lift to finish.
-		{width = 1800, step = 100, mark = "manual"},
-		{width = 800, step = 220, mark = "flip"},
-		{width = 600, step = -100, mark = "steps"},
-		{width = 900, step = 220, mark = "late"},
-		Vector2(600, -110), Vector2(600, -110),
-		{width = 2000, rail = Vector3(300, 1300, 70), mark = "rail"},
-		Vector2(400, 0),
-		{width = 1800, platform = [Vector2(300, 60), Vector2(1300, 60)], mark = "ledge"},
-		Vector2(600, 0),
-	]},
 	# Lessons: one mechanic each, in order.
 	{id = "lesson_push", name = "Pushing", start_y = 0.8, checkpoints = false, lesson = {
 		title = "1. Pushing",
 		text = "Tap PUSH to kick. Higher on the pad kicks harder. Tap again while a kick is going to line up to two more. No pops while pushing.",
+		# Two quick hard kicks (the second lines up), then a long pause before it loops.
 		demo = [
 			{pad = &"push", at = Vector2(0.0, -0.7), hold = 0.12}, {wait = 0.1},
-			{pad = &"push", at = Vector2(0.0, -0.7), hold = 0.12}, {wait = 1.0},
-			{pad = &"push", at = Vector2(0.0, 0.6), hold = 0.12}, {wait = 1.2},
+			{pad = &"push", at = Vector2(0.0, -0.7), hold = 0.12}, {wait = 2.0},
 		],
 		goal = {speed = 25.0},
 	}, segments = [
@@ -66,6 +48,26 @@ const LIST := [
 		Vector2(500, 0),
 		Vector3(900, 0, -170),
 		Vector2(600, 0),
+	]},
+	{id = "lesson_ollie", name = "Ollie & catch", start_y = 0.75, checkpoints = false, lesson = {
+		title = "2. Ollie & catch",
+		text = "Tap TAIL POP to ollie: higher on the pad pops higher. The board turns nose up until you catch it: tap CATCH (the middle keeps it level) before you land, or you slam.",
+		# Pop high, the pads switch to the air ones, catch in the middle, a long pause.
+		demo = [
+			{layout = &"ground"}, {wait = 0.4},
+			{pad = &"tail_pop", at = Vector2(0.0, -0.7), hold = 0.12},
+			{layout = &"air"}, {wait = 0.25},
+			{pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12}, {wait = 0.6},
+			{layout = &"ground"}, {wait = 1.6},
+		],
+		goal = {trick = "ollie", count = 3},
+	}, segments = [
+		Vector2(1400, 0),  # Room to try a few.
+		# Pits to ollie over, wider and wider: all clear at the start speed with a full
+		# pop up to about 60 px before the edge (more with speed).
+		{width = 900, gap = 120},
+		{width = 900, gap = 160},
+		{width = 1000, gap = 200},
 	]},
 	{id = "flat", name = "Flat", start_y = 0.7, segments = [Vector2(8000, 0)]},
 	{id = "push", name = "Push", start_y = 0.7, segments = [
