@@ -18,6 +18,18 @@ const BACK_COLOR := Color(0.55, 0.62, 0.85)
 static var page := "main"
 
 @onready var list: VBoxContainer = $Safe/Page/Scroll/Center/Levels
+@onready var scroll: ScrollContainer = $Safe/Page/Scroll
+
+## Dragging scrolls the page from anywhere, buttons included (they'd otherwise keep the
+## finger): a finger that moves more than this (px) is scrolling, not pressing.
+const DRAG_START := 14.0
+## The finger on the page: where it went down, the scroll then, and whether it's
+## scrolling; the button it went down on is disabled meanwhile so lifting doesn't press it.
+var _touch_index := -1
+var _touch_from := Vector2.ZERO
+var _scroll_from := 0
+var _scrolling := false
+var _held_button: Button
 
 
 func _ready() -> void:
@@ -25,7 +37,45 @@ func _ready() -> void:
 	Profile.load_profile()
 	Scoreboard.flush()  # Clears queued while offline.
 	list.add_theme_constant_override("separation", 16)  # Room for the 8 practice levels.
+	# Drags are scrolled by _input (from anywhere, buttons included): the container's own
+	# touch dragging (empty space only) would scroll them twice. The wheel still works.
+	scroll.scroll_deadzone = 1000000
 	_show(page)
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed and _touch_index < 0:
+			_touch_index = event.index
+			_touch_from = event.position
+			_scroll_from = scroll.scroll_vertical
+			_scrolling = false
+		elif not event.pressed and event.index == _touch_index:
+			_touch_index = -1
+			if _held_button:
+				# Back on after this release has gone by, so it didn't count as a press.
+				_held_button.set_deferred("disabled", false)
+				_held_button = null
+	elif event is InputEventScreenDrag and event.index == _touch_index:
+		var dy: float = event.position.y - _touch_from.y
+		if not _scrolling and absf(dy) > DRAG_START:
+			_scrolling = true
+			_held_button = _button_at(_touch_from)
+			if _held_button and not _held_button.disabled:
+				_held_button.disabled = true
+			else:
+				_held_button = null
+		if _scrolling:
+			scroll.scroll_vertical = _scroll_from - roundi(dy)
+
+
+## The enabled button on the page at a screen position, if any.
+func _button_at(at: Vector2) -> Button:
+	for node in scroll.find_children("*", "Button", true, false):
+		var button := node as Button
+		if button.is_visible_in_tree() and not button.disabled and button.get_global_rect().has_point(at):
+			return button
+	return null
 
 
 func _show(new_page: String) -> void:
