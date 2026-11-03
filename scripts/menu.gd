@@ -59,13 +59,18 @@ func _show_levels(challenges: bool) -> void:
 		_add_online_switch()
 		_show_challenge_table()
 		return
-	for level in Levels.LIST:
-		if level.get("challenge", false):
-			continue
-		var button := _add_button(level.name, _start.bind(level.id))
-		if Levels.is_cleared(level.id):
-			button.icon = Icons.check_texture(36, Color(0.5, 0.9, 0.5))
-			button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Lessons first, in order, then free practice.
+	for lessons in [true, false]:
+		_add_label("Lessons" if lessons else "Free ride", 26, HEADER_COLOR)
+		var n := 0
+		for level in Levels.LIST:
+			if level.get("challenge", false) or level.has("lesson") != lessons:
+				continue
+			n += 1
+			var button := _add_button(("%d. %s" % [n, level.name]) if lessons else level.name, _start.bind(level.id))
+			if Levels.is_cleared(level.id):
+				button.icon = Icons.check_texture(36, Color(0.5, 0.9, 0.5))
+				button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 
 ## One row per challenge: play button, your best progress, and its scoreboard.

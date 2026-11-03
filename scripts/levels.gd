@@ -27,6 +27,8 @@ extends RefCounted
 ## `challenge = true` lists the level under Challenges (with its best progress) instead
 ## of Practice.
 ## `max_fall = px` sets the hardest landing (Runner.max_fall; 0 = no limit).
+## `lesson = {title, text, demo, goal}` makes it a practice lesson (see Lesson): listed
+## first under Practice, with an explanation panel and a goal it needs to clear.
 ## `random` adds that many randomly generated platforms afterwards.
 ## A flat goal platform with the finish flag always follows the last obstacle.
 
@@ -46,6 +48,23 @@ const LIST := [
 		{width = 2000, rail = Vector3(300, 1300, 70), mark = "rail"},
 		Vector2(400, 0),
 		{width = 1800, platform = [Vector2(300, 60), Vector2(1300, 60)], mark = "ledge"},
+		Vector2(600, 0),
+	]},
+	# Lessons: one mechanic each, in order.
+	{id = "lesson_push", name = "Pushing", start_y = 0.8, checkpoints = false, lesson = {
+		title = "1. Pushing",
+		text = "Tap PUSH to kick. Higher on the pad kicks harder. Tap again while a kick is going to line up to two more. No pops while pushing.",
+		demo = [
+			{pad = &"push", at = Vector2(0.0, -0.7), hold = 0.12}, {wait = 0.1},
+			{pad = &"push", at = Vector2(0.0, -0.7), hold = 0.12}, {wait = 1.0},
+			{pad = &"push", at = Vector2(0.0, 0.6), hold = 0.12}, {wait = 1.2},
+		],
+		goal = {speed = 25.0},
+	}, segments = [
+		Vector2(3000, 0),  # Flat: get going.
+		Vector3(900, 0, -110),  # Uphills too steep to coast up: keep pushing.
+		Vector2(500, 0),
+		Vector3(900, 0, -170),
 		Vector2(600, 0),
 	]},
 	{id = "flat", name = "Flat", start_y = 0.7, segments = [Vector2(8000, 0)]},

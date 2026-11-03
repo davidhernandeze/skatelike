@@ -222,6 +222,25 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   (`camera_follow`), and it takes on the board's speed as the board nears an edge of the
   screen, so long falls and fast rides stay in view without jolts.
 
+## Lessons
+
+Practice levels that teach one mechanic each, in order, replacing the tutorial (which
+stays under Free ride until the lessons cover everything it does). A lesson is a level
+with a `lesson` entry (`scripts/levels.gd`, run by `scripts/lesson.gd`):
+
+- An **explanation panel** at the top of the play area: the mechanic's text, the goal and
+  how it's going, and a miniature control panel where a finger loops the input to make
+  (the lesson's `demo` steps: taps at a spot on a pad, holds, waits, and which pad layout).
+  It never takes touches. The **Tips** checkbox in the top bar hides it (remembered).
+- A **goal** to clear it: reach a speed (`{speed = km/h}`) or land a trick
+  (`{trick = "360 flip"}`, matched in the landing's name). Reaching the flag without it
+  says what's missing and restarts the lesson.
+- Lessons are listed first under Practice, numbered, with a check once cleared.
+
+| # | Lesson | Goal |
+|---|---|---|
+| 1 | Pushing: tap PUSH, higher kicks harder, taps line up during a kick, no pops while pushing. Flat ground, then two uphills too steep to coast | reach 25 km/h |
+
 ## Tutorial
 
 The first entry in the level menu. Lessons go from riding to balancing to tricks, each one
@@ -387,6 +406,7 @@ scripts/
   line_label.gd      the line in progress, under the score
   balance_meter.gd   the balance needle drawn above the board
   sfx.gd             board sounds: pops, catches, landings, slams, rolling and grinding loops
+  lesson.gd          a lesson's explanation panel, input demo and goal
   icons.gd           UI symbols (arrows, menu bars, check) drawn as shapes: the web build's
                      font has no glyphs for them and no system fonts to fall back on
   tutorial.gd        tutorial steps: freezes, instructions, pad highlights

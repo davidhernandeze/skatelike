@@ -7,6 +7,8 @@ const MENU_SCENE := "res://scenes/menu.tscn"
 
 ## Whether the stats (speed, last inputs) are shown; kept across restarts.
 static var show_stats := false
+## Whether a lesson's explanation panel is shown; kept across restarts.
+static var show_tips := true
 
 @onready var play_area: Control = $Layout/PlayArea
 @onready var runner: Runner = $Layout/PlayArea/World/Runner
@@ -27,6 +29,8 @@ static var show_stats := false
 ]
 ## Guided steps, on tutorial levels only.
 var tutorial: Tutorial
+## The explanation panel and goal, on lessons only.
+var lesson: Lesson
 ## Flow meter and slow-motion button, just above the control panel.
 var flow: FlowButton
 ## Online ghosts and name tags, on challenges with the online switch on.
@@ -70,6 +74,9 @@ func _ready() -> void:
 	play_area.add_child(line_label)
 	line_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	line_label.offset_top = 84.0
+	if level.has("lesson"):
+		_add_lesson(level.lesson)
+		line_label.offset_top = lesson.offset_bottom + 8.0
 	line_label.offset_left = 16.0
 	line_label.offset_right = -16.0
 	flow.line_changed.connect(line_label.show_line)
@@ -156,6 +163,31 @@ func _follow_balance_finger() -> void:
 	if balance_pop_pad.get_global_rect().has_point(at) and (not tutorial or tutorial.accept(&"balance_pop", Vector2.ZERO)):
 		balance_pop_pad.flash()
 		runner.act(Runner.Act.BALANCE_POP)
+
+
+## The lesson's explanation panel under the top bar, and the Tips checkbox for it.
+func _add_lesson(spec: Dictionary) -> void:
+	lesson = Lesson.new()
+	lesson.runner = runner
+	for pad: Pad in control_panel._pads:
+		lesson.pads[pad.action] = pad
+	play_area.add_child(lesson)
+	lesson.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	lesson.offset_top = 96.0
+	lesson.offset_bottom = 96.0 + 300.0
+	lesson.offset_left = 12.0
+	lesson.offset_right = -12.0
+	lesson.setup(spec)
+	lesson.visible = show_tips
+	lesson.goal_reached.connect(func() -> void: callouts.show_callout("goal"))
+	var tips := CheckBox.new()
+	tips.text = "Tips"
+	tips.button_pressed = show_tips
+	tips.add_theme_font_size_override("font_size", 28)
+	tips.toggled.connect(func(on: bool) -> void:
+		show_tips = on
+		lesson.visible = on)
+	stats_button.add_sibling(tips)
 
 
 func _update_layout() -> void:
@@ -309,6 +341,12 @@ func _on_caught(catch_index: int, angle_deg: float, apex_ms: int) -> void:
 
 
 func _on_level_cleared() -> void:
+	if lesson and not lesson.goal_met():
+		# The flag without the goal: say what's missing and go again.
+		lesson.show_failed()
+		await get_tree().create_timer(2.0, true, false, true).timeout
+		get_tree().reload_current_scene.call_deferred()
+		return
 	last_input.text = "CLEARED!"
 	Levels.record(Levels.current, 1.0)
 	Levels.checkpoint = ""
