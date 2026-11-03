@@ -1,9 +1,9 @@
 extends Control
-## Menu pages: the main page (Practice, Challenges, Profile), the level lists, a
+## Menu pages: the main page (Gaps, Practice, Profile), the level lists, a
 ## challenge's scoreboard ("board:<level id>") and the profile editor. The title stays at
 ## the top; pages scroll below it and start with a Back button. Level buttons come from
-## Levels.LIST: levels with `challenge = true` go in the Challenges table (best progress,
-## scoreboard), the rest under Practice.
+## Levels.LIST: levels with `challenge = true` go in the challenges table, shown as
+## "Gaps" (best progress, scoreboard), the rest under Practice.
 
 const GAME_SCENE := "res://scenes/main.tscn"
 const BUTTON_SIZE := Vector2(480, 88)
@@ -96,15 +96,15 @@ func _show(new_page: String) -> void:
 		_:
 			page = "main"
 			_add_label("skater " + Profile.skater_name, 32, Color(0.75, 0.78, 0.9))
+			_add_button("Gaps", _show.bind("challenges"))
 			_add_button("Practice", _show.bind("practice"))
-			_add_button("Challenges", _show.bind("challenges"))
 			_add_button("Profile", _show.bind("profile"))
 			_add_button("Credits", _show.bind("credits"))
 
 
 func _show_levels(challenges: bool) -> void:
 	_add_back("main")
-	_add_label("CHALLENGES" if challenges else "PRACTICE", 36, Color(0.75, 0.78, 0.9))
+	_add_label("GAPS" if challenges else "PRACTICE", 36, Color(0.75, 0.78, 0.9))
 	if challenges:
 		_add_online_switch()
 		_show_challenge_table()
@@ -384,5 +384,4 @@ func _make_button(text: String, min_size: Vector2, font_size: int) -> Button:
 
 func _start(id: String) -> void:
 	Levels.current = id
-	Levels.checkpoint = ""
 	get_tree().change_scene_to_file(GAME_SCENE)

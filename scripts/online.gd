@@ -38,7 +38,7 @@ signal ghost_actions(id: int, through: int, actions: PackedFloat64Array)
 signal status_changed(status: StringName)
 
 ## WebSocket subprotocol: the ghost-room protocol version.
-const PROTOCOL := "skatelike-6"
+const PROTOCOL := "skatelike-7"
 const DEFAULT_PORT := 8910
 const DEFAULT_URL := "wss://skatelike.com/online"
 ## Batches of actions sent per second.

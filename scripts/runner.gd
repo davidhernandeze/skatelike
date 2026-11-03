@@ -79,7 +79,7 @@ const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &
 	&"_board_trick_late", &"_popped", &"_pop_nose", &"_pop_spin", &"_past_vertical",
 	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
 	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue", &"_body_turn",
-	&"_body_front", &"_switch", &"_pop_switch", &"_dir", &"_air_base"]
+	&"_body_front", &"_switch", &"_pop_stance", &"_dir", &"_air_base"]
 
 ## A straight surface from (x0, y0) to (x1, y1): floor (solid below), the top of a
 ## platform (solid only from above) or a rail.
@@ -220,6 +220,8 @@ class Seg:
 @export var reaction_time := 0.25
 ## Distance from the start of the goal platform to the finish flag (px).
 @export var goal_offset := 250.0
+## How many progress marks a level gets (progress()).
+@export var progress_marks := 20
 ## Joints bending uphill by more than this are too steep to ride (wall); bending
 ## downhill by more than this launches the board (deg).
 @export var max_transition := 25.0
@@ -451,9 +453,10 @@ var _board_trick_t := 0.0
 ## (right) is frontside; riding switch, the other way.
 var _body_turn := -1.0
 var _body_front := false
-## Riding switch (after landing a 180; another one turns back), and the stance at the pop.
+## Riding switch (after landing a 180; another one turns back), and the stance named at
+## the pop (stance_name()).
 var _switch := false
-var _pop_switch := false
+var _pop_stance := ""
 ## Body 180s with board tricks that have their own names: [frontside, trick] -> name.
 const BODY_COMBOS := {
 	[true, "kickflip"]: "frontside flip",
@@ -491,7 +494,8 @@ var _board_trick_done := &""
 var _board_trick_late := false
 ## The current trick started with a pop (board tricks need one; drop-offs don't allow them).
 var _popped := false
-## That pop was off the nose (nollie).
+## That pop was off the end ahead, the way the board rolls (nollie): the nose rolling
+## forward, the tail rolling backward.
 var _pop_nose := false
 ## The free spin is a pop's: undamped, capped at pop_spin_cap.
 var _pop_spin := false
@@ -534,13 +538,15 @@ var _ground_texture: Texture2D
 var _last_arrival_time := 0.0
 
 var _start_y := 0.7
-## Extra start height (px), when resuming from a checkpoint.
-var _start_dy := 0.0
 ## Remaining scripted segments: Vector3(width, step, rise), or a Dictionary for a
 ## platform with a rail (see Levels).
 var _segments: Array = []
-## Length of the level from the board's start to the goal (px), for progress().
-var _length := 0.0
+## Progress (progress()): marks spread evenly along the level's own floor pieces, each
+## {seg, t (fraction along it), side (of the board, -1/+1)}, and how many were crossed.
+var _progress_marks: Array = []
+var _marks_crossed := 0
+## The level's own floor pieces as laid (for the progress marks).
+var _level_segs: Array[Seg] = []
 ## Screen position of the level origin (end of the start platform) when the run started.
 var _origin := Vector2.ZERO
 var _random_left := 0
@@ -552,7 +558,7 @@ var _goal_x := INF
 var _goal_y := INF
 ## Marked level features: segment `mark` name -> Vector2(start x, end x) of its rail,
 ## platform or floor piece. Filled as the terrain is generated and scrolled with it
-## (checkpoints use them).
+## (tests and bots use them).
 var marks := {}
 
 
@@ -564,7 +570,6 @@ func _ready() -> void:
 ## Sets the layout to play; call before setup().
 func configure(level: Dictionary) -> void:
 	_start_y = level.get("start_y", 0.7)
-	_start_dy = level.get("start_dy", 0.0)
 	_segments.clear()
 	for segment in level.get("segments", []):
 		if segment is Vector2:
@@ -586,7 +591,7 @@ func setup(area: Vector2) -> void:
 	_started = true
 	_speed = start_speed * pixels_per_meter
 	_slide = 0.0
-	var ground_y := _area.y * _start_y + _start_dy
+	var ground_y := _area.y * _start_y
 	_pos = Vector2(_area.x * player_x_ratio + board_size.x * 0.5, ground_y)
 	# Long starting platform so the player has time to get ready.
 	# (It reaches a screen back too, for rolling back onto: its far end stops the board.)
@@ -594,10 +599,8 @@ func setup(area: Vector2) -> void:
 	_start_seg = _segs[0]
 	_support = _segs[0]
 	_origin = Vector2(_segs[0].x1, ground_y)
-	_length = _segs[0].x1 - _pos.x + goal_offset
-	for segment in _segments:
-		_length += segment.width + segment.get("gap", 0.0) if segment is Dictionary else segment.x
 	_fill_platforms()
+	_place_progress_marks()
 	_settle_view()
 	_snapshot = get_state()
 
@@ -610,10 +613,19 @@ func can_pop() -> bool:
 	return (_grounded or _rail != null) and not _in_trick
 
 
-## Riding switch as far as tricks go: the other stance, or backward (fakie counts as
-## switch).
+## Facing the other way to the way the board rolls, as far as frontside and backside go:
+## riding switch, or backward (fakie).
 func riding_switch() -> bool:
 	return _switch != (_dir < 0.0)
+
+
+## The stance tricks are named with: "fakie" rolling backward, "switch" riding forward
+## the other way round (after a 180), "" normal. A 180 while fakie turns you forward in
+## your normal stance again (like a half cab): no prefix.
+func stance_name() -> String:
+	if _dir < 0.0:
+		return "" if _switch else "fakie"
+	return "switch" if _switch else ""
 
 
 func is_pushing() -> bool:
@@ -638,9 +650,51 @@ func is_airborne() -> bool:
 	return _airborne
 
 
-## How far along the level the board is, 0..1 (approximate).
+## How far along the level the board is, 0..1: the share of the progress marks it has
+## crossed (see progress_marks), 1 once it's cleared.
 func progress() -> float:
-	return 1.0 if _cleared else clampf(minf(_distance, _slam_distance) / _length, 0.0, 0.99)
+	if _cleared:
+		return 1.0
+	var crossed := float(_marks_crossed) / maxf(_progress_marks.size(), 1.0)
+	return clampf(crossed, 0.0, 0.99)
+
+
+## Spreads progress_marks marks evenly along the level's own floor pieces (by width), the
+## last at the end of the last one. Laying the level out comes first.
+func _place_progress_marks() -> void:
+	_progress_marks.clear()
+	_marks_crossed = 0
+	var total := 0.0
+	for s in _level_segs:
+		total += s.x1 - s.x0
+	if total <= 0.0:
+		return
+	var along := 0.0
+	var k := 1
+	for s in _level_segs:
+		var width := s.x1 - s.x0
+		while k <= progress_marks and k * total / progress_marks <= along + width + 0.001:
+			var t := clampf((k * total / progress_marks - along) / maxf(width, 0.001), 0.0, 1.0)
+			_progress_marks.append({seg = s, t = t, side = signf(_pos.x - lerpf(s.x0, s.x1, t))})
+			k += 1
+		along += width
+
+
+## Counts the progress marks the board crosses (either way), on the floor that's under
+## the board there: a floor running above or below doesn't count.
+func _cross_progress_marks() -> void:
+	for mark: Dictionary in _progress_marks:
+		if mark.side == 0.0:
+			continue  # Crossed already.
+		var s: Seg = mark.seg
+		var x := lerpf(s.x0, s.x1, mark.t)
+		var side := signf(_pos.x - x)
+		if side != mark.side and side != 0.0:
+			if _seg_at(x, _pos.y) == s:
+				mark.side = 0.0
+				_marks_crossed += 1
+			else:
+				mark.side = side
 
 
 ## How far the level has scrolled in all as drawn this frame (px), for things pinned to
@@ -725,8 +779,8 @@ func pop(nose: bool, strength := 1.0) -> void:
 	_grounded = false
 	_start_trick(0.0 if contrary else spin * (1.0 if nose else -1.0))
 	_popped = not contrary
-	_pop_nose = nose
-	_pop_switch = riding_switch()
+	_pop_nose = nose == (_dir > 0.0)  # Named for the end ahead: a fakie ollie pops the nose.
+	_pop_stance = stance_name()
 	_pop_spin = not contrary
 	popped.emit(nose, power)
 	_update_airborne()
@@ -949,9 +1003,9 @@ func _body_name() -> String:
 
 
 ## Callout for a landed pop: "ollie"/"nollie", or the board trick ("nollie kickflip").
-## Riding switch at the pop says so first ("switch kickflip"), after "late".
+## The stance at the pop comes first ("switch kickflip", "fakie kickflip"), after "late".
 func _pop_callout(trick: String) -> String:
-	var stance := "switch " if _pop_switch else ""
+	var stance := _pop_stance + " " if _pop_stance != "" else ""
 	if trick == "":
 		if _body_turn >= 0.0:
 			return stance + ("nollie " if _pop_nose else "") + _body_name()
@@ -998,6 +1052,8 @@ func step() -> void:
 	_prev_cam = _cam
 	_step(STEP)
 	_step_figure(STEP)
+	if not _dead:
+		_cross_progress_marks()
 	tick += 1
 	if tick % SNAPSHOT_STEPS == 0:
 		_snapshot = get_state()
@@ -1948,6 +2004,9 @@ func _start_grind(rail: Seg) -> void:
 		return
 	var trick := ("double " if _from_rail else "") + _trick_prefix()
 	var grind := "double " if _from_rail else ""
+	var stance := stance_name()
+	if stance != "":
+		grind += stance + " "  # "switch 5-0 grind", "fakie noseslide".
 	# Named from how the board meets it, whatever side CATCH was held on.
 	var tilt := _tilt_against(_ground_angle)
 	if absf(tilt) > grind_max_angle:
@@ -1963,7 +2022,8 @@ func _start_grind(rail: Seg) -> void:
 			grind += "noseslide" if tilt > 0.0 else "tailslide"
 		else:
 			grind += "nosegrind" if tilt > 0.0 else "5-0 grind"
-	trick = ("double " if _from_rail else "") + _trick_prefix() + grind.trim_prefix("double ")
+	trick = ("double " if _from_rail else "") + (stance + " " if stance != "" else "") + _trick_prefix() \
+			+ grind.trim_prefix("double ").trim_prefix(stance + " " if stance != "" else "")
 	landed.emit(trick)
 	line_event.emit(_air_name(), grind, false)
 	_end_body_turn()
@@ -2079,6 +2139,7 @@ func _fill_platforms() -> void:
 	while not _segments.is_empty() or _rightmost().x0 < _area.x + 200.0:
 		if not _segments.is_empty():
 			var segment = _segments.pop_front()
+			var laid := _segs.size()
 			if segment is Dictionary and segment.has("at"):
 				_start_floor(segment.at, segment.width, segment.get("rise", 0.0))
 			elif segment is Dictionary:
@@ -2100,6 +2161,7 @@ func _fill_platforms() -> void:
 					_goal_y = piece.y_at(_goal_x)
 			else:
 				_append_platform(segment.x, segment.y, segment.z)
+			_level_segs.append_array(_segs.slice(laid))
 		elif _random_left > 0:
 			_random_left -= 1
 			_append_random_platform()

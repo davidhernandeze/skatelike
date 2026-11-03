@@ -101,9 +101,13 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   so a centered catch keeps it there. Pop at the lip (`lip_pop_time`) for height and
   tricks. Coming down onto a wall that faces back the way it came, it touches down tail
   first and rolls down it backward: fakie.
-- **Fakie is switch.** Riding backward counts as switch for trick names and frontside or
-  backside (`riding_switch()`): a kickflip into the fakie landing is a plain kickflip,
-  the next one a "switch kickflip", and the SWITCH label shows.
+- **Fakie.** Tricks done rolling backward are named fakie (`stance_name()`): a kickflip
+  into the fakie landing is a plain kickflip, the next one a "fakie kickflip", grinds
+  "fakie 5-0 grind", and the FAKIE label shows. "Nollie" means popping the end ahead, so
+  rolling backward a pop off the nose is a "fakie ollie" and off the tail a "fakie
+  nollie". A 180 while fakie turns you forward in your normal stance (a half cab): no
+  prefix after it. For frontside and backside, fakie faces the other way like switch
+  (`riding_switch()`).
 - **Floors over floors.** A level can start a new stretch of floor anywhere (`at`), so
   one can run under another. The floor under the board is the highest one at or below
   it (`_seg_at(x, y)`). A floor with another under it is drawn as a slab (`floor_slab`,
@@ -144,7 +148,11 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
     rail pass, then press and hold again to land a manual on the floor under it.
 - **Balancing** is one long press, from holding CATCH in the air to lifting the finger:
   slide it left or right to balance, up into POP to pop out, or lift it to finish. In a
-  manual, a tap on POP with another finger pops out too.
+  manual, pressing POP with another finger pops out too.
+  - **Popping out** works like TAIL/NOSE POP: the pop goes when the finger on POP lifts,
+    however long it's held. Sliding it sideways BODY_SWIPE pad widths first aims a
+    frontside or backside 180 (shown on the pad). Held up on POP by the landing finger,
+    the needle keeps the last steer; slid back down, it's balancing again, no pop.
   - A **meter above the board** shows the balance needle, so the eyes stay on the board.
     The needle tips away from the middle by itself, faster the further it's gone, with a
     little random drift, and gets slowly harder the longer it's held (`ramp`). The finger
@@ -176,8 +184,10 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - **Frontside or backside:** in the normal stance a swipe toward the way you're riding
     (right) is frontside, left backside; riding switch, the other way round.
   - **Switch:** landing a 180 puts you in switch (shown bottom left), another one back.
-    Tricks popped switch say so: "switch ollie", "switch kickflip". A slam restarts you
-    in your normal stance.
+    Tricks popped switch say so: "switch ollie", "switch kickflip", and so do grinds and
+    slides landed switch: "switch 5-0 grind", "switch kickflip noseslide". Rolling
+    backward it's fakie instead (see Transfers and fakie). A slam restarts you in your
+    normal stance.
   - **Names:** "frontside 180", "nollie backside 180"; with board tricks, their own names
     where they have one:
 
@@ -319,7 +329,7 @@ tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run b
 | 10 | Late tricks: catch, trick, catch | land a late trick |
 | 11 | Combo tricks: quick taps join (two shuvits and a kickflip) | land a 360 flip |
 | 12 | Manuals: hold CATCH on a side onto flat, balance the needle, lift to finish | land a manual |
-| 13 | Manual pops: slide into POP or tap it with another finger; that's a line | a line of 3 tricks |
+| 13 | Manual pops: slide into POP or press it with another finger, and lift (slide sideways first for a 180); that's a line | a line of 3 tricks |
 | 14 | Rails: hold CATCH onto a rail (50-50, 5-0, nosegrind), balance, pop out or ride off. The Rails level | land 2 grinds |
 | 15 | Ledges: slides on platform tops, lift to roll on. The Ledges level | land a slide |
 | 16 | Double grinds: two rails 150 px apart, pop off the first onto the second | land a double grind |
@@ -342,14 +352,9 @@ flow button, whose real-time slow motion is held; Main and the pause screen keep
 so the ghost room still gets (empty) action batches and doesn't drop a paused rider.
 Fingers on the pads are let go when it pauses. `scripts/pause_menu.gd`.
 
-## Checkpoints
+## Restarts
 
-Any level with marked segments (`mark = "name"`, see `Runner.marks`) has checkpoints. A
-slam doesn't send you back to the start: the level restarts just before the last
-checkpoint you reached, at the same height. A checkpoint counts as reached once you're
-riding calmly within 600 px of it: on the ground and not in a manual or grind. Picking a
-level from the menu, or clearing it, starts the next run from the beginning. Challenges
-and lessons turn them off (`checkpoints = false`).
+There are no checkpoints: a slam or a fall always restarts the level from the start.
 
 ## Levels
 
@@ -365,7 +370,7 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 | Long jump | Screen-high drops with enough air for late flips |
 | Rails | A long straight rail and a long downhill rail |
 | Ledges | A flat ledge, a downhill ledge that runs onto the floor, and a bridge over a pit |
-| Sketchy #1 | A long survival run through every obstacle kind, no checkpoints (see below) |
+| Sketchy #1 | A long survival run through every obstacle kind (see below) |
 | Sketchy #2 | Rail yard: gaps only rails cross (one 1200 px), stair rails, downhill rails over drops |
 | Sketchy #3 | Rooftops: decks and boxes over gaps, islands at different heights, a kicker, high ollies; no rails |
 | Sketchy #4 | Bomb hill: downhills, rail-less stair sets to clear in one ollie, landing ramps, islands, long uphills to push |
@@ -374,13 +379,14 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 
 ## Menu
 
-The main menu has three pages:
+The main menu has these pages, in order:
 
+- **Gaps** (the challenges): the **Online** switch (see below), then a table of the
+  levels with `challenge = true` (Sketchy #1 to #4, Vert). Each row has the play button,
+  your best progress (a check once cleared), and **Top**, the challenge's scoreboard (only
+  with Online on).
 - **Practice:** the lessons first, numbered, then every other level without
   `challenge = true` under Free ride.
-- **Challenges:** the **Online** switch (see below), then a table of the levels with
-  `challenge = true` (Sketchy #1 to #4). Each row has the play button, your best progress
-  (a check once cleared), and **Top**, the challenge's scoreboard (only with Online on).
 - **Profile:** your skater name, 3 letters and 2 numbers (default SKT01). Set it with the
   ▲/▼ buttons over each character. It's saved in `user://profile.cfg` and shown on the main
   page.
@@ -388,7 +394,11 @@ The main menu has three pages:
 The title stays at the top, and pages scroll below it. Each page starts with an outlined
 **Back** button. Leaving a level returns to the page it was started from.
 
-Cleared levels get a green check, and challenges show their best progress. Both are saved
+Cleared levels get a green check, and challenges show their best progress. **Progress**
+is counted in marks: `Runner.progress_marks` (20) spread evenly along the level's own floor
+pieces, and how many the board has crossed, either way, on the floor under it (a floor
+running above or below doesn't count), so it works on levels ridden backward too. The flag
+makes it 100%. Both are saved
 in `user://progress.cfg`: on a phone or desktop that's the app's data folder; in the
 browser it's the page's IndexedDB (`/userfs`), which Godot syncs whenever a file is
 written. They survive restarts and page reloads, but not clearing site data or a private
@@ -433,7 +443,7 @@ or retrying).
 
 ### Sketchy #1 (challenge)
 
-About a minute of riding with no checkpoints. A slam or a fall restarts from the start, and
+About a minute of riding. A slam or a fall restarts from the start, and
 the menu shows your best progress, saved in `user://progress.cfg`. Obstacles, in order:
 
 - gaps to ollie and high step ups (130–140 px, near a full pop's limit)
@@ -451,7 +461,7 @@ board has no brake. Riders still reach 9–12 m/s in the second half.
 
 New level keys used here (documented in `scripts/levels.gd`): `gap`, `stairs`, point rails
 (`rail = [Vector2(x, height), Vector2(x, height)]`), platforms over gaps (drawn as
-overhangs), `checkpoints = false` and `challenge = true`.
+overhangs) and `challenge = true`.
 
 The random terrain generator (steps and slopes) still exists. Give a level `random = N` to use it.
 
@@ -483,7 +493,7 @@ scripts/
                      font has no glyphs for them and no system fonts to fall back on
   balance_pad.gd     the balance needle for manuals and grinds, steered by the held finger
   levels.gd          level definitions
-  menu.gd            menu pages: main, Practice, Challenges, Profile
+  menu.gd            menu pages: main, Gaps (challenges), Practice, Profile, Credits
   toggle.gd          big on/off switch (the Online ghosts switch)
   profile.gd         skater name (3 letters + 2 numbers) and the online switch, saved on the device
   online.gd          online ghosts: WebSocket client and headless relay server (autoload)

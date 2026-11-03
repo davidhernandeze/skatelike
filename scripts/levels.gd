@@ -14,17 +14,15 @@ extends RefCounted
 ## floor there), filled down to the floor, or drawn as a slab `deck` px thick. Its ends
 ## join floor at the same height smoothly.
 ## `mark = "name"` records where the segment's rail, platform or floor piece starts and
-## ends (Runner.marks). Marked segments are checkpoints: after a slam the level
-## restarts from the last one reached.
+## ends (Runner.marks), for tests and bots. A slam always restarts the level from the start.
 ## `gap = px` leaves empty space before the floor piece: a pit to jump, grind or bridge.
 ## `stairs = N` draws the piece as N stairs; they can't be landed on (ollie or grind them).
 ## `rail` can also be [Vector2(x, height), Vector2(x, height)]: a straight rail between
 ## two points (height above the piece's extended surface line), e.g. sloping across a gap.
 ## Platform points can lie over a gap too: where there's no floor below, the platform
 ## is drawn as an overhang.
-## `checkpoints = false` turns checkpoints off (slams restart the level).
-## `challenge = true` lists the level under Challenges (with its best progress) instead
-## of Practice.
+## `challenge = true` lists the level under Gaps (with its best progress) instead of
+## Practice.
 ## `max_fall = px` sets the hardest landing (Runner.max_fall; 0 = no limit).
 ## `lesson = {title, text, demo, goal}` makes it a practice lesson (see Lesson): listed
 ## first under Practice, with an explanation panel and a goal it needs to clear.
@@ -38,7 +36,7 @@ extends RefCounted
 
 const LIST := [
 	# Lessons: one mechanic each, in order.
-	{id = "lesson_push", name = "Pushing", start_y = 0.8, checkpoints = false, lesson = {
+	{id = "lesson_push", name = "Pushing", start_y = 0.8, lesson = {
 		title = "1. Pushing",
 		text = "Tap PUSH to kick. Higher on the pad kicks harder. Tap again while a kick is going to line up to two more. No pops while pushing.",
 		# Two quick hard kicks (the second lines up), then a long pause before it loops.
@@ -54,7 +52,7 @@ const LIST := [
 		Vector3(900, 0, -170),
 		Vector2(600, 0),
 	]},
-	{id = "lesson_ollie", name = "Ollie & catch", start_y = 0.75, checkpoints = false, lesson = {
+	{id = "lesson_ollie", name = "Ollie & catch", start_y = 0.75, lesson = {
 		title = "2. Ollie & catch",
 		text = "Tap TAIL POP to ollie: higher on the pad pops higher. The board turns nose up until you catch it: tap CATCH (the middle keeps it level) before you land, or you slam.",
 		# Pop high, the pads switch to the air ones, catch in the middle, a long pause.
@@ -74,7 +72,7 @@ const LIST := [
 		{width = 900, gap = 160},
 		{width = 1000, gap = 200},
 	]},
-	{id = "lesson_pop", name = "Pop height", start_y = 0.82, checkpoints = false, lesson = {
+	{id = "lesson_pop", name = "Pop height", start_y = 0.82, lesson = {
 		title = "3. Pop height",
 		text = "Low on TAIL POP pops a little, the top pops full. Step ups need a full pop, early: the nose has to clear the edge. Catch before the board passes upright.",
 		demo = [
@@ -93,7 +91,7 @@ const LIST := [
 		{width = 800, step = -130},
 		Vector2(500, 0),
 	]},
-	{id = "lesson_drops", name = "Drops", start_y = 0.35, checkpoints = false, lesson = {
+	{id = "lesson_drops", name = "Drops", start_y = 0.35, lesson = {
 		title = "4. Drops",
 		text = "Rolling off a ledge tips the nose down: catch it before you land. Pop off the edge instead for more air. Don't push right at an edge.",
 		demo = [
@@ -107,7 +105,7 @@ const LIST := [
 		Vector2(800, 220),
 		Vector2(600, 0),
 	]},
-	{id = "lesson_nollie", name = "Nollie", start_y = 0.75, checkpoints = false, lesson = {
+	{id = "lesson_nollie", name = "Nollie", start_y = 0.75, lesson = {
 		title = "5. Nollie",
 		text = "NOSE POP pops off the front: a nollie. The board turns nose down until you catch it, so catch it early.",
 		demo = [
@@ -122,7 +120,7 @@ const LIST := [
 		{width = 900, gap = 160},
 		{width = 1000, gap = 200},
 	]},
-	{id = "lesson_angle", name = "Catch angle", start_y = 0.4, checkpoints = false, lesson = {
+	{id = "lesson_angle", name = "Catch angle", start_y = 0.4, lesson = {
 		title = "6. Catch angle",
 		text = "Where you tap CATCH tilts the board: left lifts the nose, right drops it. Landing on a downhill? Catch on the right to match it.",
 		demo = [
@@ -140,7 +138,7 @@ const LIST := [
 		{width = 900, gap = 200, step = 40, rise = 380},
 		Vector2(700, 0),
 	]},
-	{id = "lesson_crests", name = "Crests & lips", start_y = 0.78, checkpoints = false, lesson = {
+	{id = "lesson_crests", name = "Crests & lips", start_y = 0.78, lesson = {
 		title = "7. Crests & lips",
 		text = "Ramps throw you on with your speed: small hops land by themselves. At a kicker, pop right at the lip to fly further. Push for speed first.",
 		demo = [
@@ -158,7 +156,7 @@ const LIST := [
 		{width = 800, gap = 340, step = 60},
 		Vector2(500, 0),
 	]},
-	{id = "lesson_flip", name = "Flip tricks", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+	{id = "lesson_flip", name = "Flip tricks", start_y = 0.3, max_fall = 900, lesson = {
 		title = "8. Flip tricks",
 		text = "After a pop, tap TRICK: the column on your pop's side does shuvits, the other flips. The board spins until you CATCH it. Big drops give time.",
 		demo = [
@@ -173,7 +171,7 @@ const LIST := [
 		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
 		Vector2(800, 550),
 	]},
-	{id = "lesson_doubles", name = "Doubles", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+	{id = "lesson_doubles", name = "Doubles", start_y = 0.3, max_fall = 900, lesson = {
 		title = "9. Doubles",
 		text = "The catch counts the turns: wait for two full flips before you CATCH for a double kickflip. Leave time to land.",
 		demo = [
@@ -188,7 +186,7 @@ const LIST := [
 		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
 		Vector2(800, 550),
 	]},
-	{id = "lesson_late", name = "Late tricks", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+	{id = "lesson_late", name = "Late tricks", start_y = 0.3, max_fall = 900, lesson = {
 		title = "10. Late tricks",
 		text = "Catch first, then tap TRICK, then CATCH again: a late trick, worth more.",
 		demo = [
@@ -204,7 +202,7 @@ const LIST := [
 		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
 		Vector2(800, 550),
 	]},
-	{id = "lesson_combo", name = "Combo tricks", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+	{id = "lesson_combo", name = "Combo tricks", start_y = 0.3, max_fall = 900, lesson = {
 		title = "11. Combo tricks",
 		text = "Tricks tapped quickly join into one: two shuvits and a kickflip make a 360 flip. Then catch it.",
 		demo = [
@@ -220,7 +218,7 @@ const LIST := [
 		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
 		Vector2(800, 550),
 	]},
-	{id = "lesson_manual", name = "Manuals", start_y = 0.55, checkpoints = false, lesson = {
+	{id = "lesson_manual", name = "Manuals", start_y = 0.55, lesson = {
 		title = "12. Manuals",
 		text = "Catch, then HOLD CATCH on a side as you land: left for a manual, right for a nose manual. Slide that finger to keep the needle up; lift it to finish.",
 		demo = [
@@ -237,9 +235,9 @@ const LIST := [
 		{width = 1800, step = 100},
 		Vector2(600, 0),
 	]},
-	{id = "lesson_manual_pop", name = "Manual pops", start_y = 0.55, checkpoints = false, lesson = {
+	{id = "lesson_manual_pop", name = "Manual pops", start_y = 0.55, lesson = {
 		title = "13. Manual pops",
-		text = "Pop out of a manual: slide the held finger up into POP, or tap POP with another finger (smaller pops). Tricks chained like this make a line.",
+		text = "Pop out of a manual: slide the held finger up into POP, or press POP with another finger (smaller pops). It pops when you lift; slide sideways on POP first for a 180. Tricks chained like this make a line.",
 		demo = [
 			{layout = &"balance"}, {pad = &"balance", at = Vector2(-0.2, 0.0), hold = 0.5},
 			{pad = &"balance", at = Vector2(0.2, 0.0), hold = 0.5}, {pad = &"balance_pop", at = Vector2(0.0, 0.0), hold = 0.12},
@@ -254,7 +252,7 @@ const LIST := [
 		{width = 1800, step = 100},
 		Vector2(600, 0),
 	]},
-	{id = "lesson_rails", name = "Rails", start_y = 0.5, checkpoints = false, lesson = {
+	{id = "lesson_rails", name = "Rails", start_y = 0.5, lesson = {
 		title = "14. Rails",
 		text = "Ollie over a rail and HOLD CATCH coming down onto it: level is a 50-50, tail down a 5-0, nose down a nosegrind. Balance; pop out or ride off the end.",
 		demo = [
@@ -271,7 +269,7 @@ const LIST := [
 		{width = 2400, rise = 2400 * tan(deg_to_rad(8.0)), rail = Vector3(300, 1800, 70)},
 		Vector2(500, 0),
 	]},
-	{id = "lesson_ledges", name = "Ledges", start_y = 0.6, checkpoints = false, lesson = {
+	{id = "lesson_ledges", name = "Ledges", start_y = 0.6, lesson = {
 		title = "15. Ledges",
 		text = "Ledges work like rails: hold CATCH on a side onto one for a tailslide or noseslide. Lift to roll on along the top, or slide off the end.",
 		demo = [
@@ -288,7 +286,7 @@ const LIST := [
 		{width = 1800, platform = [Vector2(300, 140), Vector2(1400, 0)]},
 		Vector2(500, 0),
 	]},
-	{id = "lesson_double_grind", name = "Double grinds", start_y = 0.55, checkpoints = false, lesson = {
+	{id = "lesson_double_grind", name = "Double grinds", start_y = 0.55, lesson = {
 		title = "16. Double grinds",
 		text = "Pop off a rail and grab the next one before touching the floor: a double grind. The pop out is small, so the rails are close.",
 		demo = [
@@ -305,7 +303,7 @@ const LIST := [
 		{width = 1400, rail = Vector3(50, 1000, 70)},
 		Vector2(500, 0),
 	]},
-	{id = "lesson_lines", name = "Lines & flow", start_y = 0.5, checkpoints = false, lesson = {
+	{id = "lesson_lines", name = "Lines & flow", start_y = 0.5, lesson = {
 		title = "17. Lines & flow",
 		text = "Chain tricks without putting the wheels down: each one scores x2, x3 more. Tricks fill FLOW: tap it when full for slow motion.",
 		demo = [
@@ -323,7 +321,7 @@ const LIST := [
 		{width = 2000, rail = Vector3(300, 1400, 70)},
 		Vector2(600, 0),
 	]},
-	{id = "lesson_180", name = "180s & switch", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+	{id = "lesson_180", name = "180s & switch", start_y = 0.3, max_fall = 900, lesson = {
 		title = "18. 180s & switch",
 		text = "Keep holding the pop and slide sideways before lifting: the skater turns 180 (right is frontside, left backside). You land switch; another 180 turns back. Add a kickflip for a frontside or backside flip.",
 		demo = [
@@ -339,7 +337,7 @@ const LIST := [
 		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
 		Vector2(800, 550),
 	]},
-	{id = "lesson_vert", name = "Vert", start_y = 0.43, checkpoints = false, max_fall = 650, lesson = {
+	{id = "lesson_vert", name = "Vert", start_y = 0.43, max_fall = 650, lesson = {
 		title = "19. Vert",
 		text = "A nollie keeps turning nose down. Pop just before the edge, wait, and catch late: past upright the board turns back slowly, to meet the wall. Then pop at the kicker's lip.",
 		demo = [
@@ -450,9 +448,9 @@ const LIST := [
 		{width = 800, step = 180, platform = [Vector2(0, 180), Vector2(800, 180)], deck = 36},
 		Vector2(600, -180),
 	]},
-	# Survival run through every obstacle kind, no checkpoints. Heights stay inside the
+	# Survival run through every obstacle kind. Heights stay inside the
 	# screen (y between about 0.3 and 0.86 of the play area). Marks are for tests and bots.
-	{id = "sketchy_1", name = "Sketchy #1", start_y = 0.6, checkpoints = false, challenge = true, segments = [
+	{id = "sketchy_1", name = "Sketchy #1", start_y = 0.6, challenge = true, segments = [
 		Vector2(600, 0),
 		{width = 700, gap = 260, mark = "gap"},
 		{width = 600, step = -140, mark = "high1"},  # High ollies: near a full pop's limit.
@@ -507,7 +505,7 @@ const LIST := [
 	]},
 	# Rail yard: gaps that only rails cross, stair rails, downhill rails over drops.
 	# Uphills after each descent bleed off the speed the frictionless rails add.
-	{id = "sketchy_2", name = "Sketchy #2", start_y = 0.55, checkpoints = false, challenge = true, segments = [
+	{id = "sketchy_2", name = "Sketchy #2", start_y = 0.55, challenge = true, segments = [
 		Vector2(600, 0),
 		{width = 900, gap = 700, rail = [Vector2(-950, 70), Vector2(100, 70)], mark = "r1"},
 		{width = 480, rise = 260, stairs = 8, rail = Vector3(-40, 520, 70), mark = "r2"},
@@ -527,7 +525,7 @@ const LIST := [
 	]},
 	# Rooftops: decks and boxes over gaps, islands at different heights, a kicker, high
 	# ollies. No rails.
-	{id = "sketchy_3", name = "Sketchy #3", start_y = 0.5, checkpoints = false, challenge = true, segments = [
+	{id = "sketchy_3", name = "Sketchy #3", start_y = 0.5, challenge = true, segments = [
 		Vector2(600, 0),
 		{width = 600, gap = 300, step = -60, mark = "a1"},
 		{width = 700, gap = 700, platform = [Vector2(-900, 80), Vector2(80, 80)], deck = 30, mark = "a2"},
@@ -546,7 +544,7 @@ const LIST := [
 	]},
 	# Bomb hill: downhills for speed, stair sets with no rail (clear them in one ollie),
 	# landing ramps and islands where a fast board needs a softer pop.
-	{id = "sketchy_4", name = "Sketchy #4", start_y = 0.3, checkpoints = false, challenge = true, segments = [
+	{id = "sketchy_4", name = "Sketchy #4", start_y = 0.3, challenge = true, segments = [
 		Vector2(500, 0),
 		Vector3(900, 0, 160),
 		{width = 700, gap = 360, step = 30, mark = "b1"},
@@ -574,7 +572,7 @@ const LIST := [
 	# pit only a pop at its lip clears (about 10 frames, from just before it to
 	# lip_pop_time after), landing on a gentle downhill. max_fall is raised so the
 	# highest of those pops can land.
-	{id = "vert", name = "Vert", start_y = 0.43, checkpoints = false, challenge = true, max_fall = 650, segments = [
+	{id = "vert", name = "Vert", start_y = 0.43, challenge = true, max_fall = 650, segments = [
 		Vector2(300, 0),
 		Vector3(350, 0, -55),
 		{width = 3400 / tan(deg_to_rad(85.0)), rise = 3400, mark = "vert"},
@@ -600,10 +598,6 @@ static var current := "push"
 static var best := {}
 static var _loaded := false
 const PROGRESS_FILE := "user://progress.cfg"
-## Mark of the last checkpoint reached in the current level ("" = from the start).
-## Cleared when a level is picked or cleared.
-static var checkpoint := ""
-
 
 ## Whether the level was ever cleared on this device or browser.
 static func is_cleared(id: String) -> bool:
@@ -631,37 +625,6 @@ static func load_progress() -> void:
 	if file.load(PROGRESS_FILE) == OK and file.has_section("best"):
 		for id in file.get_section_keys("best"):
 			best[id] = file.get_value("best", id)
-
-
-## Index of the segment with `mark` in `level`, or -1.
-static func mark_index(level: Dictionary, mark: String) -> int:
-	var segments: Array = level.segments
-	for i in segments.size():
-		if segments[i] is Dictionary and segments[i].get("mark", "") == mark:
-			return i
-	return -1
-
-
-## A copy of `level` that starts right before the segment with `mark`, on a start
-## platform at the height the level has there (`start_dy` px below `start_y`).
-static func from_checkpoint(level: Dictionary, mark: String) -> Dictionary:
-	var index := mark_index(level, mark)
-	if index < 0:
-		return level
-	var resumed := level.duplicate()
-	var dy := 0.0
-	for i in index:
-		var segment = level.segments[i]
-		if segment is Dictionary:
-			dy += segment.get("step", 0.0) + segment.get("rise", 0.0)
-		elif segment is Vector3:
-			dy += segment.y + segment.z
-		else:
-			dy += segment.y
-	resumed.segments = level.segments.slice(index)
-	resumed.start_dy = dy
-	resumed.checkpoint = mark
-	return resumed
 
 
 static func get_level(id: String) -> Dictionary:

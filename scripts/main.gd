@@ -41,9 +41,12 @@ var flow: FlowButton
 var ghosts: Node2D
 ## Fingers holding CATCH.
 var _catch_holds := 0
-## The finger holding a pop pad: {action, pad, nose, strength, from, at (global), aim}. The
-## pop goes when it lifts, however long it was held; sliding sideways BODY_SWIPE pad
-## widths aims it into a body 180 (aim -1 left / +1 right), shown on the pad.
+## The finger holding a pop pad: {action, pad, nose, strength, from, at (global), aim,
+## balance}. The pop goes when it lifts, however long it was held; sliding sideways
+## BODY_SWIPE pad widths aims it into a body 180 (aim -1 left / +1 right), shown on the
+## pad. `balance`: it's the POP of a manual or grind (BALANCE_POP), held by a second
+## finger on it or by the finger held from the landing sliding up into it (`action` is
+## then &"lock_tilt", the finger's own).
 var _pop_finger := {}
 const BODY_SWIPE := 0.33
 ## Actions not yet sent to the ghost room: [tick, action, a, b] each.
@@ -53,19 +56,14 @@ var _last_snapshot: Array = []
 var _actions_since := PackedFloat64Array()
 ## Time until the next batch of actions goes to the ghost room (s).
 var _send_left := 0.0
-## The level as defined (not cut at a checkpoint), for finding checkpoints in it.
+## The level being played.
 var _level: Dictionary
-## A checkpoint counts as reached this close before its mark, on the ground (px).
-const CHECKPOINT_LEAD := 600.0
 
 
 func _ready() -> void:
 	Engine.time_scale = game_speed
 	_level = Levels.get_level(Levels.current)
-	var level := _level
-	if Levels.checkpoint != "":
-		level = Levels.from_checkpoint(_level, Levels.checkpoint)
-	runner.configure(level)
+	runner.configure(_level)  # Every run starts from the beginning: a slam resets it.
 	# Pausing stops the game (everything under Layout, and the flow button) while Main
 	# keeps the ghost room fed and the pause screen keeps taking input.
 	get_tree().paused = false  # A reload can come from a paused game (e.g. a timer).
@@ -103,8 +101,8 @@ func _ready() -> void:
 	play_area.add_child(line_label)
 	line_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	line_label.offset_top = 84.0
-	if level.has("lesson"):
-		_add_lesson(level.lesson)
+	if _level.has("lesson"):
+		_add_lesson(_level.lesson)
 	line_label.offset_left = 16.0
 	line_label.offset_right = -16.0
 	flow.line_changed.connect(line_label.show_line)
@@ -161,14 +159,14 @@ func _process(delta: float) -> void:
 		return
 	if lesson:
 		_frame_below_lesson()
-	_stance_label.visible = runner.riding_switch() and not runner._dead
+	_stance_label.text = runner.stance_name().to_upper()  # SWITCH or FAKIE.
+	_stance_label.visible = _stance_label.text != "" and not runner._dead
 	push_pad.set_pie(runner.push_progress(), runner.queued_pushes())
 	for pad in pop_pads:
 		pad.set_enabled(not runner.is_pushing())
 	trick_pad.set_enabled(runner.can_board_trick())
 	if runner.is_balancing():
 		_follow_balance_finger()
-	_update_checkpoint()
 	if not _pop_finger.is_empty():
 		var at: Array[Vector2] = control_panel.touches_of(_pop_finger.action)
 		if not at.is_empty():
@@ -179,16 +177,22 @@ func _process(delta: float) -> void:
 
 
 ## The finger still down from landing plays the balance trick: sliding it left or right
-## steers the balance needle, sliding it up into POP pops out.
+## steers the balance needle, sliding it up into POP holds a pop out (see _pop_finger),
+## which goes when it lifts.
 func _follow_balance_finger() -> void:
 	var fingers: Array[Vector2] = control_panel.touches_of(&"lock_tilt")
 	if fingers.is_empty():
 		return
 	var at: Vector2 = fingers[0]
-	balance_pad.steer(at.x)
-	if balance_pop_pad.get_global_rect().has_point(at):
-		balance_pop_pad.flash()
-		runner.act(Runner.Act.BALANCE_POP)
+	var on_pop := balance_pop_pad.get_global_rect().has_point(at)
+	var holding: bool = _pop_finger.get("action", &"") == &"lock_tilt"
+	if on_pop and _pop_finger.is_empty():
+		_hold_pop(&"lock_tilt", 1.0, balance_pop_pad, true)  # Pops when it lifts.
+	elif holding and not on_pop and at.y > balance_pop_pad.get_global_rect().end.y:
+		_pop_finger.pad.set_aim(false)  # Slid back down: balancing on, no pop.
+		_pop_finger = {}
+	if _pop_finger.get("action", &"") != &"lock_tilt":
+		balance_pad.steer(at.x)  # (Held on POP itself, the needle keeps the last steer.)
 
 
 ## The lesson's explanation panel under the top bar, and the Tips checkbox for it.
@@ -276,20 +280,6 @@ func _send_run(delta: float) -> void:
 	_actions = PackedFloat64Array()
 
 
-## Records the furthest marked segment coming up while riding calmly (on the ground,
-## not balancing), so a slam in what follows restarts there.
-func _update_checkpoint() -> void:
-	if not _level.get("checkpoints", true) or not runner.is_grounded() or runner.is_balancing():
-		return
-	var x := runner.board_position().x
-	var best := Levels.mark_index(_level, Levels.checkpoint)
-	for mark in runner.marks:
-		var index := Levels.mark_index(_level, mark)
-		if index > best and runner.marks[mark].x - x < CHECKPOINT_LEAD:
-			best = index
-			Levels.checkpoint = mark
-
-
 func _layout_world() -> void:
 	runner.setup(play_area.size)
 	if flow:
@@ -302,8 +292,8 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 	# the tilt lock angle from touch x.
 	# During a manual, a second finger on POP pops out too (on grinds only the held one does).
 	if action == &"balance_pop" and runner.is_balancing() and not runner.is_grinding():
-		balance_pop_pad.flash()
-		runner.act(Runner.Act.BALANCE_POP)
+		if _pop_finger.is_empty():
+			_hold_pop(action, 1.0, balance_pop_pad, true)  # Pops when it lifts.
 		return
 	if action == &"balance" or action == &"balance_pop":
 		return  # Only the finger held from the landing plays these (_follow_balance_finger).
@@ -331,12 +321,13 @@ func _show_stats(shown: bool) -> void:
 
 ## A finger went down on a pop pad: the pop waits for it to lift (strength from where it
 ## went down), aimed by sliding meanwhile.
-func _hold_pop(action: StringName, strength: float) -> void:
+func _hold_pop(action: StringName, strength: float, pad: Pad = null, balance := false) -> void:
 	var at: Array[Vector2] = control_panel.touches_of(action)
-	var pad: Pad = pop_pads[0] if action == &"tail_pop" else pop_pads[1]
+	if pad == null:
+		pad = pop_pads[0] if action == &"tail_pop" else pop_pads[1]
 	var from: Vector2 = at.back() if not at.is_empty() else pad.get_global_rect().get_center()
 	_pop_finger = {action = action, pad = pad, nose = action == &"nose_pop", strength = strength,
-			from = from, at = from, aim = 0}
+			from = from, at = from, aim = 0, balance = balance}
 	pad.set_aim(true)
 
 
@@ -356,7 +347,13 @@ func _release_pop() -> void:
 	var held := _pop_finger
 	_pop_finger = {}
 	held.pad.set_aim(false)
-	runner.act(Runner.Act.POP, 1.0 if held.nose else 0.0, held.strength)
+	if held.balance:
+		if not runner.is_balancing():
+			return  # The manual or grind ended meanwhile: nothing to pop out of.
+		held.pad.flash()
+		runner.act(Runner.Act.BALANCE_POP)
+	else:
+		runner.act(Runner.Act.POP, 1.0 if held.nose else 0.0, held.strength)
 	if held.aim != 0:
 		runner.act(Runner.Act.BODY_180, held.aim)
 
@@ -425,7 +422,6 @@ func _on_level_cleared() -> void:
 		return
 	last_input.text = "CLEARED!"
 	Levels.record(Levels.current, 1.0)
-	Levels.checkpoint = ""
 	if _level.get("challenge", false) and Profile.online:
 		# On the board: send the clear and show the board when back on the menu.
 		Scoreboard.record_clear(_level.id)
