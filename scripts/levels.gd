@@ -28,13 +28,13 @@ extends RefCounted
 ## `max_fall = px` sets the hardest landing (Runner.max_fall; 0 = no limit).
 ## `lesson = {title, text, demo, goal}` makes it a practice lesson (see Lesson): listed
 ## first under Practice, with an explanation panel and a goal it needs to clear.
-## `back_quarter = px` puts a quarter pipe of that radius (going vertical) behind the
-## start platform, to roll back into backward (fakie).
+## `at = Vector2(x, y)` starts a new stretch of floor there instead of after the last
+## piece (x from the end of the start platform, y down from its height), so a floor can
+## run under one laid already (drawn as a slab, Runner.floor_slab); the pieces after it
+## carry on from it. `goal = px` puts the finish flag that far into the piece instead of
+## after the last one: reached rolling past it either way, on that floor.
 ## `random` adds that many randomly generated platforms afterwards.
 ## A flat goal platform with the finish flag always follows the last obstacle.
-
-## Length of each piece of a quarter pipe of radius 200 px in 15° steps (px).
-const QP := 200.0 * PI / 12.0
 
 const LIST := [
 	# Lessons: one mechanic each, in order.
@@ -370,21 +370,43 @@ const LIST := [
 	{id = "cruise", name = "Downhill cruise", start_y = 0.6, segments = [
 		Vector3(30000, 0, 30000 * tan(deg_to_rad(0.7))),
 	]},
-	# A halfpipe: quarter pipes 2 m tall (a 200 px curve in 15° steps up to 75°, then
-	# 68 px of vert) either side of the flat bottom, the back one behind the start. Off
-	# the vert the board goes straight up and comes back down onto the wall backward
-	# (fakie), across to the other wall and up it. Pop at the lip for height and tricks.
-	# No way out yet: popping on the curve flies into the vert below the coping, so the
-	# flag on the deck can't be reached. Pause > Home to leave.
-	{id = "halfpipe", name = "Halfpipe", start_y = 0.62, back_quarter = 200.0, segments = [
+	# Transfer to fakie: drop into a U whose far side goes up to a 75° lip, which throws
+	# the board almost straight up (Runner.transfer_angle): it drifts over onto a tall
+	# 72° wall facing back, comes down it backward (fakie), and rolls back left along a
+	# lower floor that runs under the U, to the flag. A pop at the lip goes higher and
+	# meets the wall further up. Not enough speed: it rolls back into the U (push).
+	{id = "transfer", name = "Transfer", start_y = 0.2, max_fall = 900, segments = [
+		Vector2(80, 0),
+		# The drop: 10° steps down to 80° (small enough not to fly off them at speed), then
+		# back round to the bottom (508 px down).
+		Vector3(30 * cos(deg_to_rad(10.0)), 0, 30 * sin(deg_to_rad(10.0))),
+		Vector3(30 * cos(deg_to_rad(20.0)), 0, 30 * sin(deg_to_rad(20.0))),
+		Vector3(30 * cos(deg_to_rad(30.0)), 0, 30 * sin(deg_to_rad(30.0))),
+		Vector3(30 * cos(deg_to_rad(40.0)), 0, 30 * sin(deg_to_rad(40.0))),
+		Vector3(30 * cos(deg_to_rad(50.0)), 0, 30 * sin(deg_to_rad(50.0))),
+		Vector3(30 * cos(deg_to_rad(60.0)), 0, 30 * sin(deg_to_rad(60.0))),
+		Vector3(30 * cos(deg_to_rad(70.0)), 0, 30 * sin(deg_to_rad(70.0))),
+		Vector3(273.9 * cos(deg_to_rad(80.0)), 0, 273.9 * sin(deg_to_rad(80.0))),
+		Vector3(60 * cos(deg_to_rad(60.0)), 0, 60 * sin(deg_to_rad(60.0))),
+		Vector3(60 * cos(deg_to_rad(40.0)), 0, 60 * sin(deg_to_rad(40.0))),
+		Vector3(60 * cos(deg_to_rad(20.0)), 0, 60 * sin(deg_to_rad(20.0))),
+		Vector2(150, 0),
+		# Up the far side to the lip, 380 px up (128 px below the start).
+		Vector3(60 * cos(deg_to_rad(20.0)), 0, -60 * sin(deg_to_rad(20.0))),
+		Vector3(60 * cos(deg_to_rad(40.0)), 0, -60 * sin(deg_to_rad(40.0))),
+		Vector3(60 * cos(deg_to_rad(60.0)), 0, -60 * sin(deg_to_rad(60.0))),
+		# Nothing past it up here: a slow board drifts out over the drop to the wall.
+		{width = 278.5 * cos(deg_to_rad(75.0)), rise = -278.5 * sin(deg_to_rad(75.0)), mark = "lip"},
+		# The lower floor, from under the start platform to the right, 820 px down; the
+		# flag 200 px in.
+		{at = Vector2(-700, 820), width = 1255.1, goal = 200},
+		# Round and up the 72° wall, to 450 px above the start: out of reach even of a full
+		# pop off the lip at top speed (it comes down on the wall, not past it on the deck).
+		Vector3(60 * cos(deg_to_rad(20.0)), 0, -60 * sin(deg_to_rad(20.0))),
+		Vector3(60 * cos(deg_to_rad(40.0)), 0, -60 * sin(deg_to_rad(40.0))),
+		Vector3(60 * cos(deg_to_rad(60.0)), 0, -60 * sin(deg_to_rad(60.0))),
+		{width = 1218.6 * cos(deg_to_rad(72.0)), rise = -1218.6 * sin(deg_to_rad(72.0)), mark = "wall"},
 		Vector2(300, 0),
-		Vector3(QP * cos(deg_to_rad(15.0)), 0, -QP * sin(deg_to_rad(15.0))),
-		Vector3(QP * cos(deg_to_rad(30.0)), 0, -QP * sin(deg_to_rad(30.0))),
-		Vector3(QP * cos(deg_to_rad(45.0)), 0, -QP * sin(deg_to_rad(45.0))),
-		Vector3(QP * cos(deg_to_rad(60.0)), 0, -QP * sin(deg_to_rad(60.0))),
-		Vector3(QP * cos(deg_to_rad(75.0)), 0, -QP * sin(deg_to_rad(75.0))),
-		{width = Runner.VERT_HEIGHT / tan(deg_to_rad(89.0)), rise = -Runner.VERT_HEIGHT, mark = "vert"},
-		Vector2(500, 0),
 	]},
 	{id = "flat", name = "Flat", start_y = 0.7, segments = [Vector2(8000, 0)]},
 	{id = "push", name = "Push", start_y = 0.7, segments = [

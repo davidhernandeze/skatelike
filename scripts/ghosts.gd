@@ -171,7 +171,7 @@ func _tick_of(state: Array) -> int:
 
 ## A state from get_state(), as far as can be told without trusting it.
 func _valid(state: Array) -> bool:
-	return state.size() == Runner.STATE.size() + 4 and state[0] is Vector2 \
+	return state.size() == Runner.STATE.size() + 3 and state[0] is Vector2 \
 			and state[0].x > 0.0 and state[0].y > 0.0 and state[0].x < 10000.0 and state[0].y < 10000.0 \
 			and state[1 + Runner.STATE.find(&"tick")] is int
 
