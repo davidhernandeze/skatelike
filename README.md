@@ -76,6 +76,30 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   through `Runner.act()`, stamped with the step it applies before.
 - The stats show speed in km/h.
 
+### Vert and fakie
+
+- **Rolling backward.** The board has a direction (`Runner._dir`): +1 rolling right, -1
+  rolling left (fakie). Rolling to a stop up a slope steeper than `reverse_angle` (10°), it
+  rolls back down backward instead of slamming "stopped". The view pans (`pan_rate`) to
+  show more of the way it's going. Rolling backward, the board spans bends as it does
+  forward, but there are no crests, walls or grinds that way round.
+- **Vert air.** Leaving a wall steeper than `vert_exit_angle` (80°) going up, the board
+  goes straight up over the coping (no horizontal speed, no catch needed) and comes back
+  down onto the same wall, rolling the other way: forward up, fakie down. Pop at the lip
+  (`lip_pop_time`) for height and tricks. Air catches, the pop spin limit and "past
+  vertical" are measured from the wall's angle (`_air_base`), so a catch locks the board
+  to the wall. It comes back onto the wall no faster than it left the coping
+  (`_vert_speed`), so pops don't pump speed into the ramp.
+- **Vert pieces.** A vertical piece is about a pixel wide, so up a vert wall (or into one)
+  the board hands over by its middle, its height stays within the piece, and it leaves
+  from the coping; any climb a step skips costs its speed (`_pay_climb`).
+- **Fakie is switch.** Riding backward counts as switch for trick names and frontside or
+  backside (`riding_switch()`): a kickflip on the way back up is a "switch kickflip", and
+  the SWITCH label shows. A body 180 in a vert air lands forward.
+- Levels can put a quarter pipe behind the start platform (`back_quarter = radius`), to
+  roll back into. The level is kept 3000 px behind the view (`PRUNE_BEHIND`).
+- The distance score never goes down.
+
 ## Trick rules
 
 - **Pop spin.** A tail pop turns the board nose up, a nose pop nose down, both at
@@ -328,6 +352,7 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 | Sketchy #2 | Rail yard: gaps only rails cross (one 1200 px), stair rails, downhill rails over drops |
 | Sketchy #3 | Rooftops: decks and boxes over gaps, islands at different heights, a kicker, high ollies; no rails |
 | Sketchy #4 | Bomb hill: downhills, rail-less stair sets to clear in one ollie, landing ramps, islands, long uphills to push |
+| Halfpipe | Two 2 m quarter pipes that go vertical, either side of a flat bottom: vert airs straight up, back down fakie, across and up the other wall. Pop at the lip for height and tricks. No way out yet (Pause > Home) |
 | Vert | Drop into a 3400 px near-vertical wall with a nollie timed to meet it, then a 40° kicker out of the bottom over a 1050 px pit: pop at its lip |
 
 ## Menu

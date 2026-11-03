@@ -28,8 +28,13 @@ extends RefCounted
 ## `max_fall = px` sets the hardest landing (Runner.max_fall; 0 = no limit).
 ## `lesson = {title, text, demo, goal}` makes it a practice lesson (see Lesson): listed
 ## first under Practice, with an explanation panel and a goal it needs to clear.
+## `back_quarter = px` puts a quarter pipe of that radius (going vertical) behind the
+## start platform, to roll back into backward (fakie).
 ## `random` adds that many randomly generated platforms afterwards.
 ## A flat goal platform with the finish flag always follows the last obstacle.
+
+## Length of each piece of a quarter pipe of radius 200 px in 15° steps (px).
+const QP := 200.0 * PI / 12.0
 
 const LIST := [
 	# Lessons: one mechanic each, in order.
@@ -364,6 +369,22 @@ const LIST := [
 	# at riding speed, so you can manual all the way, about a minute.
 	{id = "cruise", name = "Downhill cruise", start_y = 0.6, segments = [
 		Vector3(30000, 0, 30000 * tan(deg_to_rad(0.7))),
+	]},
+	# A halfpipe: quarter pipes 2 m tall (a 200 px curve in 15° steps up to 75°, then
+	# 68 px of vert) either side of the flat bottom, the back one behind the start. Off
+	# the vert the board goes straight up and comes back down onto the wall backward
+	# (fakie), across to the other wall and up it. Pop at the lip for height and tricks.
+	# No way out yet: popping on the curve flies into the vert below the coping, so the
+	# flag on the deck can't be reached. Pause > Home to leave.
+	{id = "halfpipe", name = "Halfpipe", start_y = 0.62, back_quarter = 200.0, segments = [
+		Vector2(300, 0),
+		Vector3(QP * cos(deg_to_rad(15.0)), 0, -QP * sin(deg_to_rad(15.0))),
+		Vector3(QP * cos(deg_to_rad(30.0)), 0, -QP * sin(deg_to_rad(30.0))),
+		Vector3(QP * cos(deg_to_rad(45.0)), 0, -QP * sin(deg_to_rad(45.0))),
+		Vector3(QP * cos(deg_to_rad(60.0)), 0, -QP * sin(deg_to_rad(60.0))),
+		Vector3(QP * cos(deg_to_rad(75.0)), 0, -QP * sin(deg_to_rad(75.0))),
+		{width = Runner.VERT_HEIGHT / tan(deg_to_rad(89.0)), rise = -Runner.VERT_HEIGHT, mark = "vert"},
+		Vector2(500, 0),
 	]},
 	{id = "flat", name = "Flat", start_y = 0.7, segments = [Vector2(8000, 0)]},
 	{id = "push", name = "Push", start_y = 0.7, segments = [

@@ -161,7 +161,7 @@ func _process(delta: float) -> void:
 		return
 	if lesson:
 		_frame_below_lesson()
-	_stance_label.visible = runner._switch and not runner._dead
+	_stance_label.visible = runner.riding_switch() and not runner._dead
 	push_pad.set_pie(runner.push_progress(), runner.queued_pushes())
 	for pad in pop_pads:
 		pad.set_enabled(not runner.is_pushing())
@@ -347,7 +347,7 @@ func _aim_pop() -> void:
 	var dx: float = _pop_finger.at.x - _pop_finger.from.x
 	var aim := int(signf(dx)) if absf(dx) >= BODY_SWIPE * pad.get_global_rect().size.x else 0
 	_pop_finger.aim = aim
-	var front := (aim > 0) != runner._switch
+	var front := (aim > 0) != runner.riding_switch()
 	pad.set_aim(true, aim, ("FS 180" if front else "BS 180") if aim != 0 else "")
 
 

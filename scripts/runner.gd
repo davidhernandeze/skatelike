@@ -79,7 +79,7 @@ const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &
 	&"_board_trick_late", &"_popped", &"_pop_nose", &"_pop_spin", &"_past_vertical",
 	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
 	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue", &"_body_turn",
-	&"_body_front", &"_switch", &"_pop_switch"]
+	&"_body_front", &"_switch", &"_pop_switch", &"_dir", &"_air_base", &"_vert_speed"]
 
 ## A straight surface from (x0, y0) to (x1, y1): floor (solid below), the top of a
 ## platform (solid only from above) or a rail.
@@ -299,6 +299,18 @@ class Seg:
 @export_group("Landing")
 ## Allowed difference between the board angle and the ground angle at touchdown (deg).
 @export var land_tolerance := 15.0
+
+@export_group("Vert and fakie")
+## Leaving a wall at least this steep going up (deg) is vert air: the board goes
+## straight up over the wall it left and comes back down onto it, rolling the other way.
+@export var vert_exit_angle := 80.0
+## Rolling to a stop going up a slope at least this steep (deg), the board rolls back
+## down it backwards (fakie) instead of stopping.
+@export var reverse_angle := 10.0
+## How fast the view pans to show more of where the board's going when it changes
+## direction (1/s).
+@export var pan_rate := 2.5
+@export_group("")
 ## Length of the slam before game over (s): the board tumbles on as a loose body.
 @export var slam_duration := 1.0
 ## Spin the loose board picks up from a slam, per m/s it was going (rad/s), at least 3.
@@ -328,6 +340,13 @@ class Seg:
 @export var goal_color := Color(0.4, 0.95, 0.5)
 
 const WHEEL_X := 28.0
+## Walls at least this steep (deg) can't be landed on from the air: a board only comes
+## back onto one from vert air.
+const VERT_LANDING := 88.0
+## Height of the vertical top of a quarter pipe (px).
+const VERT_HEIGHT := 68.0
+## How far off the left of the view the level is kept (px).
+const PRUNE_BEHIND := 3000.0
 const WHEEL_Y := 7.0
 const WHEEL_R := 7.0
 
@@ -360,6 +379,18 @@ var _started := false
 var _dead := false
 var _cleared := false
 var _speed := 0.0
+## Radius of the quarter pipe behind the start platform (px; 0 = none): see configure.
+var _back_quarter := 0.0
+## Way the board's rolling: +1 forward (right), -1 backward (left, fakie). _speed is
+## always the size of the speed; this is its direction.
+var _dir := 1.0
+## Vert air (see vert_exit_angle): the wall the board left, to come back down onto; and
+## the angle air catches and spin limits are measured from (the wall's, else level).
+var _vert_wall: Seg
+var _air_base := 0.0
+## Speed the board left the coping with in vert air (px/s): it comes back onto the wall
+## no faster, so a pop's height doesn't pump up the ramp's speed.
+var _vert_speed := 0.0
 var _distance := 0.0
 var _score := 0
 
@@ -534,6 +565,7 @@ func configure(level: Dictionary) -> void:
 			segment = Vector3(segment.x, segment.y, 0.0)
 		_segments.append(segment)
 	_random_left = level.get("random", 0)
+	_back_quarter = level.get("back_quarter", 0.0)
 	max_fall = level.get("max_fall", max_fall)
 	_rng.seed = hash(level.get("id", ""))
 
@@ -552,6 +584,8 @@ func setup(area: Vector2) -> void:
 	_support = _segs[0]
 	_origin = Vector2(_segs[0].x1, ground_y)
 	_length = _segs[0].x1 - _pos.x + goal_offset
+	if _back_quarter > 0.0:
+		_add_back_quarter(_back_quarter)
 	for segment in _segments:
 		_length += segment.width + segment.get("gap", 0.0) if segment is Dictionary else segment.x
 	_fill_platforms()
@@ -565,6 +599,12 @@ func can_pop() -> bool:
 	if _lip_t > 0.0 and not _popped and _catches == 0:
 		return true  # Just off a lip: still in time to pop it.
 	return (_grounded or _rail != null) and not _in_trick
+
+
+## Riding switch as far as tricks go: the other stance, or backward (fakie counts as
+## switch).
+func riding_switch() -> bool:
+	return _switch != (_dir < 0.0)
 
 
 func is_pushing() -> bool:
@@ -677,7 +717,7 @@ func pop(nose: bool, strength := 1.0) -> void:
 	_start_trick(0.0 if contrary else spin * (1.0 if nose else -1.0))
 	_popped = not contrary
 	_pop_nose = nose
-	_pop_switch = _switch
+	_pop_switch = riding_switch()
 	_pop_spin = not contrary
 	popped.emit(nose, power)
 	_update_airborne()
@@ -776,7 +816,11 @@ func time_to_touchdown(rails := true) -> float:
 		if vy < 0.0:
 			continue
 		# The terrain scrolls left under the board: look ahead by the distance covered.
-		var x := _pos.x + _speed * t
+		if _vert_wall != null:
+			if y >= minf(_vert_wall.y0, _vert_wall.y1):
+				return t
+			continue
+		var x := _pos.x + _dir * _speed * t
 		var surfaces := _surfaces_at(x)
 		if rails:
 			for rail in _rails:
@@ -832,7 +876,7 @@ func body_180(swipe := 1.0) -> void:
 	if _dead or not _in_trick or not _popped or _body_turn >= 0.0:
 		return
 	_body_turn = 0.0
-	_body_front = (swipe > 0.0) != _switch
+	_body_front = (swipe > 0.0) != riding_switch()
 	trick_started.emit(_pop_callout(""))
 
 
@@ -872,7 +916,7 @@ func _tilt_for(offset: float) -> float:
 	var t := 0.0
 	if absf(offset) > lock_dead_zone:
 		t = signf(offset) * inverse_lerp(lock_dead_zone, 1.0, absf(offset))
-	return deg_to_rad(t * lock_max_angle)
+	return _air_base + deg_to_rad(t * lock_max_angle)
 
 
 ## Name of the current or completed board trick, e.g. "late kickflip", with its loops
@@ -1165,6 +1209,7 @@ func get_state() -> Array:
 		state.append(get(name))
 	state.append(_surface_key(_support))
 	state.append(_surface_key(_rail))
+	state.append(_surface_key(_vert_wall))
 	return state
 
 
@@ -1180,8 +1225,9 @@ func set_state(state: Array) -> void:
 			_push_queue.assign(values[i])
 		else:
 			set(STATE[i], values[i])
-	_support = _find_surface(state[-2], _segs + _ledges)
-	_rail = _find_surface(state[-1], _rails + _ledges)
+	_support = _find_surface(state[-3], _segs + _ledges)
+	_rail = _find_surface(state[-2], _rails + _ledges)
+	_vert_wall = _find_surface(state[-1], _segs)
 	if _support == null:
 		_support = _seg_at(_pos.x)
 	_settle_view()
@@ -1241,15 +1287,17 @@ func _step(delta: float) -> void:
 		_step_speed(delta)
 	if int(_speed) != int(prev_speed):
 		speed_changed.emit(_speed)
-	if (_grounded or _rail != null) and _speed <= stop_speed * pixels_per_meter:
+	# (Up a steep slope it rolls back down instead: see reverse_angle.)
+	if (_grounded or _rail != null) and _speed <= stop_speed * pixels_per_meter \
+			and (_rail != null or absf(_ground_angle) < deg_to_rad(reverse_angle)):
 		_slam("stopped")
 		return
 	# Along the surface on the ground; in the air _speed is the horizontal speed.
-	var dx := _speed * delta
+	var dx := _dir * _speed * delta
 	if _grounded or _rail != null:
 		dx *= cos(_ground_angle)
 	var score := int((_distance + dx) / 50.0)
-	if score != _score:
+	if score > _score:  # Only ever up: riding back (fakie) doesn't take it away.
 		_score = score
 		score_changed.emit(_score)
 
@@ -1273,6 +1321,7 @@ func _step(delta: float) -> void:
 		return
 	_update_airborne()
 	_step_rotation(delta)
+	_pan(delta)
 	_follow_ground(delta)
 	var sliding := _rail != null and _rail.ledge and not _fifty
 	_slide = move_toward(_slide, 1.0 if sliding else 0.0, delta / slide_swing_time)
@@ -1302,11 +1351,12 @@ func _ground_ahead(dist: float) -> float:
 ## what comes in on the right.
 func _scroll(dx: float) -> void:
 	_shift_world(dx)
-	while _segs.size() > 1 and _segs[0].x1 < -100.0 and _segs[0] != _support:
+	# What's gone off the left is kept a while: the board can roll back to it (fakie).
+	while _segs.size() > 1 and _segs[0].x1 < -PRUNE_BEHIND and _segs[0] != _support and _segs[0] != _vert_wall:
 		_segs.pop_front()
-	while not _rails.is_empty() and _rails[0].x1 < -100.0 and _rails[0] != _rail:
+	while not _rails.is_empty() and _rails[0].x1 < -PRUNE_BEHIND and _rails[0] != _rail:
 		_rails.pop_front()
-	while not _platforms.is_empty() and _platforms[0].top.back().x1 < -100.0 \
+	while not _platforms.is_empty() and _platforms[0].top.back().x1 < -PRUNE_BEHIND \
 			and not (_support in _platforms[0].top) and not (_rail in _platforms[0].top):
 		for ledge in _platforms.pop_front().top:
 			_ledges.erase(ledge)
@@ -1324,6 +1374,18 @@ func _shift_world(dx: float) -> void:
 		marks[mark] -= Vector2.ONE * dx
 
 
+## Pans the view toward showing more of the way the board's going: the board sits
+## player_x_ratio from the left going forward, as far from the right going backward.
+## The world moves with the board, so nothing changes but the view.
+func _pan(delta: float) -> void:
+	var target := _area.x * (player_x_ratio if _dir > 0.0 else 1.0 - player_x_ratio) + board_size.x * 0.5 * _dir
+	if absf(target - _pos.x) < 0.5:
+		return
+	var d := (target - _pos.x) * (1.0 - exp(-pan_rate * delta))
+	_pos.x += d
+	_shift_world(-d)
+
+
 func _follow_ground(delta: float) -> void:
 	var target := _cam
 	var below := _seg_at(_pos.x)
@@ -1333,7 +1395,7 @@ func _follow_ground(delta: float) -> void:
 			var framed := ground
 			if _grounded:
 				# Look ahead along the ground, so a fast ride down a tall ramp stays in view.
-				framed = maxf(ground, _ground_ahead(_speed * 0.3))
+				framed = maxf(ground, _ground_ahead(_speed * 0.3)) if _dir > 0.0 else ground
 			# Where both can't hold (riding fast down a tall wall), the floor under the
 			# board stays below the band's top over showing the floor ahead.
 			target = minf(maxf(_cam, framed - _area.y * camera_band.y), ground - _area.y * camera_band.x)
@@ -1347,7 +1409,7 @@ func _follow_ground(delta: float) -> void:
 	var target_v := 0.0
 	var low := (_pos.y - _cam) / _area.y
 	if _grounded or _rail != null:
-		var climb := _speed * sin(_ground_angle)
+		var climb := _dir * _speed * sin(_ground_angle)
 		if climb > 0.0:
 			target_v = climb * smoothstep(camera_band.y - 0.15, camera_band.y, low)
 		else:
@@ -1391,7 +1453,11 @@ func _step_speed(delta: float) -> void:
 	# Resistance only ever slows the board down, never pushes it backwards.
 	var resistance := roll * slope_g * cos(_ground_angle) + drag * v * v / mass
 	v = maxf(v - resistance * delta, 0.0)
-	v += (slope_g * sin(_ground_angle) + _push_force(v) / mass) * delta
+	v += (_dir * slope_g * sin(_ground_angle) + _push_force(v) / mass) * delta
+	if v < 0.0 and _rail == null and absf(_ground_angle) >= deg_to_rad(reverse_angle):
+		# Rolled to a stop up a steep slope: it rolls back down, the other way.
+		_dir = -_dir
+		v = -v
 	_speed = clampf(v, 0.0, max_speed) * pixels_per_meter
 
 
@@ -1424,8 +1490,14 @@ func _step_ground() -> void:
 	# The wheels sit w apart along the surface: only w cos(slope) across, which on a steep
 	# wall is very little.
 	var w := _wheel_offset()
-	# Hand over to the next surface once the back wheel rolls past the end of this one.
-	while _pos.x - w * cos(_support.angle()) > _support.x1:
+	var old_y := _pos.y
+	if _dir < 0.0:
+		_step_ground_back(w)
+		_pay_climb(old_y)
+		return
+	# Hand over to the next surface once the back wheel rolls past the end of this one
+	# (the middle of the board, up a vert wall: see _wall_y()).
+	while _pos.x - _lead(_support, _continuation(_support), w) > _support.x1:
 		var next := _continuation(_support)
 		if next != null and _over_crest(next):
 			return
@@ -1437,7 +1509,7 @@ func _step_ground() -> void:
 		_support = next
 
 	var angle := _support.angle()
-	var y := _support.y_at(_pos.x)
+	var y := _wall_y(_support)
 	var next := _continuation(_support)
 	if _pos.x + board_size.x * 0.5 > _support.x1:
 		# Floor ahead that the board can't roll onto (platforms have no walls).
@@ -1452,7 +1524,7 @@ func _step_ground() -> void:
 				return
 			# Over a crest it'll fly off, the board doesn't tilt over the bend: that would
 			# turn its speed forward for a moment before the take-off.
-			if next != null and _crest_height(next) < _launch_height():
+			if next != null and _crest_height(next) < _launch_height() and not _is_vert_exit(next.angle()):
 				# Wheels on two surfaces: the board spans the bend.
 				var back_x := _pos.x - w * cos(angle)
 				var front_x := _pos.x + w * cos(next.angle())
@@ -1463,9 +1535,106 @@ func _step_ground() -> void:
 			# Ledge or launch ahead: the front wheel hangs, the back wheel carries the board.
 	_pos.y = y
 	_ground_angle = angle
+	_pay_climb(old_y)
+
+
+## Rolling backward (fakie): hands over to the piece before once the trailing (right)
+## wheel rolls past the start of this one. Only smooth joints: anything else, it rolls
+## off (vert air off a vert wall). No walls, crests or grinds this way round.
+func _step_ground_back(w: float) -> void:
+	while _pos.x + _lead(_support, _continuation_back(_support), w) < _support.x0:
+		var prev := _continuation_back(_support)
+		if prev == null:
+			_stop_pushing()
+			_ground_angle = _support.angle()
+			if _is_vert_exit():
+				_to_coping()
+			_drop_off()
+			if _vert_wall != null:
+				_lip_t = lip_pop_time
+			return
+		_support = prev
+	var angle := _support.angle()
+	var y := _wall_y(_support)
+	var prev := _continuation_back(_support)
+	if prev != null and not _is_vert_exit(angle) and not _is_vert_exit(prev.angle()) \
+			and _pos.x - w * cos(angle) < _support.x0:
+		# Wheels on two surfaces: the board spans the bend (as going forward).
+		var back_x := _pos.x - w * cos(prev.angle())
+		var front_x := _pos.x + w * cos(angle)
+		var back := Vector2(back_x, prev.y_at(back_x))
+		var front := Vector2(front_x, _support.y_at(front_x))
+		angle = (front - back).angle()
+		y = (back.y + front.y) * 0.5
+	_pos.y = y
+	_ground_angle = angle
+
+
+## Up a vert wall, a step can climb more than the speed paid for (crossing a pixel-wide
+## piece, see _wall_y()): the extra height since `old_y` costs its speed.
+func _pay_climb(old_y: float) -> void:
+	if not _grounded or not _is_vert_exit(_support.angle()):
+		return
+	var paid := _dir * _speed * STEP * sin(_support.angle())  # What _step_speed charged for.
+	var extra := (_pos.y - old_y) - paid
+	if extra < 0.0:
+		_speed = sqrt(maxf(_speed * _speed + 2.0 * slope_g * pixels_per_meter * extra, 0.0))
+
+
+## How far the trailing wheel is behind the middle of the board on `s`, which hands
+## over to `then` once it's past the end: w cos(slope). Up a vert wall or into one, 0:
+## the board hands over by its middle, as the pieces there can be a pixel wide (see
+## _wall_y()).
+func _lead(s: Seg, then: Seg, w: float) -> float:
+	if _is_vert_exit(s.angle()) or (then != null and _is_vert_exit(then.angle())):
+		return 0.0
+	return w * cos(s.angle())
+
+
+## The piece `s` follows smoothly from, for rolling backward onto it; null if none.
+func _continuation_back(s: Seg) -> Seg:
+	for other: Seg in _segs:
+		if other.next == s and _joint(other, s) == &"smooth":
+			return other
+	return null
+
+
+## Going up a wall at `angle` (the ground's by default) steep enough for vert air (see
+## vert_exit_angle).
+func _is_vert_exit(angle := _ground_angle) -> bool:
+	return absf(angle) >= deg_to_rad(vert_exit_angle) and _dir * sin(angle) < 0.0
+
+
+## Height of `s` under the board. Up a vert wall the piece can be a pixel wide, so the
+## board's middle is kept within it (past its end the line would shoot up).
+func _wall_y(s: Seg) -> float:
+	if _is_vert_exit(s.angle()):
+		return s.y_at(clampf(_pos.x, s.x0, s.x1))
+	return s.y_at(_pos.x)
+
+
+## Off the top of a vert wall: the board goes from the top edge, the coping. A slow
+## board can pass a pixel-wide piece of vert in one step, leaving from below it: it's
+## put at the top, with the speed the climb would have cost.
+func _to_coping() -> void:
+	var s := _support
+	var top := Vector2(s.x1, s.y1) if s.y1 < s.y0 else Vector2(s.x0, s.y0)
+	var rise := _pos.y - top.y
+	if rise > 0.0:
+		_speed = sqrt(maxf(_speed * _speed - 2.0 * slope_g * pixels_per_meter * rise, 0.0))
+	_shift_world(top.x - _pos.x)
+	_pos.y = top.y
 
 
 func _leave_ground() -> void:
+	if _is_vert_exit(_support.angle()):
+		_ground_angle = _support.angle()
+		_to_coping()
+		# Off the top of a vert wall: straight up, no catch needed; pop it at the lip.
+		_stop_pushing()
+		_drop_off()
+		_lip_t = lip_pop_time
+		return
 	# A lip: a bend too sharp to follow, or a ramp going up that ends (a kicker).
 	var lip := (_support.next != null and _joint(_support, _support.next) == &"launch") \
 			or (not _support.ledge and _support.angle() < 0.0)
@@ -1589,11 +1758,14 @@ func _step_air(delta: float) -> void:
 	var prev_y := _pos.y
 	_velocity_y += gravity * delta
 	_pos.y += _velocity_y * delta
+	if _vert_wall != null:
+		_step_vert_air()
+		return
 	var under := _seg_at(_pos.x)
 	if _pos.y > _cam + _area.y and (under == null or _pos.y > under.y_at(_pos.x)):
 		_die()  # Fell out of view: there was no ground under it to follow.
 		return
-	if _velocity_y >= 0.0 and _catches == 2:
+	if _velocity_y >= 0.0 and _catches == 2 and _dir > 0.0:
 		# Rails and platform edges only hold a board with the balance ready, at its middle.
 		for rail in _rails + _ledges:
 			if _pos.x < rail.x0 or _pos.x > rail.x1:
@@ -1611,6 +1783,8 @@ func _step_air(delta: float) -> void:
 		var best_x := _pos.x
 		for x in [_pos.x - w, _pos.x + w]:
 			for s in _surfaces_at(x):
+				if absf(s.angle()) >= deg_to_rad(VERT_LANDING):
+					continue  # Vert: only a vert air comes back onto it (_step_vert_air).
 				var ground := s.y_at(x)
 				# The ground scrolls under the board, so slopes rise/fall by speed * tan(angle).
 				var reach := 1.0 + absf(_speed * delta * tan(s.angle()))
@@ -1619,15 +1793,45 @@ func _step_air(delta: float) -> void:
 					best_y = ground
 					best_x = x
 		if best != null:
-			if _catches == 2 and best.ledge:
+			if _catches == 2 and best.ledge and _dir > 0.0:
 				_start_grind(best)  # A grind coming down on a platform top: tailslide or noseslide.
 			else:
 				_land(best, best_x)
 			return
-	var nose_x := _pos.x + board_size.x * 0.5
+	var nose_x := _pos.x + board_size.x * 0.5 * _dir  # The leading end.
 	var ahead := _seg_at(nose_x)
-	if ahead != null and ahead.y_at(nose_x) < _pos.y - wall_tolerance:
+	if ahead != null and ahead.y_at(nose_x) < _pos.y - wall_tolerance and _wall_between(nose_x):
 		_slam("wall")
+
+
+## A face of a step up stands between the board and `nose_x`: ground that's higher
+## because it rises along a ramp (up a quarter pipe) isn't a wall to fly into.
+func _wall_between(nose_x: float) -> bool:
+	var lo := minf(_pos.x, nose_x)
+	var hi := maxf(_pos.x, nose_x)
+	for s in _segs:
+		if s.next == null or s.next.x0 < lo or s.next.x0 > hi:
+			continue
+		var step := s.next.y0 - s.y1
+		if (_dir > 0.0 and step < -1.0) or (_dir < 0.0 and step > 1.0):
+			return true
+		if absf(rad_to_deg(s.next.angle() - s.angle())) > max_transition:
+			return true  # A bend too sharp to ride is a wall too.
+	return false
+
+
+## Vert air: over the wall the board left, until it comes back down to it, then onto
+## it where it meets it (rolling the other way: fakie, unless it turned a 180).
+func _step_vert_air() -> void:
+	var wall := _vert_wall
+	if _velocity_y < 0.0 or _pos.y < minf(wall.y0, wall.y1):
+		return
+	var y := minf(_pos.y, maxf(wall.y0, wall.y1))
+	var x := wall.x0 + (y - wall.y0) / (wall.y1 - wall.y0) * (wall.x1 - wall.x0)
+	_shift_world(x - _pos.x)
+	_pos.y = y
+	_velocity_y = minf(_velocity_y, _vert_speed)
+	_land(wall, _pos.x)
 
 
 ## Rolling off a platform or a rail end: no catch needed. Off a platform the board keeps
@@ -1646,8 +1850,14 @@ func _drop_off() -> void:
 ## Leaving a surface: splits the speed along it into horizontal (_speed while in the
 ## air) and vertical parts, (v cos(a), v sin(a)).
 func _take_off() -> void:
-	_velocity_y = _speed * sin(_ground_angle)
+	_velocity_y = _dir * _speed * sin(_ground_angle)
 	_speed *= cos(_ground_angle)
+	if _rail == null and _is_vert_exit():
+		# Up a vert wall: straight up over the wall, to come back down onto it.
+		_vert_wall = _support
+		_air_base = _ground_angle
+		_vert_speed = -_velocity_y
+		_speed = 0.0
 
 
 ## Slams if touching down on `surface` now would be harder than a max_fall drop.
@@ -1655,7 +1865,7 @@ func _too_hard(surface: Seg) -> bool:
 	if max_fall <= 0.0:
 		return false
 	var a := surface.angle()
-	var into := maxf(_velocity_y * cos(a) - _speed * sin(a), 0.0)  # Speed into the surface.
+	var into := maxf(_velocity_y * cos(a) - _dir * _speed * sin(a), 0.0)  # Speed into the surface.
 	if into * into <= 2.0 * gravity * max_fall:
 		return false
 	_slam("fell too far")
@@ -1666,7 +1876,10 @@ func _too_hard(surface: Seg) -> bool:
 ## speed; the part into the surface is absorbed by the legs.
 func _touch_down(surface: Seg) -> void:
 	var a := surface.angle()
-	_speed = clampf(_speed * cos(a) + _velocity_y * sin(a), 0.0, max_speed * pixels_per_meter)
+	var along := _dir * _speed * cos(a) + _velocity_y * sin(a)
+	if along != 0.0:
+		_dir = signf(along)  # Coming down a wall backward: rolling fakie.
+	_speed = clampf(absf(along), 0.0, max_speed * pixels_per_meter)
 	_velocity_y = 0.0
 
 
@@ -1712,7 +1925,7 @@ func _land(on: Seg, x: float) -> void:
 	if on.stairs > 0:
 		_slam("landed on the stairs")
 		return
-	_impact = Vector2(_speed, _velocity_y)
+	_impact = Vector2(_dir * _speed, _velocity_y)
 	if _too_hard(on):
 		return
 	if absf(on.y_at(_pos.x) - on.y_at(x)) > land_snap:
@@ -1720,6 +1933,8 @@ func _land(on: Seg, x: float) -> void:
 		# spot under the board instead of dropping the board down to it.
 		_shift_world(x - _pos.x)
 	_touch_down(on)
+	_vert_wall = null
+	_air_base = 0.0
 	_grounded = true
 	_support = on
 	_ground_angle = on.angle()
@@ -1835,11 +2050,11 @@ func _step_rotation(delta: float) -> void:
 			_angle = lerpf(_angle, _lock_angle, 1.0 - exp(-lock_snap * delta))
 	elif _pop_spin:
 		var cap := deg_to_rad(pop_spin_cap)
-		_angle = clampf(_angle + _angular_velocity * delta, -cap, cap)
+		_angle = clampf(_angle + _angular_velocity * delta, _air_base - cap, _air_base + cap)
 	else:
 		_angle += _angular_velocity * delta
 		_angular_velocity *= exp(-spin_damping * delta)
-	if not _grounded and _rail == null and absf(_angle) > deg_to_rad(catch_slow_after):
+	if not _grounded and _rail == null and absf(_angle - _air_base) > deg_to_rad(catch_slow_after):
 		_past_vertical = true
 
 
@@ -1900,6 +2115,30 @@ func _joint(a: Seg, b: Seg) -> StringName:
 	if bend > max_transition:
 		return &"launch"
 	return &"smooth"
+
+
+## A quarter pipe facing forward behind the start platform, for rolling back into
+## (fakie): 15° steps up to 75° on a `radius` px curve, then vert, then a deck.
+func _add_back_quarter(radius: float) -> void:
+	var first: Seg = _segs[0]
+	var at := Vector2(first.x0, first.y0)
+	var piece := radius * PI / 12.0
+	var after := first
+	var pieces: Array[Seg] = []
+	for a in [15.0, 30.0, 45.0, 60.0, 75.0, -1.0]:
+		var step := Vector2.from_angle(deg_to_rad(a)) * piece
+		if a < 0.0:
+			step = Vector2(VERT_HEIGHT / tan(deg_to_rad(89.0)), VERT_HEIGHT)  # The vert.
+		var s := Seg.new(at - step, at)
+		s.next = after
+		after = s
+		at -= step
+		pieces.push_front(s)
+	var deck := Seg.new(at - Vector2(500.0, 0.0), at)
+	deck.next = after
+	pieces.push_front(deck)
+	pieces.append_array(_segs)
+	_segs = pieces
 
 
 func _fill_platforms() -> void:
@@ -2057,14 +2296,16 @@ func _let_go() -> void:
 	_fall_at = _pos
 	_fall_distance = _distance
 	_fall_vy = minf(_velocity_y, 0.0) if not _grounded else 0.0
-	_fall_vx = _speed * 0.6
+	_fall_vx = _dir * _speed * 0.6
 	_fall_t = 0.0
 	if _impact != Vector2.ZERO:
 		_body_v = _impact  # Slammed touching down: it hits with the speed it came down at.
 	elif _grounded or _rail != null:
-		_body_v = Vector2.from_angle(_ground_angle) * _speed
+		_body_v = Vector2.from_angle(_ground_angle) * _speed * _dir
 	else:
-		_body_v = Vector2(_speed, _velocity_y)
+		_body_v = Vector2(_dir * _speed, _velocity_y)
+	_vert_wall = null
+	_air_base = 0.0
 	_angular_velocity = maxf(slam_spin * _body_v.length() / pixels_per_meter, 3.0)
 	_grounded = false
 	_rail = null
