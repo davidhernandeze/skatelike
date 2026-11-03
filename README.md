@@ -101,12 +101,17 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   so a centered catch keeps it there. Pop at the lip (`lip_pop_time`) for height and
   tricks. Coming down onto a wall that faces back the way it came, it touches down tail
   first and rolls down it backward: fakie.
-- **Fakie.** Tricks done rolling backward are named fakie (`stance_name()`): a kickflip
-  into the fakie landing is a plain kickflip, the next one a "fakie kickflip", grinds
-  "fakie 5-0 grind", and the FAKIE label shows. "Nollie" means popping the end ahead, so
-  rolling backward a pop off the nose is a "fakie ollie" and off the tail a "fakie
-  nollie". A 180 while fakie turns you forward in your normal stance (a half cab): no
-  prefix after it. For frontside and backside, fakie faces the other way like switch
+- **Fakie.** Rolling backward (`stance_name()` "fakie", the FAKIE label shows), a pop off
+  the nose is a fakie trick ("fakie ollie", "fakie kickflip") and off the tail a switch
+  one ("switch ollie", "switch kickflip"); never "nollie". Grinds and slides landed
+  rolling backward are "fakie 5-0 grind", "fakie noseslide". A kickflip into the fakie
+  landing is a plain kickflip.
+- **Half cab.** Popped fakie (off the nose) with a backside 180: "half cab", with board
+  tricks "half cab flip", "half cab heelflip", "half cab 360 shuvit"; a backside 360 is a
+  "full cab" ("full cab flip"). Fakie with a
+  frontside 180 is "fakie frontside 180" ("fakie frontside flip"); off the tail, "switch
+  backside 180". A 180 while fakie turns you forward in your normal stance: no prefix
+  after it. For frontside and backside, fakie faces the other way like switch
   (`riding_switch()`).
 - **Floors over floors.** A level can start a new stretch of floor anywhere (`at`), so
   one can run under another. The floor under the board is the highest one at or below
@@ -177,13 +182,21 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 - **Body 180.** A pop goes when the finger lifts, however long it was held. While holding,
   slide the finger sideways at least a third of the pad's width to aim the pop: the pad
   shows faint arrows both ways while held, and lights the aimed one with its name ("FS 180",
-  "BS 180"). Lifting then pops with a body 180: the skater turns around with the board, over
-  `body_turn_time` (0.35 s). The pop still needs its catch, and landing before the turn is
-  done slams ("landed mid-180"). A plain tap (or a small wiggle) is a normal pop. Pausing
-  while holding calls the pop off. It adds one board trick's worth of flow.
+  "BS 180"). Lifting then pops with a body 180: the skater turns around with the board,
+  half a turn every `body_turn_time` (0.35 s). A plain tap (or a small wiggle) is a normal
+  pop. Pausing while holding calls the pop off. It adds one board trick's worth of flow.
+  - **Twisted pops barely tip:** a pop with a body turn keeps only `twist_pop_spin` (0.1)
+    of the pop's nose-up or nose-down spin (under 10° on a full pop).
+  - **360s and more:** like board tricks, the body keeps turning until it's caught. The
+    catch settles it on the nearest half turn, or back on one it passed by no more than
+    `body_catch_slack` (0.15 of a half turn): caught early it finishes the 180, caught
+    around 0.55-0.65 s it's a 360 ("frontside 360", "backside 360 kickflip"). Landing
+    before it has settled slams ("landed mid-frontside 360"). An even number of half
+    turns leaves you in the stance you were in.
   - **Frontside or backside:** in the normal stance a swipe toward the way you're riding
     (right) is frontside, left backside; riding switch, the other way round.
-  - **Switch:** landing a 180 puts you in switch (shown bottom left), another one back.
+  - **Switch:** landing a 180 (or 540) puts you in switch (shown bottom left), another one
+    back; a 360 doesn't.
     Tricks popped switch say so: "switch ollie", "switch kickflip", and so do grinds and
     slides landed switch: "switch 5-0 grind", "switch kickflip noseslide". Rolling
     backward it's fakie instead (see Transfers and fakie). A slam restarts you in your
@@ -393,6 +406,12 @@ The main menu has these pages, in order:
 
 The title stays at the top, and pages scroll below it. Each page starts with an outlined
 **Back** button. Leaving a level returns to the page it was started from.
+
+Pages scroll by dragging from anywhere, buttons included (a finger that moves more than
+14 px is scrolling, and doesn't press the button it started on). Let go mid-drag and the
+page glides on at the finger's speed, slowing down like a phone's lists (`FLING_FRICTION`
+2/s, stopping at the top or bottom); a touch during the glide catches it without pressing
+anything. Holding the finger still before lifting doesn't glide.
 
 Cleared levels get a green check, and challenges show their best progress. **Progress**
 is counted in marks: `Runner.progress_marks` (20) spread evenly along the level's own floor

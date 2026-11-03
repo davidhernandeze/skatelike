@@ -78,7 +78,7 @@ const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &
 	&"_trick_flip_kind", &"_trick_shuv_kind", &"_trick_window", &"_slide", &"_board_trick_done",
 	&"_board_trick_late", &"_popped", &"_pop_nose", &"_pop_spin", &"_past_vertical",
 	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
-	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue", &"_body_turn",
+	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue", &"_body_turn", &"_body_turns",
 	&"_body_front", &"_switch", &"_pop_stance", &"_dir", &"_air_base"]
 
 ## A straight surface from (x0, y0) to (x1, y1): floor (solid below), the top of a
@@ -300,8 +300,15 @@ class Seg:
 ## down at half the speed it was coming up).
 @export var trick_counter_spin := 0.5
 ## A body 180 (swiping sideways while holding the pop pad) turns the skater and board
-## around in this time (s); landing before it's done slams.
+## around half a turn in this time (s), and keeps turning until caught: the catch settles
+## it on the nearest half turn (180, 360, 540...). Landing before it's settled slams.
 @export var body_turn_time := 0.35
+## A twisted pop (one with a body 180) keeps only this share of the pop's spin: the
+## board barely tips nose up or down.
+@export var twist_pop_spin := 0.1
+## Caught this little past a half turn (share of one), it settles back on it rather than
+## turning on to the next.
+@export var body_catch_slack := 0.15
 
 @export_group("Landing")
 ## Allowed difference between the board angle and the ground angle at touchdown (deg).
@@ -453,6 +460,8 @@ var _board_trick_t := 0.0
 ## (right) is frontside; riding switch, the other way.
 var _body_turn := -1.0
 var _body_front := false
+## Half turns the body 180 settles on once caught (0 while it's still turning freely).
+var _body_turns := 0
 ## Riding switch (after landing a 180; another one turns back), and the stance named at
 ## the pop (stance_name()).
 var _switch := false
@@ -779,8 +788,13 @@ func pop(nose: bool, strength := 1.0) -> void:
 	_grounded = false
 	_start_trick(0.0 if contrary else spin * (1.0 if nose else -1.0))
 	_popped = not contrary
-	_pop_nose = nose == (_dir > 0.0)  # Named for the end ahead: a fakie ollie pops the nose.
+	_pop_nose = nose == (_dir > 0.0)  # Named for the end ahead.
 	_pop_stance = stance_name()
+	if _pop_stance == "fakie":
+		# Rolling backward: off the nose it's a fakie trick, off the tail a switch one
+		# (never "nollie").
+		_pop_stance = "fakie" if nose else "switch"
+		_pop_nose = false
 	_pop_spin = not contrary
 	popped.emit(nose, power)
 	_update_airborne()
@@ -823,10 +837,12 @@ func release_catch() -> void:
 
 
 ## A tap on CATCH (a press that isn't held): the first one locks the tilt; later ones
-## do nothing. Catching a board trick completes it and locks the tilt like a first catch.
+## do nothing. Catching a board trick completes it and locks the tilt like a first catch;
+## a body turn settles on its nearest half turn (_catch_body_turn()).
 func lock_tilt(offset: float) -> void:
 	if not _in_trick or _dead:
 		return
+	_catch_body_turn()  # A body turn settles on its half turn with the catch.
 	if _board_trick != &"":
 		_board_trick_turns = maxi(1, roundi(_board_trick_t / _trick_cycle()))
 		_trick_window = 0.0
@@ -935,8 +951,30 @@ func body_180(swipe := 1.0) -> void:
 	if _dead or not _in_trick or not _popped or _body_turn >= 0.0:
 		return
 	_body_turn = 0.0
+	_body_turns = 1 if _catches > 0 else 0  # Caught already: just the 180.
 	_body_front = (swipe > 0.0) != riding_switch()
+	if _pop_spin:
+		_angular_velocity *= twist_pop_spin  # A twisted pop barely tips the board.
 	trick_started.emit(_pop_callout(""))
+
+
+## The catch settles a body turn on the nearest half turn (at least one), past it by no
+## more than body_catch_slack, else the next: it turns on to it, or back that little.
+func _catch_body_turn() -> void:
+	if _body_turn < 0.0 or _body_turns > 0:
+		return
+	_body_turns = maxi(1, ceili(_body_turn / body_turn_time - body_catch_slack))
+	_body_turn = minf(_body_turn, _body_turns * body_turn_time)
+
+
+## The body turn has settled (caught, and turned to its half turn), or there's none.
+func _body_settled() -> bool:
+	return _body_turn < 0.0 or (_body_turns > 0 and _body_turn >= _body_turns * body_turn_time - 0.0001)
+
+
+## Half turns of the body turn: settled on, or the nearest so far.
+func _body_half_turns() -> int:
+	return _body_turns if _body_turns > 0 else maxi(1, roundi(_body_turn / body_turn_time))
 
 
 ## Time for one loop of the combo: its flips at trick_time each and its shuvit half
@@ -984,27 +1022,53 @@ func _board_trick_name() -> String:
 	var kind := String(_board_trick)
 	if _board_trick == &"" and _board_trick_done != &"":
 		kind = _combo_name(_board_trick_turns)
-	if _body_turn >= 0.0:
-		# With a body 180: its own name ("frontside flip", "bigspin"), or "backside 180 ...".
-		kind = BODY_COMBOS.get([_body_front, kind], _body_name() + " " + kind)
+	if _half_cab():
+		# Fakie, backside: a half cab or full cab ("half cab flip", "full cab heelflip").
+		kind = _cab_name() + " " + ("flip" if kind == "kickflip" else kind)
+	elif _body_turn >= 0.0:
+		# With a body 180: its own name ("frontside flip", "bigspin"), or "backside 180 ...",
+		# "frontside 360 kickflip".
+		var combo = BODY_COMBOS.get([_body_front, kind]) if _body_half_turns() == 1 else null
+		kind = combo if combo != null else _body_name() + " " + kind
 	return ("late " if _board_trick_late else "") + kind
 
 
-## Landed a body 180: now riding the other way round (switch, or back to normal).
+## A backside body turn popped fakie (off the nose rolling backward): a half cab (180) or
+## full cab (360).
+func _half_cab() -> bool:
+	return _body_turn >= 0.0 and not _body_front and _popped and _pop_stance == "fakie"
+
+
+## "half cab", "full cab", or past that "fakie backside 540".
+func _cab_name() -> String:
+	match _body_half_turns():
+		1: return "half cab"
+		2: return "full cab"
+	return "fakie " + _body_name()
+
+
+## Landed a body turn: an odd number of half turns has you riding the other way round
+## (switch, or back to normal); a 360 the same way.
 func _end_body_turn() -> void:
 	if _body_turn >= 0.0:
-		_switch = not _switch
+		if _body_half_turns() % 2 == 1:
+			_switch = not _switch
 		_body_turn = -1.0
+		_body_turns = 0
 
 
-## "frontside 180" or "backside 180".
+## "frontside 180", "backside 360"...
 func _body_name() -> String:
-	return ("frontside" if _body_front else "backside") + " 180"
+	return ("frontside" if _body_front else "backside") + " %d" % (180 * _body_half_turns())
 
 
 ## Callout for a landed pop: "ollie"/"nollie", or the board trick ("nollie kickflip").
 ## The stance at the pop comes first ("switch kickflip", "fakie kickflip"), after "late".
+## Cabs are named on their own ("half cab", "full cab flip", "late half cab flip").
 func _pop_callout(trick: String) -> String:
+	if _half_cab():
+		# The cab's name says fakie already: "half cab", "full cab flip".
+		return _cab_name() if trick == "" else trick
 	var stance := _pop_stance + " " if _pop_stance != "" else ""
 	if trick == "":
 		if _body_turn >= 0.0:
@@ -1118,7 +1182,7 @@ func skater_pose() -> Dictionary:
 		rear = base + along * lerpf(-half * 0.3, -half * 2.6, phase) - up * drop * sin(PI * minf(phase * 1.3, 1.0))
 	var face := -1.0 if _switch else 1.0
 	if _body_turn >= 0.0 and not _grounded and _rail == null:
-		face *= cos(clampf(_body_turn / body_turn_time, 0.0, 1.0) * PI)
+		face *= cos(_body_turn / body_turn_time * PI)
 	var fall := -1.0
 	if _fall_t >= 0.0:
 		fall = _fall_t
@@ -1368,6 +1432,8 @@ func _step(delta: float) -> void:
 			_trick_window = maxf(_trick_window - delta, 0.0)
 		if _body_turn >= 0.0:
 			_body_turn += delta
+			if _body_turns > 0:
+				_body_turn = minf(_body_turn, _body_turns * body_turn_time)  # Settled.
 		_lip_t -= delta
 		_step_hold(delta)
 		_step_air(delta)
@@ -1905,6 +1971,7 @@ func _start_trick(spin: float) -> void:
 	_past_vertical = false
 	_hop = false
 	_body_turn = -1.0
+	_body_turns = 0
 	_set_balance(0.0)
 	_angular_velocity = spin
 
@@ -1948,8 +2015,8 @@ func _land(on: Seg, x: float) -> void:
 	if _board_trick != &"":
 		_slam("landed mid-" + _board_trick)
 		return
-	if _body_turn >= 0.0 and _body_turn < body_turn_time:
-		_slam("landed mid-180")
+	if not _body_settled():
+		_slam("landed mid-" + _body_name())
 		return
 	if _catches == 0 and _needs_catch:
 		_slam("no catch")
@@ -1999,8 +2066,8 @@ func _start_grind(rail: Seg) -> void:
 	if _board_trick != &"":
 		_slam("landed mid-" + _board_trick)
 		return
-	if _body_turn >= 0.0 and _body_turn < body_turn_time:
-		_slam("landed mid-180")
+	if not _body_settled():
+		_slam("landed mid-" + _body_name())
 		return
 	var trick := ("double " if _from_rail else "") + _trick_prefix()
 	var grind := "double " if _from_rail else ""
@@ -2567,7 +2634,7 @@ func board_pose() -> Array:
 			board_scale.x *= cos(loop * _trick_shuvs * PI)
 	if _body_turn >= 0.0 and _slam_t < 0.0 and not _grounded and _rail == null:
 		# Body 180: the board turns around its vertical axis with the skater.
-		board_scale.x *= cos(clampf(_body_turn / body_turn_time, 0.0, 1.0) * PI)
+		board_scale.x *= cos(_body_turn / body_turn_time * PI)
 	if _slide > 0.0 and _slam_t < 0.0:
 		# Slide: the board swings across the ledge (seen end-on, so it shortens) and
 		# rests on its tail or nose, with the trucks hanging over the edge.

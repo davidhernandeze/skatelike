@@ -30,6 +30,23 @@ var _touch_from := Vector2.ZERO
 var _scroll_from := 0
 var _scrolling := false
 var _held_button: Button
+## Momentum: let go mid-drag, the page glides on at the finger's speed (px/s, smoothed
+## over the drag) and slows down like a phone's lists, FLING_FRICTION per second, until
+## FLING_STOP or an end of the page. A touch while it glides only catches it.
+const FLING_FRICTION := 2.0
+const FLING_STOP := 20.0
+## Finger held still this long before lifting (s): no glide.
+const FLING_HOLD := 0.08
+## Fastest glide (px/s).
+const FLING_MAX := 6000.0
+var _fling_v := 0.0
+## Scroll position as a float while gliding (the container's is whole pixels).
+var _fling_pos := 0.0
+## The finger's speed while dragging, and when it last moved (s).
+var _drag_v := 0.0
+var _drag_last := 0.0
+var _drag_last_y := 0.0
+var _clock := 0.0
 
 
 func _ready() -> void:
@@ -50,8 +67,18 @@ func _input(event: InputEvent) -> void:
 			_touch_from = event.position
 			_scroll_from = scroll.scroll_vertical
 			_scrolling = false
+			_drag_v = 0.0
+			_drag_last = _now()
+			_drag_last_y = event.position.y
+			if absf(_fling_v) > FLING_STOP * 5.0:
+				# Catching a glide: it stops, and the finger doesn't press what's under it.
+				_hold_button(_button_at(event.position))
+			_fling_v = 0.0
 		elif not event.pressed and event.index == _touch_index:
 			_touch_index = -1
+			if _scrolling and _now() - _drag_last < FLING_HOLD:
+				_fling_v = clampf(_drag_v, -FLING_MAX, FLING_MAX)
+				_fling_pos = scroll.scroll_vertical
 			if _held_button:
 				# Back on after this release has gone by, so it didn't count as a press.
 				_held_button.set_deferred("disabled", false)
@@ -60,13 +87,41 @@ func _input(event: InputEvent) -> void:
 		var dy: float = event.position.y - _touch_from.y
 		if not _scrolling and absf(dy) > DRAG_START:
 			_scrolling = true
-			_held_button = _button_at(_touch_from)
-			if _held_button and not _held_button.disabled:
-				_held_button.disabled = true
-			else:
-				_held_button = null
+			if not _held_button:
+				_hold_button(_button_at(_touch_from))
+		# The finger's speed, smoothed (scroll moves the other way to the finger).
+		var now := _now()
+		var dt := maxf(now - _drag_last, 0.001)
+		var v: float = -(event.position.y - _drag_last_y) / dt
+		_drag_v = lerpf(_drag_v, v, clampf(dt / 0.05, 0.2, 1.0))
+		_drag_last = now
+		_drag_last_y = event.position.y
 		if _scrolling:
 			scroll.scroll_vertical = _scroll_from - roundi(dy)
+
+
+## Disables `button` (if any) until the finger lifts, so that lift doesn't press it.
+func _hold_button(button: Button) -> void:
+	if button and not button.disabled:
+		button.disabled = true
+		_held_button = button
+
+
+## Frame time so far (s): the finger's speed and the glide run on the same clock.
+func _now() -> float:
+	return _clock
+
+
+## The glide after a fling: slows down until it stops or reaches an end of the page.
+func _process(delta: float) -> void:
+	_clock += delta
+	if _fling_v == 0.0 or _touch_index >= 0:
+		return
+	_fling_pos += _fling_v * delta
+	_fling_v *= exp(-FLING_FRICTION * delta)
+	scroll.scroll_vertical = roundi(_fling_pos)
+	if absf(_fling_v) < FLING_STOP or scroll.scroll_vertical != roundi(_fling_pos):
+		_fling_v = 0.0  # Slowed to a stop, or ran into the top or bottom.
 
 
 ## The enabled button on the page at a screen position, if any.
@@ -80,6 +135,7 @@ func _button_at(at: Vector2) -> Button:
 
 func _show(new_page: String) -> void:
 	page = new_page
+	_fling_v = 0.0
 	for child in list.get_children():
 		child.queue_free()
 	match page:
