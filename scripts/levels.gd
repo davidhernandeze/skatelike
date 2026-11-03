@@ -199,7 +199,7 @@ const LIST := [
 	# Experimental: a vert ramp to drop into. An uphill bleeds the speed off, so the
 	# board leaves the coping almost without horizontal speed and falls along a
 	# near-vertical wall (rolling on just launches off it). A nollie keeps turning nose
-	# down up to nollie_spin_cap while the wall is still below; once a board passes 90°
+	# down up to pop_spin_cap while the wall is still below; once a board passes 90°
 	# the catch turns it back slowly (catch_slow_turn), so the catch is timed for it to
 	# meet the wall's angle as it touches down. Then a kicker out of the bottom, over a
 	# pit only a pop at its lip clears (about 10 frames, from just before it to

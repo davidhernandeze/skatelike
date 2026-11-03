@@ -77,7 +77,7 @@ const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &
 	&"_needs_catch", &"_manual_dir", &"_riding_manual", &"_fifty", &"_balance_tilt",
 	&"_from_rail", &"_board_trick", &"_board_trick_t", &"_board_trick_turns", &"_trick_flips", &"_trick_shuvs",
 	&"_trick_flip_kind", &"_trick_shuv_kind", &"_trick_window", &"_slide", &"_board_trick_done",
-	&"_board_trick_late", &"_popped", &"_pop_nose", &"_nollie_spin", &"_past_vertical",
+	&"_board_trick_late", &"_popped", &"_pop_nose", &"_pop_spin", &"_past_vertical",
 	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
 	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue"]
 
@@ -117,13 +117,13 @@ class Seg:
 @export var jump_velocity := 1100.0
 ## Pop strength at the bottom of a pop pad, as a fraction of jump_velocity.
 @export var min_pop := 0.6
-## Spin given on pop (rad/s); decays in the air like inertia.
-## Tail pop lifts the nose (anticlockwise), nose pop lifts the tail.
+## Spin given on pop (rad/s, at full strength): a tail pop lifts the nose
+## (anticlockwise), a nose pop the tail. It doesn't decay: the board keeps turning until
+## the catch or pop_spin_cap (deg, either way), enough to turn it to a near-vertical
+## wall and past it. Other spins (roll-offs, after a trick's kick) decay by spin_damping.
 @export var jump_spin := 3.5
 @export var spin_damping := 4.0
-## A nollie's spin doesn't decay: the nose keeps going down until this angle (deg) or
-## the catch. Enough to turn the board to a near-vertical wall and past it.
-@export var nollie_spin_cap := 120.0
+@export var pop_spin_cap := 120.0
 ## A board that turned past this angle (deg, either way) is caught back slowly: the
 ## catch turns it all the way back at catch_slow_turn (deg/s) instead of snapping, so
 ## it can be timed to meet a steep wall.
@@ -430,8 +430,8 @@ var _board_trick_late := false
 var _popped := false
 ## That pop was off the nose (nollie).
 var _pop_nose := false
-## The free spin is a nollie's: undamped, capped at nollie_spin_cap.
-var _nollie_spin := false
+## The free spin is a pop's: undamped, capped at pop_spin_cap.
+var _pop_spin := false
 ## The board turned past catch_slow_after in this trick.
 var _past_vertical := false
 ## The current trick is a hop over a crest (see hop_max), and how high it goes (px).
@@ -634,7 +634,7 @@ func pop(nose: bool, strength := 1.0) -> void:
 	_start_trick(0.0 if contrary else jump_spin * power * (1.0 if nose else -1.0))
 	_popped = not contrary
 	_pop_nose = nose
-	_nollie_spin = nose and not contrary
+	_pop_spin = not contrary
 	popped.emit(nose, power)
 	_update_airborne()
 
@@ -776,7 +776,7 @@ func board_trick(kind: StringName) -> void:
 			_trick_flip_kind = kind
 	_trick_window += combo_unit
 	_angular_velocity *= -trick_counter_spin
-	_nollie_spin = false  # Turned back, a nollie's spin dies out like any other.
+	_pop_spin = false  # Turned back, the pop's spin dies out like any other.
 	_board_trick = StringName(_combo_name(1))
 	trick_started.emit(_board_trick_name())
 
@@ -1462,7 +1462,7 @@ func _start_trick(spin: float) -> void:
 	_board_trick = &""
 	_board_trick_done = &""
 	_grounded = false
-	_nollie_spin = false
+	_pop_spin = false
 	_past_vertical = false
 	_hop = false
 	_set_balance(0.0)
@@ -1593,8 +1593,9 @@ func _step_rotation(delta: float) -> void:
 			_angle = move_toward(_angle, _lock_angle, deg_to_rad(catch_slow_turn) * delta)
 		else:
 			_angle = lerpf(_angle, _lock_angle, 1.0 - exp(-lock_snap * delta))
-	elif _nollie_spin:
-		_angle = minf(_angle + _angular_velocity * delta, deg_to_rad(nollie_spin_cap))
+	elif _pop_spin:
+		var cap := deg_to_rad(pop_spin_cap)
+		_angle = clampf(_angle + _angular_velocity * delta, -cap, cap)
 	else:
 		_angle += _angular_velocity * delta
 		_angular_velocity *= exp(-spin_damping * delta)

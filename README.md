@@ -77,6 +77,11 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 
 ## Trick rules
 
+- **Pop spin.** A tail pop turns the board nose up, a nose pop nose down, both at
+  `jump_spin` (3.5 rad/s, 200°/s at full strength) without slowing down, until the catch
+  or `pop_spin_cap` (120°). A board caught past 90° turns back slowly
+  (`catch_slow_turn`, 180°/s), so catch a full pop within about 0.45 s, or time a late
+  catch to meet a steep wall (Vert).
 - **Catch or slam.** Every pop, and every roll-off of a floor ledge (the nose tips down),
   must be caught before landing, and the board angle must match the ground within
   `land_tolerance` (15°). Rolling off a platform and hopping over a crest need no catch,
@@ -116,7 +121,7 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - Landing still spinning slams.
   - Kicking a trick works against the pop's spin: each tap turns the board's pitch spin
     around at half its speed (`trick_counter_spin`), so a kickflip off an ollie brings
-    the nose back down, and a nollie's spin turns back and dies out.
+    the nose back down, and a nollie's nose down; after the kick the spin dies out.
 - **Combos.** Each trick tapped opens (or keeps open) a window of `combo_unit` (0.2 s) more,
   and tricks tapped while it's open join the combo: flips add flip turns, shuvits add half
   turns. The board spins the whole combo in one loop, both ways at once, and loops it until
