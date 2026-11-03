@@ -124,6 +124,10 @@ class Seg:
 @export var jump_spin := 2.5
 @export var spin_damping := 4.0
 @export var pop_spin_cap := 120.0
+## Popping out of a manual or grind: the highest it goes, as a fraction of a normal pop's
+## height, and its spin, as a fraction of jump_spin.
+@export var balance_pop_height := 0.6
+@export var balance_pop_spin := 0.6
 ## A board that turned past this angle (deg, either way) is caught back slowly: the
 ## catch turns it all the way back at catch_slow_turn (deg/s) instead of snapping, so
 ## it can be timed to meet a steep wall.
@@ -625,13 +629,17 @@ func pop(nose: bool, strength := 1.0) -> void:
 	if not can_pop():
 		return
 	var power := lerpf(min_pop, 1.0, _unit(strength))
+	var from_balance := is_balancing()
+	var spin := jump_spin * power * (balance_pop_spin if from_balance else 1.0)
+	if from_balance:
+		power *= sqrt(balance_pop_height)  # Height goes with the square of the pop speed.
 	if _grounded or _rail != null:
 		_take_off()
 	_lip_t = 0.0
 	_velocity_y -= jump_velocity * power
 	_from_rail = _rail != null
 	_grounded = false
-	_start_trick(0.0 if contrary else jump_spin * power * (1.0 if nose else -1.0))
+	_start_trick(0.0 if contrary else spin * (1.0 if nose else -1.0))
 	_popped = not contrary
 	_pop_nose = nose
 	_pop_spin = not contrary

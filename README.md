@@ -82,6 +82,8 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   catch or `pop_spin_cap` (120°). A board caught past 90° turns back slowly
   (`catch_slow_turn`, 180°/s), so catch a full pop within about 0.6 s, or time a late
   catch to meet a steep wall (Vert).
+  - Popping out of a manual or grind is smaller: it goes `balance_pop_height` (60%) as
+    high as a normal pop and spins at `balance_pop_spin` (60%).
 - **Catch or slam.** Every pop, and every roll-off of a floor ledge (the nose tips down),
   must be caught before landing, and the board angle must match the ground within
   `land_tolerance` (15°). Rolling off a platform and hopping over a crest need no catch,
