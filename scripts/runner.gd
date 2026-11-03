@@ -810,11 +810,11 @@ func board_trick(kind: StringName) -> void:
 	trick_started.emit(_board_trick_name())
 
 
-## A body 180: the skater turns around with the board, in the air after a pop and before
-## the catch, once per jump (see body_turn_time). `swipe` is the swipe's direction (+1
+## A body 180: the skater turns around with the board, in the air after a pop (caught
+## or not), once per jump (see body_turn_time). `swipe` is the swipe's direction (+1
 ## right): see _body_front.
 func body_180(swipe := 1.0) -> void:
-	if _dead or not _in_trick or not _popped or _catches > 0 or _body_turn >= 0.0:
+	if _dead or not _in_trick or not _popped or _body_turn >= 0.0:
 		return
 	_body_turn = 0.0
 	_body_front = (swipe > 0.0) != _switch

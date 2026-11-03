@@ -30,6 +30,11 @@ var _enabled := true
 var _pie := 0.0
 var _pie_queue := 0
 var _label_nodes: Array[Label] = []
+## While a pop is held and aimed (see set_aim): faint arrows both ways, the aimed one lit
+## with its name.
+var _aiming := false
+var _aim := 0
+var _aim_text := ""
 
 
 func _ready() -> void:
@@ -85,6 +90,16 @@ func set_pie(remaining: float, queued: int) -> void:
 		queue_redraw()
 
 
+## Shows a held pop's aim: `holding` draws faint side arrows; `aim` -1 / +1 lights the
+## left / right one with `text` ("BS 180"); 0 none.
+func set_aim(holding: bool, aim := 0, text := "") -> void:
+	if holding != _aiming or aim != _aim or text != _aim_text:
+		_aiming = holding
+		_aim = aim
+		_aim_text = text
+		queue_redraw()
+
+
 func _apply_alpha() -> void:
 	modulate.a = 0.35 if dimmed or not _enabled else 1.0
 
@@ -96,6 +111,18 @@ func _draw() -> void:
 	if center_mark:
 		var x := size.x * 0.5
 		draw_line(Vector2(x, 12.0), Vector2(x, size.y - 12.0), Color(color, 0.6), 3.0)
+	if _aiming:
+		# A held pop: slide sideways to aim it into a 180 (drawn, not text arrows).
+		var y := size.y * 0.5
+		for side: int in [-1, 1]:
+			var lit: bool = side == _aim
+			var tip := Vector2(size.x * (0.5 + 0.38 * side), y)
+			draw_colored_polygon(Icons.triangle(tip, Vector2(side, 0), 34.0 if lit else 24.0),
+					Color(1, 1, 1, 0.95 if lit else 0.3))
+		if _aim != 0:
+			var font := get_theme_default_font()
+			draw_string(font, Vector2(0.0, size.y * 0.3), _aim_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 30,
+					Color(1.0, 0.95, 0.6))
 	# Symbols are shapes, not text: the web build's font has no arrow glyphs.
 	var arrow := font_size * 0.7
 	if arrows:

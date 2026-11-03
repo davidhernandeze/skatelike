@@ -41,8 +41,9 @@ var flow: FlowButton
 var ghosts: Node2D
 ## Fingers holding CATCH.
 var _catch_holds := 0
-## The finger that pressed a pop pad, while it's down: {action, from, at (global), width
-## (the pad's)}. Lifted after swiping sideways at least BODY_SWIPE pad widths: a body 180.
+## The finger holding a pop pad: {action, pad, nose, strength, from, at (global), aim}. The
+## pop goes when it lifts, however long it was held; sliding sideways BODY_SWIPE pad
+## widths aims it into a body 180 (aim -1 left / +1 right), shown on the pad.
 var _pop_finger := {}
 const BODY_SWIPE := 0.33
 ## Actions not yet sent to the ghost room: [tick, action, a, b] each.
@@ -172,6 +173,7 @@ func _process(delta: float) -> void:
 		var at: Array[Vector2] = control_panel.touches_of(_pop_finger.action)
 		if not at.is_empty():
 			_pop_finger.at = at.back()
+			_aim_pop()
 	if ghosts:
 		_send_run(delta)
 
@@ -306,12 +308,8 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 	if action == &"balance" or action == &"balance_pop":
 		return  # Only the finger held from the landing plays these (_follow_balance_finger).
 	match action:
-		&"tail_pop":
-			runner.act(Runner.Act.POP, 0.0, -local_pos.y)
-			_track_pop_finger(action)
-		&"nose_pop":
-			runner.act(Runner.Act.POP, 1.0, -local_pos.y)
-			_track_pop_finger(action)
+		&"tail_pop", &"nose_pop":
+			_hold_pop(action, -local_pos.y)  # Pops when it lifts.
 		&"push":
 			runner.act(Runner.Act.PUSH, -local_pos.y)
 		&"balance", &"balance_pop":
@@ -331,23 +329,43 @@ func _show_stats(shown: bool) -> void:
 	last_input.visible = shown
 
 
-## Remembers where the finger that just pressed a pop pad went down.
-func _track_pop_finger(action: StringName) -> void:
+## A finger went down on a pop pad: the pop waits for it to lift (strength from where it
+## went down), aimed by sliding meanwhile.
+func _hold_pop(action: StringName, strength: float) -> void:
 	var at: Array[Vector2] = control_panel.touches_of(action)
-	if at.is_empty():
-		return
 	var pad: Pad = pop_pads[0] if action == &"tail_pop" else pop_pads[1]
-	_pop_finger = {action = action, from = at.back(), at = at.back(), width = pad.get_global_rect().size.x}
+	var from: Vector2 = at.back() if not at.is_empty() else pad.get_global_rect().get_center()
+	_pop_finger = {action = action, pad = pad, nose = action == &"nose_pop", strength = strength,
+			from = from, at = from, aim = 0}
+	pad.set_aim(true)
+
+
+## How far the held pop finger has slid aims it: a 180 left or right, named for the stance
+## (riding switch, the sides swap).
+func _aim_pop() -> void:
+	var pad: Pad = _pop_finger.pad
+	var dx: float = _pop_finger.at.x - _pop_finger.from.x
+	var aim := int(signf(dx)) if absf(dx) >= BODY_SWIPE * pad.get_global_rect().size.x else 0
+	_pop_finger.aim = aim
+	var front := (aim > 0) != runner._switch
+	pad.set_aim(true, aim, ("FS 180" if front else "BS 180") if aim != 0 else "")
+
+
+## The held pop goes: popped as aimed (with a 180 if it was slid far enough).
+func _release_pop() -> void:
+	var held := _pop_finger
+	_pop_finger = {}
+	held.pad.set_aim(false)
+	runner.act(Runner.Act.POP, 1.0 if held.nose else 0.0, held.strength)
+	if held.aim != 0:
+		runner.act(Runner.Act.BODY_180, held.aim)
 
 
 ## A finger lifted. CATCH counts its fingers: the hold ends when the last one lifts. If
 ## a manual or grind is being ridden, that ends it cleanly.
 func _on_pad_released(action: StringName) -> void:
 	if not _pop_finger.is_empty() and action == _pop_finger.action:
-		# Swiped sideways while holding the pop: a body 180.
-		if absf(_pop_finger.at.x - _pop_finger.from.x) >= BODY_SWIPE * _pop_finger.width:
-			runner.act(Runner.Act.BODY_180, signf(_pop_finger.at.x - _pop_finger.from.x))
-		_pop_finger = {}
+		_release_pop()
 	if action == &"lock_tilt":
 		_catch_holds = maxi(_catch_holds - 1, 0)
 		if _catch_holds == 0:
@@ -421,6 +439,9 @@ func _on_level_cleared() -> void:
 func pause() -> void:
 	if get_tree().paused:
 		return
+	if not _pop_finger.is_empty():
+		_pop_finger.pad.set_aim(false)
+		_pop_finger = {}  # A held pop is called off, not fired.
 	control_panel.release_all()
 	flow.hold()
 	get_tree().paused = true

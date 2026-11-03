@@ -18,7 +18,7 @@ several fingers at once. Where you touch inside a pad often matters.
 
 | Pad | Action |
 |---|---|
-| TAIL POP / NOSE POP | Ollie / nollie. Touch height sets pop strength (top = full). |
+| TAIL POP / NOSE POP | Ollie / nollie, when the finger lifts (hold as long as you like). Where it went down sets pop strength (top = full); sliding it sideways meanwhile aims a body 180 (shown on the pad). |
 | PUSH | A kick: a force pulse over 0.1–0.25 s. Touch height sets strength. Kicks add less the faster you go (see Board physics). You can't pop while pushing, and up to 2 pushes queue. |
 
 **While balancing** (a manual, grind or slide), the pads switch to two rows. Everything is
@@ -125,11 +125,13 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - Kicking a trick works against the pop's spin: each tap turns the board's pitch spin
     around at half its speed (`trick_counter_spin`), so a kickflip off an ollie brings
     the nose back down, and a nollie's nose down; after the kick the spin dies out.
-- **Body 180.** Keep the finger on TAIL POP or NOSE POP after popping and slide it sideways
-  (at least a third of the pad's width) before lifting: the skater turns around with the
-  board, over `body_turn_time` (0.35 s). It must come before the catch, which it still
-  needs, and landing before the turn is done slams ("landed mid-180"). A plain tap (or a
-  small wiggle) is a normal pop. It adds one board trick's worth of flow.
+- **Body 180.** A pop goes when the finger lifts, however long it was held. While holding,
+  slide the finger sideways at least a third of the pad's width to aim the pop: the pad
+  shows faint arrows both ways while held, and lights the aimed one with its name ("FS 180",
+  "BS 180"). Lifting then pops with a body 180: the skater turns around with the board, over
+  `body_turn_time` (0.35 s). The pop still needs its catch, and landing before the turn is
+  done slams ("landed mid-180"). A plain tap (or a small wiggle) is a normal pop. Pausing
+  while holding calls the pop off. It adds one board trick's worth of flow.
   - **Frontside or backside:** in the normal stance a swipe toward the way you're riding
     (right) is frontside, left backside; riding switch, the other way round.
   - **Switch:** landing a 180 puts you in switch (shown bottom left), another one back.
