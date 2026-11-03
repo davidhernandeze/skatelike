@@ -88,13 +88,20 @@ class Seg:
 	var y0: float
 	var x1: float
 	var y1: float
-	## Following piece of the same floor or platform top (null at the end).
+	## Following piece of the same floor or platform top (null at the end), and the one
+	## before it (null at the start): see link().
 	var next: Seg
+	var prev: Seg
 	## Part of a platform top.
 	var ledge := false
 	## Number of stairs drawn on this floor piece (0 = a plain surface). Stairs can't
 	## be ridden or landed on: ollie them or grind their handrail.
 	var stairs := 0
+
+	## Makes `after` the piece following this one.
+	func link(after: Seg) -> void:
+		next = after
+		after.prev = self
 
 	func _init(from: Vector2, to: Vector2) -> void:
 		x0 = from.x
@@ -379,6 +386,9 @@ var _speed := 0.0
 ## Way the board's rolling: +1 forward (right), -1 backward (left): it rolls back down a
 ## slope it stopped on. _speed is always the size of the speed; this is its direction.
 var _dir := 1.0
+## How far off the left of the view the level is kept (px): PRUNE_BEHIND, or all of it
+## in a level laid out for riding back through (one with `at`, see configure).
+var _keep_behind := PRUNE_BEHIND
 ## The start platform (see setup), whose far end stops a board rolling back to it.
 var _start_seg: Seg
 ## The angle air catches and the pop's spin limits are measured from: level, or in a
@@ -561,6 +571,10 @@ func configure(level: Dictionary) -> void:
 			segment = Vector3(segment.x, segment.y, 0.0)
 		_segments.append(segment)
 	_random_left = level.get("random", 0)
+	_keep_behind = PRUNE_BEHIND
+	for segment in _segments:
+		if segment is Dictionary and segment.has("at"):
+			_keep_behind = INF  # Floors to ride back along, way behind: keep everything.
 	max_fall = level.get("max_fall", max_fall)
 	_rng.seed = hash(level.get("id", ""))
 
@@ -1329,11 +1343,11 @@ func _at_goal() -> bool:
 ## gap it stays at the edge, so the view doesn't dive before the board does.
 func _ground_ahead(dist: float) -> float:
 	var s := _support
-	var x := _pos.x + dist
-	while x > s.x1:
+	var x := _pos.x + _dir * dist
+	while _beyond(x, _ahead_end(s)):
 		var next := _continuation(s)
 		if next == null:
-			return s.y1
+			return _ahead_end_y(s)
 		s = next
 	return s.y_at(x)
 
@@ -1343,11 +1357,11 @@ func _ground_ahead(dist: float) -> float:
 func _scroll(dx: float) -> void:
 	_shift_world(dx)
 	# What's gone off the left is kept a while: the board can roll back to it (fakie).
-	while _segs.size() > 1 and _segs[0].x1 < -PRUNE_BEHIND and _segs[0] != _support:
+	while _segs.size() > 1 and _segs[0].x1 < -_keep_behind and _segs[0] != _support:
 		_segs.pop_front()
-	while not _rails.is_empty() and _rails[0].x1 < -PRUNE_BEHIND and _rails[0] != _rail:
+	while not _rails.is_empty() and _rails[0].x1 < -_keep_behind and _rails[0] != _rail:
 		_rails.pop_front()
-	while not _platforms.is_empty() and _platforms[0].top.back().x1 < -PRUNE_BEHIND \
+	while not _platforms.is_empty() and _platforms[0].top.back().x1 < -_keep_behind \
 			and not (_support in _platforms[0].top) and not (_rail in _platforms[0].top):
 		for ledge in _platforms.pop_front().top:
 			_ledges.erase(ledge)
@@ -1386,7 +1400,7 @@ func _follow_ground(delta: float) -> void:
 			var framed := ground
 			if _grounded:
 				# Look ahead along the ground, so a fast ride down a tall ramp stays in view.
-				framed = maxf(ground, _ground_ahead(_speed * 0.3)) if _dir > 0.0 else ground
+				framed = maxf(ground, _ground_ahead(_speed * 0.3))
 			# Where both can't hold (riding fast down a tall wall), the floor under the
 			# board stays below the band's top over showing the floor ahead.
 			target = minf(maxf(_cam, framed - _area.y * camera_band.y), ground - _area.y * camera_band.x)
@@ -1449,12 +1463,9 @@ func _step_speed(delta: float) -> void:
 	var u := _dir * v
 	u += (slope_g * sin(_ground_angle) + _push_force(u) / mass) * delta
 	if u * _dir < 0.0:
-		if _rail != null:
-			u = 0.0  # Grinds don't run backward.
-		else:
-			# Rolled to a stop going up a slope (or pushed out of rolling backward): it
-			# rolls the other way. (On flat ground it just stands until the next push.)
-			_dir = -_dir
+		# Rolled to a stop going up a slope or rail (or pushed out of rolling backward):
+		# it rolls the other way. (On flat ground it just stands until the next push.)
+		_dir = -_dir
 	_speed = clampf(absf(u), 0.0, max_speed) * pixels_per_meter
 
 
@@ -1485,19 +1496,24 @@ func _step_pushes(delta: float) -> void:
 
 func _step_ground() -> void:
 	# The wheels sit w apart along the surface: only w cos(slope) across, which on a steep
-	# wall is very little.
+	# wall is very little. Everything here works either way the board rolls, written for
+	# rolling forward and mirrored by the direction helpers (_ahead_end(), _beyond(),
+	# _linked_ahead(), _rel(), _joint(..., _dir)).
 	var w := _wheel_offset()
-	if _dir < 0.0:
-		_step_ground_back(w)
-		return
-	# Hand over to the next surface once the back wheel rolls past the end of this one.
-	while _pos.x - w * cos(_support.angle()) > _support.x1:
+	var d := _dir
+	# Hand over to the next surface once the trailing wheel rolls past the end of this one.
+	while _beyond(_pos.x - d * w * cos(_support.angle()), _ahead_end(_support)):
 		var next := _continuation(_support)
 		if next != null and _over_crest(next):
 			return
 		if next == null:
-			if _support == _segs.back():
+			if d > 0.0 and _support == _segs.back():
 				break  # End of generated floor (never reached in play).
+			if d < 0.0 and _support == _start_seg:
+				# The start platform's far end: the board stops against it.
+				_shift_world(_support.x0 - w * cos(_support.angle()) - _pos.x)
+				_speed = 0.0
+				break
 			_leave_ground()  # Rolled off a ledge or got launched.
 			return
 		_support = next
@@ -1505,14 +1521,15 @@ func _step_ground() -> void:
 	var angle := _support.angle()
 	var y := _support.y_at(_pos.x)
 	var next := _continuation(_support)
-	if _pos.x + board_size.x * 0.5 > _support.x1:
+	var ahead := _linked_ahead(_support)
+	if _beyond(_pos.x + d * board_size.x * 0.5, _ahead_end(_support)):
 		# Floor ahead that the board can't roll onto (platforms have no walls).
-		var joint := _joint(_support, _support.next) if _support.next and next == null else &""
+		var joint := _joint(_support, ahead, d) if ahead and next == null else &""
 		# A higher floor right at the edge is a wall; across a gap the board drops first.
-		if joint == &"step_up" and _support.next.x0 - _support.x1 <= 1.0:
+		if joint == &"step_up" and _gap(_support, ahead) <= 1.0:
 			_slam("wall")
 			return
-		if _pos.x + w * cos(angle) > _support.x1:
+		if _beyond(_pos.x + d * w * cos(angle), _ahead_end(_support)):
 			if joint == &"too_steep":
 				_slam("too steep")
 				return
@@ -1520,57 +1537,46 @@ func _step_ground() -> void:
 			# turn its speed forward for a moment before the take-off.
 			if next != null and _crest_height(next) < _launch_height():
 				# Wheels on two surfaces: the board spans the bend.
-				var back_x := _pos.x - w * cos(angle)
-				var front_x := _pos.x + w * cos(next.angle())
+				var back_x := _pos.x - d * w * cos(angle)
+				var front_x := _pos.x + d * w * cos(next.angle())
 				var back := Vector2(back_x, _support.y_at(back_x))
 				var front := Vector2(front_x, next.y_at(front_x))
-				angle = (front - back).angle()
+				angle = (front - back).angle() if d > 0.0 else (back - front).angle()
 				y = (back.y + front.y) * 0.5
 			# Ledge or launch ahead: the front wheel hangs, the back wheel carries the board.
 	_pos.y = y
 	_ground_angle = angle
 
 
-## Rolling backward: hands over to the piece before once the trailing (right) wheel
-## rolls past the start of this one. Only smooth joints: anything else, it rolls off
-## (a transfer off a steep ramp). No walls, crests or grinds this way round.
-func _step_ground_back(w: float) -> void:
-	while _pos.x + w * cos(_support.angle()) < _support.x0:
-		var prev := _continuation_back(_support)
-		if prev == null and _support == _start_seg:
-			# The start platform's far end: the board stops against it.
-			_shift_world(_support.x0 - w * cos(_support.angle()) - _pos.x)
-			_speed = 0.0
-			break
-		if prev == null:
-			_stop_pushing()
-			_ground_angle = _support.angle()
-			_drop_off()
-			if _air_base != 0.0:
-				_lip_t = lip_pop_time  # Off a steep ramp: a transfer.
-			return
-		_support = prev
-	var angle := _support.angle()
-	var y := _support.y_at(_pos.x)
-	var prev := _continuation_back(_support)
-	if prev != null and _pos.x - w * cos(angle) < _support.x0:
-		# Wheels on two surfaces: the board spans the bend (as going forward).
-		var back_x := _pos.x - w * cos(prev.angle())
-		var front_x := _pos.x + w * cos(angle)
-		var back := Vector2(back_x, prev.y_at(back_x))
-		var front := Vector2(front_x, _support.y_at(front_x))
-		angle = (front - back).angle()
-		y = (back.y + front.y) * 0.5
-	_pos.y = y
-	_ground_angle = angle
+## Direction helpers: the ground code reads "ahead" as the way the board rolls (_dir).
+## The x of the end of `s` the board rolls toward (and its height), and the end it
+## comes from.
+func _ahead_end(s: Seg) -> float:
+	return s.x1 if _dir > 0.0 else s.x0
 
 
-## The piece `s` follows smoothly from, for rolling backward onto it; null if none.
-func _continuation_back(s: Seg) -> Seg:
-	for other: Seg in _segs:
-		if other.next == s and _joint(other, s) == &"smooth":
-			return other
-	return null
+func _ahead_end_y(s: Seg) -> float:
+	return s.y1 if _dir > 0.0 else s.y0
+
+
+## Whether x is past `edge` the way the board rolls.
+func _beyond(x: float, edge: float) -> bool:
+	return x > edge if _dir > 0.0 else x < edge
+
+
+## The piece linked after `s` the way the board rolls (null if none).
+func _linked_ahead(s: Seg) -> Seg:
+	return s.next if _dir > 0.0 else s.prev
+
+
+## A slope's angle as seen rolling the board's way: positive downhill.
+func _rel(angle: float) -> float:
+	return angle if _dir > 0.0 else -angle
+
+
+## Horizontal gap from the end of `a` to the start of `b`, the way the board rolls.
+func _gap(a: Seg, b: Seg) -> float:
+	return b.x0 - a.x1 if _dir > 0.0 else a.x0 - b.x1
 
 
 ## Going up a ramp at `angle` steep enough for a transfer (see transfer_angle).
@@ -1588,8 +1594,9 @@ func _leave_ground() -> void:
 		_lip_t = lip_pop_time
 		return
 	# A lip: a bend too sharp to follow, or a ramp going up that ends (a kicker).
-	var lip := (_support.next != null and _joint(_support, _support.next) == &"launch") \
-			or (not _support.ledge and _support.angle() < 0.0)
+	var ahead := _linked_ahead(_support)
+	var lip := (ahead != null and _joint(_support, ahead, _dir) == &"launch") \
+			or (not _support.ledge and _rel(_support.angle()) < 0.0)
 	if is_pushing():
 		if not lip:
 			_slam("pushing")
@@ -1604,19 +1611,20 @@ func _leave_ground() -> void:
 		_lip_t = lip_pop_time
 
 
-## Nose tips down off the edge: the board has to be caught.
+## The leading end tips down off the edge (the nose, or the tail rolling backward): the
+## board has to be caught.
 func _roll_off() -> void:
 	_grounded = false
 	_take_off()
 	var factor := clampf(drop_ref_speed * pixels_per_meter / _speed, drop_factor_range.x, drop_factor_range.y)
-	_start_trick(drop_spin * factor)
+	_start_trick(drop_spin * factor * _dir)
 	dropped.emit()
 
 
 ## How high the speed across `next` would lift the board over the crest onto it (px):
 ## (v sin(bend))² / 2g; 0 where the ground bends up.
 func _crest_height(next: Seg) -> float:
-	var bend := next.angle() - _support.angle()
+	var bend := _rel(next.angle()) - _rel(_support.angle())
 	if bend <= 0.0:
 		return 0.0
 	var across := _speed * sin(bend)
@@ -1652,7 +1660,7 @@ func _stop_pushing() -> void:
 
 
 func _step_grind() -> void:
-	if _pos.x > _rail.x1 and _rail.ledge:
+	if _beyond(_pos.x, _ahead_end(_rail)) and _rail.ledge:
 		var next := _continuation(_rail)
 		if next != null and next.ledge:
 			_rail = next  # Next piece of the same platform edge.
@@ -1670,7 +1678,7 @@ func _step_grind() -> void:
 				callout.emit("nose manual" if _riding_manual > 0.0 else "manual", true)
 			_step_ground()
 			return
-	if _pos.x > _rail.x1:
+	if _beyond(_pos.x, _ahead_end(_rail)):
 		# Slid off the end: like rolling off a ledge.
 		_from_rail = true
 		_drop_off()
@@ -1714,7 +1722,7 @@ func _step_air(delta: float) -> void:
 	if _pos.y > _cam + _area.y and (under == null or _pos.y > under.y_at(_pos.x)):
 		_die()  # Fell out of view: there was no ground under it to follow.
 		return
-	if _velocity_y >= 0.0 and _catches == 2 and _dir > 0.0:
+	if _velocity_y >= 0.0 and _catches == 2:
 		# Rails and platform edges only hold a board with the balance ready, at its middle.
 		for rail in _rails + _ledges:
 			if _pos.x < rail.x0 or _pos.x > rail.x1:
@@ -1732,6 +1740,8 @@ func _step_air(delta: float) -> void:
 		var best_x := _pos.x
 		for x in [_pos.x - w, _pos.x + w]:
 			for s in _surfaces_at(x):
+				if _from_rail and s.ledge and _beyond(_pos.x, _ahead_end(s)):
+					continue  # Slid off the end of a ledge: the trailing wheel doesn't land back on it.
 				var ground := s.y_at(x)
 				# The ground scrolls under the board, so slopes rise/fall by speed * tan(angle).
 				var reach := 1.0 + absf(_speed * delta * tan(s.angle()))
@@ -1740,7 +1750,7 @@ func _step_air(delta: float) -> void:
 					best_y = ground
 					best_x = x
 		if best != null:
-			if _catches == 2 and best.ledge and _dir > 0.0:
+			if _catches == 2 and best.ledge:
 				_start_grind(best)  # A grind coming down on a platform top: tailslide or noseslide.
 			else:
 				_land(best, best_x)
@@ -1922,7 +1932,7 @@ func _land(on: Seg, x: float) -> void:
 
 ## Locks onto a rail or platform edge with the balance ready: like landing a manual on it.
 func _start_grind(rail: Seg) -> void:
-	_impact = Vector2(_speed, _velocity_y)
+	_impact = Vector2(_dir * _speed, _velocity_y)
 	if _too_hard(rail):
 		return
 	_touch_down(rail)
@@ -2026,27 +2036,36 @@ func _surfaces_at(x: float) -> Array[Seg]:
 ## The surface the board rolls onto past the end of `s`: its next piece if the joint is
 ## smooth, else floor or a platform top carrying on from where `s` ends at the same
 ## height and a rideable angle (e.g. a bridge over a pit). null if there is none.
+## (Both the way the board rolls: rolling backward, past the start of `s`.)
 func _continuation(s: Seg) -> Seg:
-	if s.next != null and _joint(s, s.next) == &"smooth":
-		return s.next
+	var linked := _linked_ahead(s)
+	if linked != null and _joint(s, linked, _dir) == &"smooth":
+		return linked
+	var end := _ahead_end(s)
 	for other: Seg in _segs + _ledges:
-		if other == s or s.x1 < other.x0 - 1.0 or s.x1 >= other.x1:
+		if other == s:
 			continue
-		var bend := rad_to_deg(other.angle() - s.angle())
-		if absf(other.y_at(s.x1) - s.y1) <= 2.0 and absf(bend) <= max_transition:
+		if _dir > 0.0 and (end < other.x0 - 1.0 or end >= other.x1):
+			continue
+		if _dir < 0.0 and (end > other.x1 + 1.0 or end <= other.x0):
+			continue
+		var bend := rad_to_deg(_rel(other.angle()) - _rel(s.angle()))
+		if absf(other.y_at(end) - _ahead_end_y(s)) <= 2.0 and absf(bend) <= max_transition:
 			return other
 	return null
 
 
-## How the ground continues from a to b: step_up (wall), step_down (ledge or gap),
-## too_steep (bends up too sharply), launch (bends down too sharply) or smooth.
-func _joint(a: Seg, b: Seg) -> StringName:
-	var step := b.y0 - a.y1
+## How the ground continues from a to b going `direction` (+1 right, -1 left): step_up
+## (wall), step_down (ledge or gap), too_steep (bends up too sharply), launch (bends down
+## too sharply) or smooth.
+func _joint(a: Seg, b: Seg, direction := 1.0) -> StringName:
+	var forward := direction > 0.0
+	var step := (b.y0 - a.y1) if forward else (b.y1 - a.y0)
 	if step < -1.0:
 		return &"step_up"
-	if step > 1.0 or b.x0 - a.x1 > 1.0:
+	if step > 1.0 or ((b.x0 - a.x1) if forward else (a.x0 - b.x1)) > 1.0:
 		return &"step_down"
-	var bend := rad_to_deg(b.angle() - a.angle())
+	var bend := rad_to_deg(b.angle() - a.angle()) * (1.0 if forward else -1.0)
 	if bend < -max_transition:
 		return &"too_steep"
 	if bend > max_transition:
@@ -2057,7 +2076,7 @@ func _joint(a: Seg, b: Seg) -> StringName:
 func _fill_platforms() -> void:
 	# The level's own pieces all at once (a floor can run under another: see `at` in
 	# Levels), then keep spawning until there's ground beyond the right edge.
-	while not _segments.is_empty() or _segs.back().x0 < _area.x + 200.0:
+	while not _segments.is_empty() or _rightmost().x0 < _area.x + 200.0:
 		if not _segments.is_empty():
 			var segment = _segments.pop_front()
 			if segment is Dictionary and segment.has("at"):
@@ -2086,10 +2105,10 @@ func _fill_platforms() -> void:
 			_append_random_platform()
 		elif not _goal_spawned:
 			_goal_spawned = true
-			_append_platform(2000.0, 0.0, 0.0)
+			_append_platform(2000.0, 0.0, 0.0, 0.0, _rightmost())
 			_goal_x = _segs.back().x0 + goal_offset
 		else:
-			_append_platform(2000.0, 0.0, 0.0)
+			_append_platform(2000.0, 0.0, 0.0, 0.0, _rightmost())
 
 
 ## Starts a new stretch of floor at `at` (level coordinates: px from the end of the start
@@ -2098,6 +2117,16 @@ func _fill_platforms() -> void:
 func _start_floor(at: Vector2, width: float, rise: float) -> void:
 	var from := at + Vector2(_origin.x - _distance, _origin.y)
 	_segs.append(Seg.new(from, from + Vector2(width, rise)))
+
+
+## The floor piece reaching furthest right (the last laid, unless a level laid floor
+## out to the left with `at`): the goal and endless floor go on after it.
+func _rightmost() -> Seg:
+	var best: Seg = _segs.back()
+	for s in _segs:
+		if s.x1 > best.x1:
+			best = s
+	return best
 
 
 func _append_random_platform() -> void:
@@ -2124,10 +2153,10 @@ func _append_random_platform() -> void:
 	_append_platform(width, y - last_y, rise)
 
 
-## Adds ground after the last segment: `step` is the vertical jump at its start,
-## `rise` the height change along it (negative = up, positive = down).
-func _append_platform(width: float, step: float, rise: float, gap := 0.0) -> void:
-	var last: Seg = _segs.back()
+## Adds ground after the last segment (or `after`): `step` is the vertical jump at its
+## start, `rise` the height change along it (negative = up, positive = down).
+func _append_platform(width: float, step: float, rise: float, gap := 0.0, after: Seg = null) -> void:
+	var last: Seg = after if after != null else _segs.back()
 	if step < 0.0:
 		# The board must be able to land on `last` and pop again before this wall.
 		# Sized for max speed, since the player can push up to it before arriving.
@@ -2137,7 +2166,7 @@ func _append_platform(width: float, step: float, rise: float, gap := 0.0) -> voi
 			# Extend with flat ground (not along the slope, which could leave the screen).
 			var end := Vector2(last.x1, last.y1)
 			var extension := Seg.new(end, end + Vector2(room - (last.x1 - last.x0), 0.0))
-			last.next = extension
+			last.link(extension)
 			last = extension
 			_segs.append(last)
 		_last_arrival_time = _full_pop_landing_time(-step)
@@ -2148,7 +2177,7 @@ func _append_platform(width: float, step: float, rise: float, gap := 0.0) -> voi
 	# Random gaps scale with speed so they're measured in time, not pixels.
 	gap += _speed * _rng.randf_range(gap_time.x, gap_time.y)
 	var from := Vector2(last.x1 + gap, last.y1 + step)
-	last.next = Seg.new(from, from + Vector2(width, rise))
+	last.link(Seg.new(from, from + Vector2(width, rise)))
 	_segs.append(last.next)
 
 
@@ -2192,7 +2221,7 @@ func _add_platform(on: Seg, points: Array, deck := 0.0) -> void:
 		var piece := Seg.new(from, to)
 		piece.ledge = true
 		if not chain.is_empty():
-			chain.back().next = piece
+			chain.back().link(piece)
 		chain.append(piece)
 	_platforms.append({top = chain, deck = deck})
 	_ledges.append_array(chain)
@@ -2265,7 +2294,7 @@ func _step_loose(delta: float) -> void:
 	_angle += _angular_velocity * delta
 	var ground := _seg_at(_pos.x, prev.y)
 	var was := _seg_at(prev.x, prev.y)
-	if ground != null and was != null and ground != was and _joint(was, ground) == &"step_up" \
+	if ground != null and was != null and ground != was and _joint(was, ground, 1.0 if _body_v.x >= 0.0 else -1.0) == &"step_up" \
 			and ground.y_at(_pos.x) < prev.y - 1.0:
 		# Ran into a step up: knocked back.
 		_shift_world(prev.x - _pos.x)
@@ -2301,6 +2330,8 @@ func _draw() -> void:
 		if s.next != null:
 			prev_of[s.next] = s
 	for s in _segs:
+		if not _on_screen(s):
+			continue
 		var bottom := maxf(maxf(_cam, _view_cam) + _area.y, maxf(s.y0, s.y1) + 1.0)
 		var points := _surface_line(s)
 		if _floor_below(s):
@@ -2316,13 +2347,19 @@ func _draw() -> void:
 			uvs.append((p + Vector2(_distance, 0.0)) / float(ground_tile))
 		draw_colored_polygon(points, Color.WHITE, uvs, _ground_texture)
 	for s in _segs:
-		draw_polyline(_surface_line(s), edge_color, 5.0)
+		if _on_screen(s):
+			draw_polyline(_surface_line(s), edge_color, 5.0)
 	_draw_platforms()
 	_draw_rails()
 	_draw_goal()
 	draw_set_transform(Vector2.ZERO)
 	draw_skater_at(self, skater_pose())
 	_draw_board()
+
+
+## Some of `s` is across the view (drawn this frame, shifted by _view_dx).
+func _on_screen(s: Seg) -> bool:
+	return s.x1 + _view_dx >= -100.0 and s.x0 + _view_dx <= _area.x + 100.0
 
 
 ## Another floor runs under some of `s` (see `at` in Levels).

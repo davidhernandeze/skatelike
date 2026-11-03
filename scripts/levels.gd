@@ -373,7 +373,7 @@ const LIST := [
 	# Transfer to fakie: drop into a U whose far side goes up to a 75° lip, which throws
 	# the board almost straight up (Runner.transfer_angle): it drifts over onto a tall
 	# 72° wall facing back, comes down it backward (fakie), and rolls back left along a
-	# lower floor that runs under the U, to the flag. A pop at the lip goes higher and
+	# lower floor that runs under the U, through obstacles ridden backward, to the flag. A pop at the lip goes higher and
 	# meets the wall further up. Not enough speed: it rolls back into the U (push).
 	{id = "transfer", name = "Transfer", start_y = 0.2, max_fall = 900, segments = [
 		Vector2(80, 0),
@@ -397,9 +397,18 @@ const LIST := [
 		Vector3(60 * cos(deg_to_rad(60.0)), 0, -60 * sin(deg_to_rad(60.0))),
 		# Nothing past it up here: a slow board drifts out over the drop to the wall.
 		{width = 278.5 * cos(deg_to_rad(75.0)), rise = -278.5 * sin(deg_to_rad(75.0)), mark = "lip"},
-		# The lower floor, from under the start platform to the right, 820 px down; the
-		# flag 200 px in.
-		{at = Vector2(-700, 820), width = 1255.1, goal = 200},
+		# The lower floor, 820 px down, from far left to under the U, ridden backward
+		# (right to left) after the wall. Laid out left to right, so met in reverse: a
+		# hump (a crest launch), a box ledge to slide, a rail to grind, then a kicker up to
+		# a 120 px drop (a lip to pop, or a roll-off to catch) onto the flag's floor, long
+		# enough for a full pop off it at top speed.
+		{at = Vector2(-5700, 900), width = 2000, goal = 500},
+		{width = 150, step = -120, rise = 40, mark = "back_kicker"},
+		{width = 1600, rail = Vector3(300, 300, 45), mark = "back_rail"},
+		{width = 1600, platform = [Vector2(300, 50), Vector2(600, 50)], mark = "back_ledge"},
+		Vector3(150, 0, -150 * tan(deg_to_rad(7.0))),
+		{width = 150, rise = 150 * tan(deg_to_rad(7.0)), mark = "back_hump"},
+		Vector2(605.1, 0),
 		# Round and up the 72° wall, to 450 px above the start: out of reach even of a full
 		# pop off the lip at top speed (it comes down on the wall, not past it on the deck).
 		Vector3(60 * cos(deg_to_rad(20.0)), 0, -60 * sin(deg_to_rad(20.0))),

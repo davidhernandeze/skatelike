@@ -83,9 +83,18 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   There's no "stopped" slam: on flat ground the board just stands until the next push.
   Pushes always drive the board forward, so rolling backward they brake it first. The far
   end of the start platform (which reaches a screen back) stops a board rolling back to
-  it. The view pans (`pan_rate`) to show more of the way it's going. Rolling backward the
-  board spans bends as it does forward, but there are no crests, walls or grinds that
-  way round.
+  it. The view pans (`pan_rate`) to show more of the way it's going.
+- **Mirrored ground code.** Everything about riding the ground works both ways: handing
+  over between pieces, spanning bends, crest hops and launches, walls and too-steep
+  bends, lips and roll-offs (the leading end tips down: the tail rolling backward),
+  grinds and slides, ledges running onto the floor, and the camera's look-ahead. It's
+  written once, for rolling forward, through direction helpers (`_ahead_end()`,
+  `_beyond()`, `_linked_ahead()`, `_rel()`, `_gap()`, `_joint(a, b, direction)`); floor
+  pieces link both ways (`Seg.next`, `Seg.prev`). Rolling forward they reduce to the old
+  code exactly, so forward riding is unchanged; rolling backward a level's mirror image
+  plays out the same, step for step (the mirror test).
+- A board that slides off the end of a ledge doesn't land back on it with its trailing
+  wheel (that used to give a second touchdown, and a slam after a tilted slide).
 - **Transfers.** Leaving a ramp steeper than `transfer_angle` (60°) going up, off its lip
   or with a pop, the board keeps its angle (no catch needed) and flies almost straight
   up. Catches and the pop's spin limit are measured from the ramp's angle (`_air_base`),
@@ -102,8 +111,10 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   overhead, not a wall. There's no ceiling: an ollie under a floor goes through it.
 - **Flags anywhere.** `goal = px` puts the flag on a given piece, reached rolling past it
   either way on that floor. A level's own pieces are all laid out at the start, so a
-  floor underneath exists before the one above is drawn. The level is kept 3000 px
-  behind the view (`PRUNE_BEHIND`).
+  floor underneath exists before the one above is drawn, and a level with `at` keeps all
+  of them (others drop what's 3000 px behind the view, `PRUNE_BEHIND`); pieces off
+  screen aren't drawn. The endless floor after a level carries on from its rightmost
+  piece.
 - The distance score never goes down.
 
 ## Trick rules
@@ -358,7 +369,7 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 | Sketchy #2 | Rail yard: gaps only rails cross (one 1200 px), stair rails, downhill rails over drops |
 | Sketchy #3 | Rooftops: decks and boxes over gaps, islands at different heights, a kicker, high ollies; no rails |
 | Sketchy #4 | Bomb hill: downhills, rail-less stair sets to clear in one ollie, landing ramps, islands, long uphills to push |
-| Transfer | Drop into a U whose far side goes up to a 75° lip: the board flies almost straight up, drifts onto a tall 72° wall facing back, comes down it fakie and rolls back left on a lower floor under the U to the flag. Pop at the lip for a bigger air higher up the wall |
+| Transfer | Drop into a U whose far side goes up to a 75° lip: the board flies almost straight up, drifts onto a tall 72° wall facing back, comes down it fakie and rolls back left on a lower floor under the U, through obstacles ridden backward: a hump (crest hop), a box to slide, a rail to grind, a kicker up to a drop (pop the lip, or catch the roll-off), to the flag. Pop at the transfer lip for a bigger air higher up the wall |
 | Vert | Drop into a 3400 px near-vertical wall with a nollie timed to meet it, then a 40° kicker out of the bottom over a 1050 px pit: pop at its lip |
 
 ## Menu
