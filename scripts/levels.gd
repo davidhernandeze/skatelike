@@ -318,8 +318,24 @@ const LIST := [
 		{width = 2000, rail = Vector3(300, 1400, 70)},
 		Vector2(600, 0),
 	]},
+	{id = "lesson_180", name = "180s & switch", start_y = 0.3, max_fall = 900, checkpoints = false, lesson = {
+		title = "18. 180s & switch",
+		text = "Keep holding the pop and slide sideways before lifting: the skater turns 180 (right is frontside, left backside). You land switch; another 180 turns back. Add a kickflip for a frontside or backside flip.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3},
+			{pad = &"tail_pop", at = Vector2(0.0, -0.6), to = Vector2(-0.9, -0.6), hold = 0.3},
+			{layout = &"air"}, {wait = 0.1}, {pad = &"trick", at = Vector2(0.55, 0.5), hold = 0.12},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.5}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "side flip", match = "contains", text = "land a frontside or backside flip"},
+	}, segments = [
+		Vector2(800, 580),  # Long Jump's drops: time for a 180 and a flip.
+		Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110), Vector2(400, -110),
+		Vector2(800, 550),
+	]},
 	{id = "lesson_vert", name = "Vert", start_y = 0.43, checkpoints = false, max_fall = 650, lesson = {
-		title = "18. Vert",
+		title = "19. Vert",
 		text = "A nollie keeps turning nose down. Pop just before the edge, wait, and catch late: past upright the board turns back slowly, to meet the wall. Then pop at the kicker's lip.",
 		demo = [
 			{layout = &"ground"}, {wait = 0.3}, {pad = &"nose_pop", at = Vector2(0.0, -0.8), hold = 0.12},

@@ -125,6 +125,30 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - Kicking a trick works against the pop's spin: each tap turns the board's pitch spin
     around at half its speed (`trick_counter_spin`), so a kickflip off an ollie brings
     the nose back down, and a nollie's nose down; after the kick the spin dies out.
+- **Body 180.** Keep the finger on TAIL POP or NOSE POP after popping and slide it sideways
+  (at least a third of the pad's width) before lifting: the skater turns around with the
+  board, over `body_turn_time` (0.35 s). It must come before the catch, which it still
+  needs, and landing before the turn is done slams ("landed mid-180"). A plain tap (or a
+  small wiggle) is a normal pop. It adds one board trick's worth of flow.
+  - **Frontside or backside:** in the normal stance a swipe toward the way you're riding
+    (right) is frontside, left backside; riding switch, the other way round.
+  - **Switch:** landing a 180 puts you in switch (shown bottom left), another one back.
+    Tricks popped switch say so: "switch ollie", "switch kickflip". A slam restarts you
+    in your normal stance.
+  - **Names:** "frontside 180", "nollie backside 180"; with board tricks, their own names
+    where they have one:
+
+    | 180 | Board trick | Trick |
+    |---|---|---|
+    | frontside / backside | kickflip | frontside flip / backside flip |
+    | frontside / backside | heelflip | frontside heelflip / backside heelflip |
+    | backside | 360 shuvit | bigspin |
+    | frontside | 360 front shuvit | frontside bigspin |
+    | backside | 360 flip | bigspin flip |
+    | frontside | laser flip | frontside bigspin heelflip |
+
+    and otherwise built from the parts: "frontside 180 hardflip", "backside 180 double
+    kickflip".
 - **Combos.** Each trick tapped opens (or keeps open) a window of `combo_unit` (0.2 s) more,
   and tricks tapped while it's open join the combo: flips add flip turns, shuvits add half
   turns. The board spins the whole combo in one loop, both ways at once, and loops it until
@@ -229,7 +253,8 @@ tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run b
 
 - An **explanation panel** at the top of the play area: the mechanic's text, the goal and
   how it's going, and a miniature control panel where a finger loops the input to make
-  (the lesson's `demo` steps: taps at a spot on a pad, holds, waits, and which pad layout).
+  (the lesson's `demo` steps: taps at a spot on a pad, holds, slides while pressed, waits,
+  and which pad layout).
   It never takes touches. The **Tips** checkbox in the top bar hides it (remembered).
 - A **goal** to clear it: reach a speed (`{speed = km/h}`) or land a trick, n times
   (`{trick = "360 flip", count = n}`): a trick of a line named that, or ending in it
@@ -256,7 +281,8 @@ tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run b
 | 15 | Ledges: slides on platform tops, lift to roll on. The Ledges level | land a slide |
 | 16 | Double grinds: two rails 150 px apart, pop off the first onto the second | land a double grind |
 | 17 | Lines & flow: chain tricks for x2, x3...; FLOW and slow motion | a line of 4 tricks |
-| 18 | Vert: the Vert challenge's ramp, explained | reach the flag |
+| 18 | 180s & switch: hold the pop and slide sideways for a frontside/backside 180, land switch, add a kickflip. Long Jump's drops | land a frontside or backside flip |
+| 19 | Vert: the Vert challenge's ramp, explained | reach the flag |
 
 While the panel shows, the camera keeps the ground (with room for a pop) and the board
 below it, so they never hide behind it; hiding it with TIPS restores the normal framing.

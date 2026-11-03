@@ -101,6 +101,8 @@ func on_line_event(air: String, balance: String, wheels_down: bool) -> void:
 			# Once per flip turn and shuvit half turn: a double kickflip counts twice, a 360
 			# flip three times.
 			value += board_trick_value * runner.board_trick_units() + (late_bonus if air.begins_with("late") else 0.0)
+		if runner._body_turn >= 0.0:
+			value += board_trick_value  # A body 180.
 		_add(air, value)
 	if balance != "":
 		var value := manual_value

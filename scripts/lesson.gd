@@ -8,7 +8,7 @@ extends Control
 ##
 ## lesson = {title, text, demo = [step, ...], goal = {...}}:
 ## - demo steps: {pad = action, at = Vector2(-1..1 in the pad), hold = s} taps (or holds)
-##   a pad; {wait = s} pauses; {layout = &"ground" | &"air" | &"balance"} switches pads.
+##   a pad, sliding to `to` while pressed if given; {wait = s} pauses; {layout = &"ground" | &"air" | &"balance"} switches pads.
 ## - goal: {speed = km/h} to reach; {trick = "360 flip", count = n} to land n times
 ##   (default once): a trick of a line (Runner.line_event) named that, or ending in it
 ##   ("nollie 360 flip" counts as a 360 flip; a nollie isn't an ollie), or with
@@ -209,6 +209,9 @@ func _play_demo(delta: float) -> void:
 		_finger_at = step.get("at", Vector2.ZERO)
 	var glide := 0.25
 	_pressing = _step_t >= glide and _step_t < glide + step.get("hold", 0.12)
+	if step.has("to") and _step_t >= glide:
+		# A slide: pressing all the way from `at` to `to`.
+		_finger_at = step.get("at", Vector2.ZERO).lerp(step.to, clampf((_step_t - glide) / step.get("hold", 0.12), 0.0, 1.0))
 	if _step_t >= glide + step.get("hold", 0.12):
 		_next_step()
 

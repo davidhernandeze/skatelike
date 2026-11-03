@@ -57,7 +57,8 @@ signal acted(at_tick: int, action: int, a: float, b: float)
 signal line_event(air: String, balance: String, wheels_down: bool)
 
 ## Everything the player can do, as recorded and replayed: see act().
-enum Act { POP, PUSH, PRESS_CATCH, RELEASE_CATCH, BOARD_TRICK, BALANCE_POP, END_BALANCE, LOSE_BALANCE }
+enum Act { POP, PUSH, PRESS_CATCH, RELEASE_CATCH, BOARD_TRICK, BALANCE_POP, END_BALANCE, LOSE_BALANCE,
+		BODY_180 }
 const TRICKS: Array[StringName] = [&"kickflip", &"heelflip", &"shuvit", &"front shuvit"]
 ## Physics runs in fixed steps, so a run plays out the same at any frame rate and on any
 ## device, and can be replayed from its actions; drawing blends between steps.
@@ -77,7 +78,8 @@ const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &
 	&"_trick_flip_kind", &"_trick_shuv_kind", &"_trick_window", &"_slide", &"_board_trick_done",
 	&"_board_trick_late", &"_popped", &"_pop_nose", &"_pop_spin", &"_past_vertical",
 	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
-	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue"]
+	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue", &"_body_turn",
+	&"_body_front", &"_switch", &"_pop_switch"]
 
 ## A straight surface from (x0, y0) to (x1, y1): floor (solid below), the top of a
 ## platform (solid only from above) or a rail.
@@ -290,6 +292,9 @@ class Seg:
 ## around at this fraction of its speed (a kickflip off an ollie brings the nose back
 ## down at half the speed it was coming up).
 @export var trick_counter_spin := 0.5
+## A body 180 (swiping sideways while holding the pop pad) turns the skater and board
+## around in this time (s); landing before it's done slams.
+@export var body_turn_time := 0.35
 
 @export_group("Landing")
 ## Allowed difference between the board angle and the ground angle at touchdown (deg).
@@ -402,6 +407,25 @@ var _ledges: Array[Seg] = []
 var _board_trick := &""
 ## Time the board trick in progress has been spinning (s).
 var _board_trick_t := 0.0
+## Time into the body 180 of this jump (s); negative without one. It's frontside
+## (_body_front) or backside: in the normal stance a swipe toward the way you're going
+## (right) is frontside; riding switch, the other way.
+var _body_turn := -1.0
+var _body_front := false
+## Riding switch (after landing a 180; another one turns back), and the stance at the pop.
+var _switch := false
+var _pop_switch := false
+## Body 180s with board tricks that have their own names: [frontside, trick] -> name.
+const BODY_COMBOS := {
+	[true, "kickflip"]: "frontside flip",
+	[false, "kickflip"]: "backside flip",
+	[true, "heelflip"]: "frontside heelflip",
+	[false, "heelflip"]: "backside heelflip",
+	[false, "360 shuvit"]: "bigspin",
+	[true, "360 front shuvit"]: "frontside bigspin",
+	[false, "360 flip"]: "bigspin flip",
+	[true, "laser flip"]: "frontside bigspin heelflip",
+}
 ## Loops of its combo the board trick done (caught) made.
 var _board_trick_turns := 1
 ## The combo: flips and shuvit half turns per loop, which way each goes (the first one
@@ -638,6 +662,7 @@ func pop(nose: bool, strength := 1.0) -> void:
 	_start_trick(0.0 if contrary else spin * (1.0 if nose else -1.0))
 	_popped = not contrary
 	_pop_nose = nose
+	_pop_switch = _switch
 	_pop_spin = not contrary
 	popped.emit(nose, power)
 	_update_airborne()
@@ -785,6 +810,17 @@ func board_trick(kind: StringName) -> void:
 	trick_started.emit(_board_trick_name())
 
 
+## A body 180: the skater turns around with the board, in the air after a pop and before
+## the catch, once per jump (see body_turn_time). `swipe` is the swipe's direction (+1
+## right): see _body_front.
+func body_180(swipe := 1.0) -> void:
+	if _dead or not _in_trick or not _popped or _catches > 0 or _body_turn >= 0.0:
+		return
+	_body_turn = 0.0
+	_body_front = (swipe > 0.0) != _switch
+	trick_started.emit(_pop_callout(""))
+
+
 ## Time for one loop of the combo: its flips at trick_time each and its shuvit half
 ## turns at shuvit_spin_time each, whichever takes longer (both finish together).
 func _trick_cycle() -> float:
@@ -830,14 +866,34 @@ func _board_trick_name() -> String:
 	var kind := String(_board_trick)
 	if _board_trick == &"" and _board_trick_done != &"":
 		kind = _combo_name(_board_trick_turns)
+	if _body_turn >= 0.0:
+		# With a body 180: its own name ("frontside flip", "bigspin"), or "backside 180 ...".
+		kind = BODY_COMBOS.get([_body_front, kind], _body_name() + " " + kind)
 	return ("late " if _board_trick_late else "") + kind
 
 
+## Landed a body 180: now riding the other way round (switch, or back to normal).
+func _end_body_turn() -> void:
+	if _body_turn >= 0.0:
+		_switch = not _switch
+		_body_turn = -1.0
+
+
+## "frontside 180" or "backside 180".
+func _body_name() -> String:
+	return ("frontside" if _body_front else "backside") + " 180"
+
+
 ## Callout for a landed pop: "ollie"/"nollie", or the board trick ("nollie kickflip").
+## Riding switch at the pop says so first ("switch kickflip"), after "late".
 func _pop_callout(trick: String) -> String:
+	var stance := "switch " if _pop_switch else ""
 	if trick == "":
-		return "nollie" if _pop_nose else "ollie"
-	return ("nollie " if _pop_nose else "") + trick
+		if _body_turn >= 0.0:
+			return stance + ("nollie " if _pop_nose else "") + _body_name()
+		return stance + ("nollie" if _pop_nose else "ollie")
+	var late := "late " if trick.begins_with("late ") else ""
+	return late + stance + ("nollie " if _pop_nose else "") + trick.trim_prefix("late ")
 
 
 ## The air part of a landing for lines: the board trick ("kickflip", "nollie 360 flip"),
@@ -846,7 +902,7 @@ func _air_name() -> String:
 	if _board_trick_done != &"":
 		return _pop_callout(_board_trick_name())
 	if _popped:
-		return "nollie" if _pop_nose else "ollie"
+		return _pop_callout("")
 	return ""
 
 
@@ -930,6 +986,8 @@ func act(action: int, a := 0.0, b := 0.0) -> void:
 			end_balance()
 		Act.LOSE_BALANCE:
 			lose_balance()
+		Act.BODY_180:
+			body_180(a)
 
 
 ## Everything needed to carry on from this step: [play area, STATE values..., the
@@ -1040,6 +1098,8 @@ func _step(delta: float) -> void:
 		if _board_trick != &"":
 			_board_trick_t += delta
 			_trick_window = maxf(_trick_window - delta, 0.0)
+		if _body_turn >= 0.0:
+			_body_turn += delta
 		_lip_t -= delta
 		_step_hold(delta)
 		_step_air(delta)
@@ -1469,6 +1529,7 @@ func _start_trick(spin: float) -> void:
 	_pop_spin = false
 	_past_vertical = false
 	_hop = false
+	_body_turn = -1.0
 	_set_balance(0.0)
 	_angular_velocity = spin
 
@@ -1511,6 +1572,9 @@ func _land(on: Seg, x: float) -> void:
 	if _board_trick != &"":
 		_slam("landed mid-" + _board_trick)
 		return
+	if _body_turn >= 0.0 and _body_turn < body_turn_time:
+		_slam("landed mid-180")
+		return
 	if _catches == 0 and _needs_catch:
 		_slam("no catch")
 		return
@@ -1526,6 +1590,7 @@ func _land(on: Seg, x: float) -> void:
 		var manual := trick + ("nose manual" if tilt > 0.0 else "manual")
 		landed.emit(manual)
 		line_event.emit(_air_name(), "nose manual" if tilt > 0.0 else "manual", false)
+		_end_body_turn()
 		callout.emit(manual, true)
 		return
 	var error := rad_to_deg(absf(_angle - _ground_angle))
@@ -1542,6 +1607,7 @@ func _land(on: Seg, x: float) -> void:
 	line_event.emit(_air_name(), "", true)
 	if _popped:
 		callout.emit(_pop_callout(trick.strip_edges()), false)
+	_end_body_turn()
 
 
 ## Locks onto a rail or platform edge with the balance ready: like landing a manual on it.
@@ -1556,6 +1622,9 @@ func _start_grind(rail: Seg) -> void:
 	_locked = false
 	if _board_trick != &"":
 		_slam("landed mid-" + _board_trick)
+		return
+	if _body_turn >= 0.0 and _body_turn < body_turn_time:
+		_slam("landed mid-180")
 		return
 	var trick := ("double " if _from_rail else "") + _trick_prefix()
 	var grind := "double " if _from_rail else ""
@@ -1577,6 +1646,7 @@ func _start_grind(rail: Seg) -> void:
 	trick = ("double " if _from_rail else "") + _trick_prefix() + grind.trim_prefix("double ")
 	landed.emit(trick)
 	line_event.emit(_air_name(), grind, false)
+	_end_body_turn()
 	callout.emit(trick, true)
 
 
@@ -2023,6 +2093,9 @@ func board_pose() -> Array:
 		if _trick_shuvs > 0:
 			# Shuvits turn around the vertical axis, half a turn each.
 			board_scale.x *= cos(loop * _trick_shuvs * PI)
+	if _body_turn >= 0.0 and _slam_t < 0.0 and not _grounded and _rail == null:
+		# Body 180: the board turns around its vertical axis with the skater.
+		board_scale.x *= cos(clampf(_body_turn / body_turn_time, 0.0, 1.0) * PI)
 	if _slide > 0.0 and _slam_t < 0.0:
 		# Slide: the board swings across the ledge (seen end-on, so it shortens) and
 		# rests on its tail or nose, with the trucks hanging over the edge.

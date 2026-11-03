@@ -33,12 +33,18 @@ var lesson: Lesson
 var pause_menu: PauseMenu
 ## The line in progress, under the score (or under the lesson panel).
 var _line_label: LineLabel
+## "SWITCH" while riding switch (bottom left of the play area).
+var _stance_label: Label
 ## Flow meter and slow-motion button, just above the control panel.
 var flow: FlowButton
 ## Online ghosts and name tags, on challenges with the online switch on.
 var ghosts: Node2D
 ## Fingers holding CATCH.
 var _catch_holds := 0
+## The finger that pressed a pop pad, while it's down: {action, from, at (global), width
+## (the pad's)}. Lifted after swiping sideways at least BODY_SWIPE pad widths: a body 180.
+var _pop_finger := {}
+const BODY_SWIPE := 0.33
 ## Actions not yet sent to the ghost room: [tick, action, a, b] each.
 var _actions := PackedFloat64Array()
 ## The latest snapshot and every action since, to send again on (re)connecting.
@@ -79,6 +85,18 @@ func _ready() -> void:
 	add_child(flow)
 	flow.tapped.connect(func() -> void: _on_pad_pressed(&"flow", Time.get_ticks_usec(), Vector2.ZERO))
 	runner.line_event.connect(flow.on_line_event)
+	_stance_label = Label.new()
+	_stance_label.text = "SWITCH"
+	_stance_label.visible = false
+	_stance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stance_label.add_theme_font_size_override("font_size", 30)
+	_stance_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0))
+	_stance_label.add_theme_constant_override("outline_size", 8)
+	_stance_label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.12))
+	play_area.add_child(_stance_label)
+	_stance_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_stance_label.offset_left = 20.0
+	_stance_label.offset_top = -64.0
 	var line_label := LineLabel.new()
 	_line_label = line_label
 	play_area.add_child(line_label)
@@ -142,6 +160,7 @@ func _process(delta: float) -> void:
 		return
 	if lesson:
 		_frame_below_lesson()
+	_stance_label.visible = runner._switch and not runner._dead
 	push_pad.set_pie(runner.push_progress(), runner.queued_pushes())
 	for pad in pop_pads:
 		pad.set_enabled(not runner.is_pushing())
@@ -149,6 +168,10 @@ func _process(delta: float) -> void:
 	if runner.is_balancing():
 		_follow_balance_finger()
 	_update_checkpoint()
+	if not _pop_finger.is_empty():
+		var at: Array[Vector2] = control_panel.touches_of(_pop_finger.action)
+		if not at.is_empty():
+			_pop_finger.at = at.back()
 	if ghosts:
 		_send_run(delta)
 
@@ -285,8 +308,10 @@ func _on_pad_pressed(action: StringName, _time_usec: int, local_pos: Vector2) ->
 	match action:
 		&"tail_pop":
 			runner.act(Runner.Act.POP, 0.0, -local_pos.y)
+			_track_pop_finger(action)
 		&"nose_pop":
 			runner.act(Runner.Act.POP, 1.0, -local_pos.y)
+			_track_pop_finger(action)
 		&"push":
 			runner.act(Runner.Act.PUSH, -local_pos.y)
 		&"balance", &"balance_pop":
@@ -306,9 +331,23 @@ func _show_stats(shown: bool) -> void:
 	last_input.visible = shown
 
 
+## Remembers where the finger that just pressed a pop pad went down.
+func _track_pop_finger(action: StringName) -> void:
+	var at: Array[Vector2] = control_panel.touches_of(action)
+	if at.is_empty():
+		return
+	var pad: Pad = pop_pads[0] if action == &"tail_pop" else pop_pads[1]
+	_pop_finger = {action = action, from = at.back(), at = at.back(), width = pad.get_global_rect().size.x}
+
+
 ## A finger lifted. CATCH counts its fingers: the hold ends when the last one lifts. If
 ## a manual or grind is being ridden, that ends it cleanly.
 func _on_pad_released(action: StringName) -> void:
+	if not _pop_finger.is_empty() and action == _pop_finger.action:
+		# Swiped sideways while holding the pop: a body 180.
+		if absf(_pop_finger.at.x - _pop_finger.from.x) >= BODY_SWIPE * _pop_finger.width:
+			runner.act(Runner.Act.BODY_180, signf(_pop_finger.at.x - _pop_finger.from.x))
+		_pop_finger = {}
 	if action == &"lock_tilt":
 		_catch_holds = maxi(_catch_holds - 1, 0)
 		if _catch_holds == 0:
