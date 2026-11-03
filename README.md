@@ -78,9 +78,9 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 ## Trick rules
 
 - **Pop spin.** A tail pop turns the board nose up, a nose pop nose down, both at
-  `jump_spin` (3.5 rad/s, 200°/s at full strength) without slowing down, until the catch
-  or `pop_spin_cap` (120°). A board caught past 90° turns back slowly
-  (`catch_slow_turn`, 180°/s), so catch a full pop within about 0.45 s, or time a late
+  `jump_spin` (2.5 rad/s, about 143°/s at full strength) without slowing down, until the
+  catch or `pop_spin_cap` (120°). A board caught past 90° turns back slowly
+  (`catch_slow_turn`, 180°/s), so catch a full pop within about 0.6 s, or time a late
   catch to meet a steep wall (Vert).
 - **Catch or slam.** Every pop, and every roll-off of a floor ledge (the nose tips down),
   must be caught before landing, and the board angle must match the ground within

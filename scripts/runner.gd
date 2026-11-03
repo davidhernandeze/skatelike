@@ -121,7 +121,7 @@ class Seg:
 ## (anticlockwise), a nose pop the tail. It doesn't decay: the board keeps turning until
 ## the catch or pop_spin_cap (deg, either way), enough to turn it to a near-vertical
 ## wall and past it. Other spins (roll-offs, after a trick's kick) decay by spin_damping.
-@export var jump_spin := 3.5
+@export var jump_spin := 2.5
 @export var spin_damping := 4.0
 @export var pop_spin_cap := 120.0
 ## A board that turned past this angle (deg, either way) is caught back slowly: the
