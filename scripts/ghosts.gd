@@ -14,7 +14,7 @@ extends Node2D
 @export var ghost_color := Color(0.65, 0.8, 1.0)
 @export var name_size := 22
 ## Name tags float this far above the board center (px).
-@export var name_lift := 34.0
+@export var name_lift := 160.0
 ## How far behind the newest actions a ghost plays (steps): enough that the next batch
 ## (Online.SEND_RATE a second) is normally in before it's needed.
 @export var delay_steps := 30
@@ -183,6 +183,7 @@ func _draw() -> void:
 		var sim: Runner = ghost.sim
 		var pose := sim.board_pose()
 		var center := _runner.from_level(sim.to_level(pose[0]))
+		_runner.draw_skater_at(self, sim.skater_pose(), center - pose[0], alpha, ghost_color)
 		_runner.draw_board_at(self, center, pose[1], pose[2], alpha, ghost_color)
 		_draw_name(center, ghost.skater, Color(ghost_color, 0.8))
 	var pose := _runner.board_pose()

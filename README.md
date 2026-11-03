@@ -425,6 +425,7 @@ scenes/
   main.tscn          play area + HUD + control panel
 scripts/
   runner.gd          the game: terrain, platforms, rails, board physics, tricks, drawing
+                     (the board and a placeholder skater that pushes, tucks, turns and falls)
   main.gd            wires control pads → runner, HUD messages, level flow
   control_panel.gd   multi-touch hit testing, ground/air pad layouts
   pad.gd             a tappable pad (flash, dimming, pie indicator, split label)
@@ -445,7 +446,7 @@ scripts/
   profile.gd         skater name (3 letters + 2 numbers) and the online switch, saved on the device
   online.gd          online ghosts: WebSocket client and headless relay server (autoload)
   scoreboard.gd      challenge scoreboards from the server/ API, with an offline queue (autoload)
-  ghosts.gd          draws other riders' boards and the name tags
+  ghosts.gd          draws other riders' skaters, boards and the name tags
   safe_area.gd       keeps UI clear of notches and home indicators
 assets/fonts/
   Graffiti.ttf       callout font, from dafont.com/graffiti.font (author and license not stated)

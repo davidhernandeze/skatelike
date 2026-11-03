@@ -320,6 +320,11 @@ class Seg:
 @export var ground_tile := 128
 @export var truck_color := Color(0.7, 0.72, 0.78)
 @export var wheel_color := Color(0.95, 0.95, 0.95)
+## The placeholder skater (draw_skater_at): shirt, pants, skin and shoe colors.
+@export var shirt_color := Color(0.9, 0.35, 0.3)
+@export var pants_color := Color(0.2, 0.24, 0.36)
+@export var skin_color := Color(0.93, 0.76, 0.62)
+@export var shoe_color := Color(0.12, 0.12, 0.14)
 @export var goal_color := Color(0.4, 0.95, 0.5)
 
 const WHEEL_X := 28.0
@@ -469,6 +474,16 @@ var _slam_t := -1.0
 var _slam_distance := INF
 ## Velocity of the loose board while slamming (px/s).
 var _body_v := Vector2.ZERO
+## The skater figure, drawing only (not in STATE): how crouched (0 standing .. 1 tucked),
+## whether on the board last step, and after a slam where the rider came off (step
+## coordinates, with _distance then), its velocity (px/s) and how long ago (s; -1 = riding).
+var _crouch := 0.2
+var _fig_down := true
+var _fall_at := Vector2.ZERO
+var _fall_distance := 0.0
+var _fall_vy := 0.0
+var _fall_vx := 0.0
+var _fall_t := -1.0
 ## Velocity the board came down with this frame, before touchdown took it (px/s): a
 ## slam on landing lets the board go with it.
 var _impact := Vector2.ZERO
@@ -933,9 +948,160 @@ func step() -> void:
 	_prev_distance = _distance
 	_prev_cam = _cam
 	_step(STEP)
+	_step_figure(STEP)
 	tick += 1
 	if tick % SNAPSHOT_STEPS == 0:
 		_snapshot = get_state()
+
+
+## The skater figure follows the board (drawing only): crouches in the air, tucks for
+## board tricks, squats on landing, and after a slam falls where it came off.
+func _step_figure(delta: float) -> void:
+	if not _dead:
+		_fall_t = -1.0
+	if _fall_t >= 0.0:
+		_fall_t += delta
+		_fall_vy += gravity * delta
+		_fall_at += Vector2(_fall_vx, _fall_vy) * delta
+		var ground := _seg_at(_fall_at.x - (_distance - _fall_distance))
+		if ground != null:
+			var floor_y := ground.y_at(_fall_at.x - (_distance - _fall_distance))
+			if _fall_at.y >= floor_y and _fall_vy >= 0.0:
+				_fall_at.y = floor_y
+				_fall_vy = 0.0
+				_fall_vx *= exp(-4.0 * delta)  # Sliding to a stop.
+		return
+	var down := _grounded or _rail != null
+	var target := 0.2
+	if not down:
+		target = 1.0 if _board_trick != &"" else 0.55
+	elif is_pushing():
+		target = 0.35
+	if down and not _fig_down:
+		_crouch = 1.0  # Touchdown: soak it up.
+	_fig_down = down
+	_crouch = lerpf(_crouch, target, 1.0 - exp(-8.0 * delta))
+
+
+## Where the skater figure is drawn this frame, for draw_skater_at(): {base (middle of
+## the deck, between the feet), angle (of the body's up), feet (rear, front), crouch,
+## face (1 chest to the camera .. -1 back to it, through a body 180), fall (s since
+## slamming, or -1)}. Ghosts reuse it.
+func skater_pose() -> Dictionary:
+	var pose := board_pose()
+	var center: Vector2 = pose[0]
+	var angle := _view_angle
+	var along := Vector2.RIGHT.rotated(angle)
+	var up := Vector2.UP.rotated(angle)
+	var deck := board_size.y / 28.0 * 7.0
+	var base := center + up * deck
+	var lift := 0.0
+	if _board_trick != &"" and _fall_t < 0.0:
+		# Feet up off the board while it flips and spins underneath.
+		base = _view_pos + up * (board_size.y / 28.0 * 21.0)
+		lift = 18.0
+	var body_angle := angle
+	if (_grounded or _rail != null) and _tilt_dir() != 0.0:
+		body_angle = _ground_angle  # Balancing: the board tips, the skater stays upright.
+	var half := board_size.x / 96.0 * 22.0
+	var rear := base - along * half + up * lift
+	var front := base + along * half + up * lift
+	if _push_left > 0.0 and _fall_t < 0.0:
+		# Pushing: the rear foot steps down to the ground and kicks back.
+		var phase := 1.0 - _push_left / _push_total
+		var drop := deck + board_size.y / 28.0 * 14.0
+		rear = base + along * lerpf(-half * 0.3, -half * 2.6, phase) - up * drop * sin(PI * minf(phase * 1.3, 1.0))
+	var face := -1.0 if _switch else 1.0
+	if _body_turn >= 0.0 and not _grounded and _rail == null:
+		face *= cos(clampf(_body_turn / body_turn_time, 0.0, 1.0) * PI)
+	var fall := -1.0
+	if _fall_t >= 0.0:
+		fall = _fall_t
+		base = _fall_at - Vector2(scrolled() - _fall_distance, board_size.y / 28.0 * 8.0 * smoothstep(0.0, 0.35, _fall_t))
+		body_angle = lerp_angle(body_angle, PI * 0.5, smoothstep(0.0, 0.35, _fall_t))
+		var flat := Vector2.RIGHT.rotated(body_angle)
+		rear = base - flat * 4.0
+		front = base + flat * 4.0
+	return {base = base, angle = body_angle, feet = [rear, front], crouch = _crouch, face = face, fall = fall,
+		manual = _tilt_dir() if (_grounded or _rail != null) else 0.0}
+
+
+## Draws a placeholder skater on `canvas` at a pose from skater_pose(), moved by
+## `offset`, faded by `alpha` and with `shirt` (shirt_color by default) for the shirt.
+func draw_skater_at(canvas: CanvasItem, pose: Dictionary, offset := Vector2.ZERO, alpha := 1.0,
+		shirt := shirt_color) -> void:
+	var s := board_size.x / 96.0
+	var angle: float = pose.angle
+	var up := Vector2.UP.rotated(angle)
+	var fwd := Vector2.RIGHT.rotated(angle)
+	var base: Vector2 = pose.base + offset
+	var feet: Array = [pose.feet[0] + offset, pose.feet[1] + offset]
+	var crouch: float = pose.crouch
+	var face: float = pose.face
+	var manual: float = pose.manual
+	var fallen: bool = pose.fall >= 0.0
+	var outline := Color(0.05, 0.05, 0.08, alpha)
+	var hip: Vector2 = base + up * lerpf(54.0, 34.0, crouch) * s + fwd * (manual * 8.0 - 3.0) * s
+	if fallen:
+		hip = base + up * 46.0 * s
+	var shoulder: Vector2 = hip + up * 34.0 * s + fwd * lerpf(2.0, 8.0, crouch) * s
+	var head: Vector2 = shoulder + up * 15.0 * s + fwd * 2.0 * s
+	var limb := 8.0 * s
+	# Legs: thigh and shin of equal length, knees bending forward.
+	for i in 2:
+		var foot: Vector2 = feet[i]
+		var knee := _knee(hip, foot, 30.0 * s, fwd)
+		var pants := Color(pants_color.darkened(0.25 if i == 0 else 0.0), alpha)
+		canvas.draw_polyline(PackedVector2Array([hip, knee, foot]), outline, limb + 4.0)
+		canvas.draw_polyline(PackedVector2Array([hip, knee, foot]), pants, limb)
+		canvas.draw_circle(foot - up * 1.0 * s + fwd * 3.0 * s, 6.0 * s, Color(shoe_color, alpha))
+	# Arms out for balance, raised in the air and while crouched.
+	var raise := crouch * 14.0 * s
+	var hands := [
+		shoulder - fwd * 26.0 * s - up * (14.0 * s - raise),
+		shoulder + fwd * 26.0 * s - up * (6.0 * s - raise),
+	]
+	if fallen:
+		hands = [shoulder + fwd * 18.0 * s + up * 6.0 * s, shoulder + fwd * 22.0 * s - up * 4.0 * s]
+	var sleeve := Color(shirt.darkened(0.2 if face < 0.0 else 0.0), alpha)
+	for hand: Vector2 in hands:
+		var elbow: Vector2 = (shoulder + hand) * 0.5 - up * 5.0 * s
+		canvas.draw_polyline(PackedVector2Array([shoulder, elbow, hand]), outline, limb * 0.8 + 4.0)
+		canvas.draw_polyline(PackedVector2Array([shoulder, elbow, hand]), sleeve, limb * 0.8)
+		canvas.draw_circle(hand, 4.0 * s, Color(skin_color, alpha))
+	# Torso: wide with the chest or back to the camera, thin mid-180.
+	var width := lerpf(9.0, 16.0, absf(face)) * s
+	canvas.draw_line(hip, shoulder, outline, width + 4.0)
+	canvas.draw_line(hip, shoulder, Color(shirt.darkened(0.25 if face < 0.0 else 0.0), alpha), width)
+	if face > 0.3:
+		canvas.draw_line(hip.lerp(shoulder, 0.45) - fwd * width * 0.3, hip.lerp(shoulder, 0.45) + fwd * width * 0.3,
+				Color(1, 1, 1, alpha * 0.8), 3.0 * s)  # A stripe on the chest.
+	# Head, looking the way the board goes (a cap's brim), hair at the back.
+	var r := 10.0 * s
+	canvas.draw_circle(head, r + 2.0, outline)
+	canvas.draw_circle(head, r, Color(skin_color, alpha))
+	if face < -0.3:
+		canvas.draw_circle(head - fwd * 1.0 * s, r * 0.85, Color(0.25, 0.17, 0.12, alpha))  # Back of the head.
+	elif face > 0.3:
+		canvas.draw_circle(head + fwd * 4.0 * s + up * 1.0 * s, 1.8 * s, outline)  # Eye.
+	canvas.draw_colored_polygon(PackedVector2Array([
+		head - fwd * r + up * 1.0 * s, head + up * r * 1.05, head + fwd * r + up * 1.0 * s,
+	]), Color(shirt.darkened(0.35), alpha))  # Cap.
+	canvas.draw_line(head + fwd * r * 0.4 + up * 2.0 * s, head + fwd * r * 1.6 + up * 1.0 * s,
+			Color(shirt.darkened(0.35), alpha), 3.0 * s)  # Brim.
+
+
+## Where a knee goes, between `hip` and `foot` with both bones `bone` long, bent `fwd`.
+static func _knee(hip: Vector2, foot: Vector2, bone: float, fwd: Vector2) -> Vector2:
+	var d := foot - hip
+	var half := d.length() * 0.5
+	var mid := hip + d * 0.5
+	if half >= bone or half < 0.001:
+		return mid
+	var side := d.orthogonal().normalized()
+	if side.dot(fwd) < 0.0:
+		side = -side
+	return mid + side * sqrt(bone * bone - half * half)
 
 
 ## Draws the game `alpha` of the way from the step before the last to the last.
@@ -1888,6 +2054,11 @@ func _slam(reason: String) -> void:
 ## tumbling forward.
 func _let_go() -> void:
 	_slam_distance = _distance
+	_fall_at = _pos
+	_fall_distance = _distance
+	_fall_vy = minf(_velocity_y, 0.0) if not _grounded else 0.0
+	_fall_vx = _speed * 0.6
+	_fall_t = 0.0
 	if _impact != Vector2.ZERO:
 		_body_v = _impact  # Slammed touching down: it hits with the speed it came down at.
 	elif _grounded or _rail != null:
@@ -1969,6 +2140,7 @@ func _draw() -> void:
 	_draw_rails()
 	_draw_goal()
 	draw_set_transform(Vector2.ZERO)
+	draw_skater_at(self, skater_pose())
 	_draw_board()
 
 

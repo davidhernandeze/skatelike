@@ -14,7 +14,7 @@ extends Node2D
 ## How long a burst stays on screen (s).
 @export var burst_time := 0.9
 ## Height above the board where callouts appear (px).
-@export var lift := 70.0
+@export var lift := 190.0
 
 ## Each: {text, color, age, life (INF while sustained), tilt, size, sustained}.
 var _items: Array[Dictionary] = []

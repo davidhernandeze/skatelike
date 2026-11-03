@@ -5,7 +5,7 @@ extends Node2D
 ## its coordinates).
 
 ## Above the board's middle (px), and the arc's radius and spread each side (deg).
-@export var lift := 120.0
+@export var lift := 165.0
 @export var radius := 46.0
 @export var spread := 60.0
 @export var safe_color := Color(0.4, 0.9, 0.5)
