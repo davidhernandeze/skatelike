@@ -1,0 +1,136 @@
+{
+  "generator": "Runway gpt_image_2 (quality medium, 2560:1440), task be0d8b47-2f2b-4a90-ac5f-e856a4cc69d9",
+  "reference": "round 10 lineup (art direction artifact 4yexJAFFvtL6FeyYRmtw9F)",
+  "prompt": "Wide 16:9 sprite sheet for a 2D side-scrolling pixel art skateboarding game, on a perfectly flat plain solid medium grey background (#808080) with no floor, no shadows, no scenery, no text, no guide lines. Reference 1 sets the exact sprite rendering and body proportions to keep: Game Boy Advance era handheld RPG pixel art, realistic proportions about six heads tall, clean one-pixel outlines in a darker shade of each fill color, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no gradients, hard square pixels, no anti-aliasing. Six copies of the SAME young male skater in a single row, evenly spaced, identical body, identical pose, identical size and identical position on the board: side view facing right, riding his skateboard, knees slightly bent, arms relaxed slightly out for balance, like the riding frames in reference 1. Only the listed details change between copies, everything else pixel-identical. 1) the base: bald head, light-medium skin, plain white crew-neck t-shirt, regular blue jeans, plain white shoes, plain natural wood board. 2) same as base but with deep dark brown skin and a short black buzz cut. 3) same as base but pale skin with freckles, messy red hair, red t-shirt. 4) same as base but tan skin, long black hair in a low ponytail, black t-shirt. 5) same as base but medium brown skin, short curly brown hair, mustard yellow t-shirt, black jeans. 6) same as base but light skin, blond swept fringe, forest green t-shirt, light faded jeans.",
+  "processing": "source/sprites.gd.txt (the round 10 look): key out the flat grey and fill it with near-black, cut the six figures, cubic-resize each to 42 px tall with the board on a shared baseline, cubic-resized mask for alpha, no palette snap. hd/ holds the earlier 64 px averaged cut.",
+  "sprites": {
+    "base": "bald, white tee, blue jeans",
+    "buzz": "dark skin, buzz cut",
+    "ginger": "freckles, red hair, red tee",
+    "ponytail": "tan skin, black ponytail, black tee",
+    "curls": "brown skin, curls, mustard tee, black jeans",
+    "fringe": "blond fringe, green tee, light jeans"
+  },
+  "standing": {
+    "source": "source/skaters_standing_runway.png",
+    "task": "5a7bf689-990b-4680-84b1-824374eac70b",
+    "note": "same six standing on the boardwalk, used for the style check only"
+  },
+  "riders": {
+    "dir": "riders/",
+    "source": "source/riders_runway.png",
+    "task": "d26ef932-e863-48e1-83a7-30e7192a6049",
+    "prompt": "Wide 16:9 sprite sheet for a 2D side-scrolling pixel art skateboarding game, on a perfectly flat plain solid medium grey background (#808080) with no floor, no shadows, no scenery, no text, no guide lines. Reference 1 sets the exact sprite rendering, body proportions and riding pose to keep: Game Boy Advance era handheld RPG pixel art, realistic proportions about six heads tall, clean one-pixel outlines in a darker shade of each fill color, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no gradients, hard square pixels, no anti-aliasing. Ten young male skaters in a single row, evenly spaced with clear grey gaps between them, all the same body, the same height and the identical riding pose from reference 1: side view facing right, feet planted shoulder-width apart in a skate stance, knees slightly bent, arms relaxed slightly out for balance. NO skateboard: the board is removed, the shoe soles all rest on the same invisible flat line, nothing under the feet. Each has his own look, clearly separate layers (hair or hat, top, bottoms, shoes), no glasses, no logos, no readable words. From left to right: 1) bald, light-medium skin, white tee, blue jeans, white shoes; 2) deep dark brown skin, short twists, oversized grey hoodie, black cargo pants, red high-tops; 3) pale freckled skin, shaggy red hair, navy and white striped tee, tan chinos, black slip-ons; 4) tan skin, black hair under a backwards green cap, open blue flannel over a white tee, light jeans, white shoes; 5) medium brown skin, curly brown hair, mustard yellow tee, black jeans, grey shoes; 6) light skin, blond swept fringe, forest green long-sleeve, grey sweatpants, white shoes; 7) dark skin, buzz cut, black tank top, baggy olive cargo shorts, tall white socks, black shoes; 8) light olive skin, dark hair under an orange beanie, maroon zip jacket, faded black jeans, brown shoes; 9) East Asian, black bowl-cut hair, oversized purple tee, wide khaki pants, checkered shoes; 10) brown skin, long black hair tied in a low ponytail, unbuttoned teal Hawaiian shirt over a black tee, grey board shorts, white shoes.",
+    "processing": "source/sprites_riders.gd.txt: flood-fill the grey from the border (tolerance 0.25, keeps grey clothes) and fill it near-black, cut the ten figures, cubic-resize to 37 px tall on a shared baseline (no board; same pixel density as the 42 px with-board sprites), cubic mask for alpha, no palette snap",
+    "sprites": [
+      "bald",
+      "twists",
+      "stripes",
+      "flannel",
+      "curls",
+      "fringe",
+      "tank",
+      "beanie",
+      "bowlcut",
+      "aloha"
+    ]
+  },
+  "skater": {
+    "sprite": "skater.png",
+    "drawn": "Runner.skater_texture, PIXEL (3) screen px per art pixel",
+    "operation": "Sprite Fusion edit",
+    "request_id": "req_80f57ab0-2300-4833-87af-b01ae252ed7f",
+    "asset_id": "6df27c2b-14fb-47da-9234-b363855441cb",
+    "batch_index": 0,
+    "input": "source/skater_sf_input.png (riders/bald.png padded to 24x40)",
+    "alternative": "source/skater_sf_alt.png (batch 1, came out bigger: 29x49)",
+    "prompt": "Redraw this exact skater as clean, crisp hand-made pixel art at the same size: same bald young man, same side-view riding stance facing right with knees bent and arms out for balance, same white t-shirt, blue jeans and white shoes, same skin tone. Clean one-pixel dark outline around the whole figure, three-tone cel shading lit from the top left, tidy pixel clusters, readable face with one dark eye pixel, no noise, no stray pixels, no dithering, transparent background, no skateboard, feet resting on the bottom edge."
+  },
+  "skater_push": {
+    "sheet": "skater_push.png",
+    "frames": 8,
+    "fps": 8,
+    "frame_size": [
+      48,
+      48
+    ],
+    "operation": "Sprite Fusion animate (output_frames 8, colors 32)",
+    "request_id": "req_55e209d4-f338-4d2c-a4d9-e6998f7106e5",
+    "asset_id": "530fc49c-28ee-4b5d-a80a-a1faa54683df",
+    "input": "source/skater_push_input.png (skater.png placed at 22,5 on a 48x48 canvas)",
+    "animation": "source/skater_push_anim.webp",
+    "prompt": "Side view skateboard push cycle, seen from the side, facing right. The skater stands on an invisible skateboard (the board is not drawn): his front (right) foot stays planted on the board the whole time, at the same spot. His back (left) foot lifts off the board, steps down to the ground below and behind, pushes back along the ground, then swings forward and returns onto the board where it started. Body leans slightly forward while pushing, arms swing a little for balance. Same character, same colors, same pixel size, crisp pixel art, no motion blur, transparent background, the character does not travel across the frame."
+  },
+  "items": {
+    "pipeline": "tools/sf_item.sh <name> \"<change>\" (Sprite Fusion edit of the base on the rig canvas, 15 credits, 2 results) then tools/extract_item.gd -- source/items/<name>/result_<i>.png <slot> items/<name>.png; items are asked for in light grey and recolored by Outfits ramps",
+    "items": {
+      "hat_beanie": {
+        "item": "items/hat_beanie.png",
+        "slot": "hat",
+        "source": "source/items/hat_beanie/result_1.png",
+        "request_id": "req_f89528e9-bdde-4907-a16c-0381f0c2bf90",
+        "asset_ids": {
+          "0": "bc375d7c-b5ea-4ce2-958a-7a732d5681a8",
+          "1": "3c019817-875e-4038-809b-25606b957764"
+        },
+        "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add a plain light grey knitted beanie that covers the top of the head down to just above the eye. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added."
+      },
+      "hat_cap": {
+        "item": "items/hat_cap.png",
+        "slot": "hat",
+        "source": "source/items/hat_cap/result_0.png",
+        "request_id": "req_abb5d0eb-bf64-4e4f-a6bf-05a6dc26186a",
+        "asset_ids": {
+          "0": "14181e9a-469c-4f8c-9eb7-79c8d36f5420",
+          "1": "45349a05-8cb7-45d3-a751-f1e3f16aabe0"
+        },
+        "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add a small plain light grey baseball cap worn backwards on the head, the short brim sticking out behind the back of the head; the cap fits the head tightly, the sprite stays the same size. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.",
+        "note": "second try; the first (source/items/hat_cap_try1) came back at other scales"
+      },
+      "hair_short": {
+        "item": "items/hair_short.png",
+        "slot": "hair",
+        "source": "source/items/hair_short/result_0.png",
+        "request_id": "req_8b9cec27-9753-41f5-8173-f0464a3569c7",
+        "asset_ids": {
+          "0": "66e0c5ef-a3c0-4ccc-a883-f69dd0d69f82",
+          "1": "9dd34448-5066-449a-9d53-5fe23c7e6c1b"
+        },
+        "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add short messy hair in plain light silver grey on top of the head, a short skater cut, the ear and face stay visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added."
+      },
+      "hair_curly": {
+        "item": "items/hair_curly.png",
+        "slot": "hair",
+        "source": "source/items/hair_curly/result_1.png",
+        "request_id": "req_fe4b9abc-ccac-4e5f-8045-27598c01dbce",
+        "asset_ids": {
+          "0": "f4921440-783b-4e40-b216-9fe59775674b",
+          "1": "38836a5f-ae62-498c-9e5f-5594c4658b42"
+        },
+        "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add short curly hair in plain light silver grey, a round cloud of tight curls on top of the head, the face stays visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added."
+      },
+      "shirt_hoodie": {
+        "item": "items/shirt_hoodie.png",
+        "slot": "shirt",
+        "source": "source/items/shirt_hoodie/result_0.png",
+        "request_id": "req_69b5ba95-76b9-4a89-ae8d-f0234f2cb9fd",
+        "asset_ids": {
+          "0": "d90403bb-2477-40a2-b92b-6efe9d0236ee",
+          "1": "e5f40b4e-6318-44c2-a74a-81818aaaa0e8"
+        },
+        "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: replace the t-shirt with a plain light grey pullover hoodie, the hood down on the back of the neck, long sleeves down to the wrists, the hands stay visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added."
+      },
+      "shirt_longsleeve": {
+        "item": "items/shirt_longsleeve.png",
+        "slot": "shirt",
+        "source": "source/items/shirt_longsleeve/result_0.png",
+        "request_id": "req_a474430d-382a-4a2f-8d22-197b2a9d3b73",
+        "asset_ids": {
+          "0": "5a866fbd-a074-4324-9de0-fb2b0431a1eb",
+          "1": "834be8c3-977f-43c8-9fac-cff99379dd87"
+        },
+        "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: replace the t-shirt with a plain white long-sleeve crew-neck shirt, the sleeves down to the wrists, the hands stay visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added."
+      }
+    }
+  }
+}

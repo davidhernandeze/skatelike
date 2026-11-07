@@ -1,0 +1,14 @@
+data: {"type":"started","request_id":"req_69b5ba95-76b9-4a89-ae8d-f0234f2cb9fd","operation":"edit","credits":{"reserved":15,"remaining":339}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+: keep-alive
+
+data: {"type":"output","index":0,"asset":{"id":"d90403bb-2477-40a2-b92b-6efe9d0236ee","type":"image","createdAt":"2026-11-07T17:49:40.514Z","updatedAt":"2026-11-07T17:49:40.514Z","prompt":"Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: replace the t-shirt with a plain light grey pullover hoodie, the hood down on the back of the neck, long sleeves down to the wrists, the hands stay visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.","width":20,"height":35,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/d90403bb-2477-40a2-b92b-6efe9d0236ee/image.png?v=1794073780514","style":"default","tags":["skatelike","character","item"],"contentType":"image/png","batchId":"6c280bc5-0a15-425c-9a66-5a0b3df46906","batchIndex":0,"batchSize":2,"action":{"kind":"edit"}}}
+
+data: {"type":"output","index":1,"asset":{"id":"e5f40b4e-6318-44c2-a74a-81818aaaa0e8","type":"image","createdAt":"2026-11-07T17:49:41.323Z","updatedAt":"2026-11-07T17:49:41.323Z","prompt":"Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: replace the t-shirt with a plain light grey pullover hoodie, the hood down on the back of the neck, long sleeves down to the wrists, the hands stay visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.","width":24,"height":44,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/e5f40b4e-6318-44c2-a74a-81818aaaa0e8/image.png?v=1794073781323","style":"default","tags":["skatelike","character","item"],"contentType":"image/png","batchId":"6c280bc5-0a15-425c-9a66-5a0b3df46906","batchIndex":1,"batchSize":2,"action":{"kind":"edit"}}}
+
+data: {"type":"completed","status":"succeeded","output_count":2,"credits":{"remaining":339}}
+

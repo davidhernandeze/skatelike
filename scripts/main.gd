@@ -64,6 +64,17 @@ func _ready() -> void:
 	Engine.time_scale = game_speed
 	_level = Levels.get_level(Levels.current)
 	runner.configure(_level)  # Every run starts from the beginning: a slam resets it.
+	# The board in 3D pixel art, drawn right over the runner (under its callouts).
+	var board_view := BoardView.new()
+	board_view.runner = runner
+	runner.add_child(board_view)
+	runner.move_child(board_view, 0)
+	# The skater, a cutout rig in pixel art, on the board.
+	var skater_view := SkaterView.new()
+	skater_view.runner = runner
+	skater_view.apply_profile()
+	runner.add_child(skater_view)
+	runner.move_child(skater_view, 1)
 	# Pausing stops the game (everything under Layout, and the flow button) while Main
 	# keeps the ghost room fed and the pause screen keeps taking input.
 	get_tree().paused = false  # A reload can come from a paused game (e.g. a timer).

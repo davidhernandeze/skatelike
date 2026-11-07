@@ -1,0 +1,58 @@
+{
+	"canvas": [
+		24,
+		40
+	],
+	"joints": {
+		"anchor": [
+			10.5,
+			40.0
+		],
+		"ankle_back": [
+			4.5,
+			36.0
+		],
+		"ankle_front": [
+			12.5,
+			36.0
+		],
+		"hip": [
+			11.5,
+			27.5
+		],
+		"hip_back": [
+			8.0,
+			28.5
+		],
+		"hip_front": [
+			14.0,
+			28.5
+		],
+		"knee_back": [
+			6.0,
+			32.0
+		],
+		"knee_front": [
+			13.5,
+			32.0
+		],
+		"neck": [
+			13.5,
+			13.0
+		],
+		"shoulder_back": [
+			6.0,
+			18.0
+		],
+		"shoulder_front": [
+			15.5,
+			20.0
+		]
+	},
+	"labels": "res://assets/characters/rig/labels.png",
+	"offset": [
+		2,
+		5
+	],
+	"sprite": "res://assets/characters/skater.png"
+}

@@ -1,0 +1,75 @@
+extends SceneTree
+# Round 10 look: cubic resize, no palette snap. -- in.png out_dir target_h sheet.png
+func _initialize() -> void:
+	var a := OS.get_cmdline_user_args()
+	var img := Image.load_from_file(a[0]); img.convert(Image.FORMAT_RGBA8)
+	var th := int(a[2])
+	var W := img.get_width(); var H := img.get_height()
+	var bg := img.get_pixel(4, 4)
+	var mask := Image.create(W, H, false, Image.FORMAT_L8)
+	var dark := Color(0.1, 0.08, 0.07)
+	var cols := PackedInt32Array(); cols.resize(W)
+	var y0 := H; var y1 := 0
+	# background = grey connected to the border (flood fill), so grey clothes stay
+	var tol := float(a[5]) if a.size() > 5 else 0.2
+	var isbg := PackedByteArray(); isbg.resize(W * H)
+	var stack := PackedInt32Array()
+	for x in W: stack.append(x); stack.append((H - 1) * W + x)
+	for y in H: stack.append(y * W); stack.append(y * W + W - 1)
+	while stack.size() > 0:
+		var i := stack[stack.size() - 1]; stack.resize(stack.size() - 1)
+		if isbg[i]: continue
+		var c := img.get_pixel(i % W, i / W)
+		var d: float = abs(c.r - bg.r) + abs(c.g - bg.g) + abs(c.b - bg.b)
+		if d > tol: continue
+		isbg[i] = 1
+		var x := i % W; var y := i / W
+		if x > 0: stack.append(i - 1)
+		if x < W - 1: stack.append(i + 1)
+		if y > 0: stack.append(i - W)
+		if y < H - 1: stack.append(i + W)
+	for y in H:
+		for x in W:
+			if isbg[y * W + x]:
+				img.set_pixel(x, y, dark)
+			else:
+				mask.set_pixel(x, y, Color.WHITE); cols[x] += 1
+	var runs := []; var x0 := -1
+	for x in W:
+		if cols[x] > 3 and x0 < 0: x0 = x
+		elif cols[x] <= 3 and x0 >= 0:
+			if x - x0 > 60: runs.append([x0, x])
+			x0 = -1
+	for r in runs:
+		for x in range(r[0], r[1]):
+			for y in H:
+				if mask.get_pixel(x, y).r > 0.5: y0 = min(y0, y); y1 = max(y1, y)
+	var s := float(y1 - y0 + 1) / th
+	var names := a[4].split(",")
+	var sprites := []
+	for i in runs.size():
+		var r: Array = runs[i]
+		var pad := int(s)
+		var rect := Rect2i(r[0] - pad, y0, r[1] - r[0] + 2 * pad, y1 - y0 + 1)
+		var tw := int(round(rect.size.x / s))
+		var ci := img.get_region(rect); ci.resize(tw, th, Image.INTERPOLATE_CUBIC)
+		var mi := mask.get_region(rect); mi.convert(Image.FORMAT_RGBA8); mi.resize(tw, th, Image.INTERPOLATE_CUBIC)
+		var sp := Image.create(tw, th, false, Image.FORMAT_RGBA8)
+		for y in th:
+			for x in tw:
+				if mi.get_pixel(x, y).r > 0.5:
+					sp.set_pixel(x, y, Color(ci.get_pixel(x, y), 1.0))
+		sp = sp.get_region(Rect2i(sp.get_used_rect().position.x, 0, sp.get_used_rect().size.x, th))
+		sp.save_png("%s/%s.png" % [a[1], names[i]])
+		sprites.append(sp)
+		print(names[i], " ", sp.get_size())
+	var tw_all := 4
+	for sp in sprites: tw_all += sp.get_width() + 4
+	var sheet := Image.create(tw_all, th + 8, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color(0.16, 0.13, 0.27))
+	var ox := 4
+	for sp in sprites:
+		sheet.blend_rect(sp, Rect2i(Vector2i.ZERO, sp.get_size()), Vector2i(ox, 4)); ox += sp.get_width() + 4
+	sheet.resize(sheet.get_width() * 6, sheet.get_height() * 6, Image.INTERPOLATE_NEAREST)
+	sheet.save_png(a[3])
+	quit()

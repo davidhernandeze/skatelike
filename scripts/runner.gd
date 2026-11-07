@@ -62,6 +62,9 @@ enum Act { POP, PUSH, PRESS_CATCH, RELEASE_CATCH, BOARD_TRICK, BALANCE_POP, END_
 const TRICKS: Array[StringName] = [&"kickflip", &"heelflip", &"shuvit", &"front shuvit"]
 ## Physics runs in fixed steps, so a run plays out the same at any frame rate and on any
 ## device, and can be replayed from its actions; drawing blends between steps.
+## The world's pixel size: screen px per art pixel for the board (BoardView.pixel) and
+## the terrain tiles. The skater has its own (skater_pixel), sized to the board.
+const PIXEL := 3
 const STEP_RATE := 120
 const STEP := 1.0 / STEP_RATE
 ## At most this many steps per frame; a longer stall just slows the game down.
@@ -343,10 +346,26 @@ class Seg:
 @export var edge_color := Color(0.78, 0.82, 0.92)
 ## Thickness of a floor with another floor under it (px).
 @export var floor_slab := 40.0
-## Size of one ground texture tile (px).
+## Size of one ground texture tile (px), for the generated concrete.
 @export var ground_tile := 128
+## The terrain skin (made with Sprite Fusion, see assets/tiles): a seamless fill tiled
+## inside the ground and a strip along its surface (its top row on the line), drawn
+## `tile_pixel` screen px per texel. Null: the generated concrete and a plain line.
+@export var fill_texture: Texture2D = preload("res://assets/tiles/concrete_fill.png")
+@export var edge_texture: Texture2D = preload("res://assets/tiles/concrete_edge.png")
+@export var tile_pixel := PIXEL
 @export var truck_color := Color(0.7, 0.72, 0.78)
 @export var wheel_color := Color(0.95, 0.95, 0.95)
+## The skater (Sprite Fusion, see assets/characters), drawn `skater_pixel` screen px per
+## art pixel with its feet on the deck. Null: the placeholder figure below.
+@export var skater_texture: Texture2D = preload("res://assets/characters/skater.png")
+## Screen px per art pixel of the skater, at the default board_size: 5 makes the 35 px
+## sprite about 1.8 boards tall, a real rider's crouched height on a real deck.
+@export var skater_pixel := 5
+## The push (Sprite Fusion animate): `skater_push_frames` square frames side by side,
+## played once over each push. Null: the still sprite while pushing too.
+@export var skater_push: Texture2D = preload("res://assets/characters/skater_push.png")
+@export var skater_push_frames := 8
 ## The placeholder skater (draw_skater_at): shirt, pants, skin and shoe colors.
 @export var shirt_color := Color(0.9, 0.35, 0.3)
 @export var pants_color := Color(0.2, 0.24, 0.36)
@@ -362,6 +381,11 @@ const PRUNE_BEHIND := 3000.0
 const WALL_REACH := 150.0
 const WHEEL_Y := 7.0
 const WHEEL_R := 7.0
+
+## The 3D board drawing this runner's board, if any (it sets itself here).
+var board_view: Node2D
+## The skater rig (SkaterView) drawing this runner's skater, when set: it skips its own.
+var skater_view: Node2D
 
 var _area := Vector2.ZERO
 ## Steps run so far.
@@ -543,6 +567,18 @@ var _push_queue: Array[float] = []
 
 var _segs: Array[Seg] = []
 var _ground_texture: Texture2D
+## Screen px one repeat of the ground texture covers.
+var _ground_repeat := Vector2.ONE
+## The edge strip (edge_texture with hard pixels), null for the plain line.
+var _edge_strip: Texture2D
+## The skater sprite (nearest filtered) and where its feet are in it (art px): between
+## the shoes, on the soles.
+var _skater: Texture2D
+var _skater_feet := Vector2.ZERO
+## The push frames and, per frame, the point in it drawn on the pose's base: the front
+## foot kept where it is in the still sprite, so it stays planted while the back leg pushes.
+var _push_sheet: Texture2D
+var _push_anchors: Array[Vector2] = []
 ## Time the board spends airborne arriving on the newest platform (s).
 var _last_arrival_time := 0.0
 
@@ -573,7 +609,21 @@ var marks := {}
 
 func _ready() -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	_ground_texture = _make_ground_texture()
+	if fill_texture:
+		_ground_texture = _pixel_texture(fill_texture)
+		_ground_repeat = fill_texture.get_size() * tile_pixel
+	else:
+		_ground_texture = _make_ground_texture()
+		_ground_repeat = Vector2(ground_tile, ground_tile)
+	if edge_texture:
+		_edge_strip = _pixel_texture(edge_texture)
+	if skater_texture:
+		_skater = _pixel_texture(skater_texture)
+		_skater_feet = _feet_anchor(skater_texture.get_image())
+		if skater_push:
+			_push_sheet = _pixel_texture(skater_push)
+			_push_anchors = _push_frame_anchors(skater_texture.get_image(), skater_push.get_image(),
+					skater_push_frames)
 
 
 ## Sets the layout to play; call before setup().
@@ -652,6 +702,17 @@ func queued_pushes() -> int:
 
 func is_grounded() -> bool:
 	return _grounded
+
+
+## How fast the board rolls along the screen (px/s, + to the right): what the wheels
+## turn at while they touch something.
+func rolling_velocity() -> float:
+	return _dir * _speed
+
+
+## The wheels touch the ground or a rail (rolling, manualling or grinding).
+func wheels_down() -> bool:
+	return (_grounded or _rail != null) and _slide <= 0.0 and _fall_t < 0.0
 
 
 ## In the air for the air pads: hops and the moment off a lip still count as riding.
@@ -1191,7 +1252,9 @@ func skater_pose() -> Dictionary:
 		var flat := Vector2.RIGHT.rotated(body_angle)
 		rear = base - flat * 4.0
 		front = base + flat * 4.0
+	var push := 1.0 - _push_left / _push_total if _push_left > 0.0 and _fall_t < 0.0 else -1.0
 	return {base = base, angle = body_angle, feet = [rear, front], crouch = _crouch, face = face, fall = fall,
+		push = push,
 		manual = _tilt_dir() if (_grounded or _rail != null) else 0.0}
 
 
@@ -1199,6 +1262,9 @@ func skater_pose() -> Dictionary:
 ## `offset`, faded by `alpha` and with `shirt` (shirt_color by default) for the shirt.
 func draw_skater_at(canvas: CanvasItem, pose: Dictionary, offset := Vector2.ZERO, alpha := 1.0,
 		shirt := shirt_color) -> void:
+	if _skater:
+		_draw_skater_sprite(canvas, pose, offset, alpha, shirt)
+		return
 	var s := board_size.x / 96.0
 	var angle: float = pose.angle
 	var up := Vector2.UP.rotated(angle)
@@ -1258,6 +1324,71 @@ func draw_skater_at(canvas: CanvasItem, pose: Dictionary, offset := Vector2.ZERO
 	]), Color(shirt.darkened(0.35), alpha))  # Cap.
 	canvas.draw_line(head + fwd * r * 0.4 + up * 2.0 * s, head + fwd * r * 1.6 + up * 1.0 * s,
 			Color(shirt.darkened(0.35), alpha), 3.0 * s)  # Brim.
+
+
+## The skater sprite at a pose from skater_pose(): feet on the pose's base, turned with
+## the body, squatting down a few rows as it crouches, narrowing through a body 180 and
+## mirrored with the back to the camera. A ghost (`shirt` not the skater's) is tinted.
+func _draw_skater_sprite(canvas: CanvasItem, pose: Dictionary, offset: Vector2, alpha: float,
+		shirt: Color) -> void:
+	var s := board_size.x / 96.0 * skater_pixel
+	var face: float = pose.face
+	var crouch := clampf((float(pose.crouch) - 0.2) / 0.8, 0.0, 1.0)
+	var squat := 1.0 if pose.fall >= 0.0 else lerpf(1.0, 0.86, crouch)
+	var width := signf(face if face != 0.0 else 1.0) * maxf(absf(face), 0.3)
+	var base: Vector2 = pose.base + offset
+	base = (base / PIXEL).round() * PIXEL  # On the world's pixel grid, like the board.
+	var tint := Color.WHITE if shirt == shirt_color else Color.WHITE.lerp(shirt, 0.6)
+	tint.a = alpha
+	canvas.draw_set_transform(base, pose.angle, Vector2(width, squat) * s)
+	var push: float = pose.get("push", -1.0)
+	if push >= 0.0 and _push_sheet and not _push_anchors.is_empty():
+		var frame := mini(int(push * _push_anchors.size()), _push_anchors.size() - 1)
+		var size := float(skater_push.get_height())
+		canvas.draw_texture_rect_region(_push_sheet, Rect2(-_push_anchors[frame], Vector2(size, size)),
+				Rect2(frame * size, 0.0, size, size), tint)
+	else:
+		canvas.draw_texture(_skater, -_skater_feet, tint)
+	canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## Per push frame (`frames` squares side by side in `sheet`), the point that goes on the
+## pose's base: the frame's front foot (rightmost opaque pixel of its soles' row) put
+## where the still sprite's front foot is, relative to the still's feet anchor.
+static func _push_frame_anchors(still: Image, sheet: Image, frames: int) -> Array[Vector2]:
+	var feet := _feet_anchor(still)
+	var front := _front_foot(still, Rect2i(Vector2i.ZERO, still.get_size()))
+	var anchors: Array[Vector2] = []
+	var size := sheet.get_height()
+	for i in frames:
+		var f := _front_foot(sheet, Rect2i(i * size, 0, size, size))
+		anchors.append(f - (front - feet) - Vector2(i * size, 0.0))
+	return anchors
+
+
+## The bottom-right corner of the lowest row's rightmost opaque pixel in `rect`.
+static func _front_foot(image: Image, rect: Rect2i) -> Vector2:
+	for y in range(rect.end.y - 1, rect.position.y - 1, -1):
+		for x in range(rect.end.x - 1, rect.position.x - 1, -1):
+			if image.get_pixel(x, y).a > 0.5:
+				return Vector2(x + 1, y + 1)
+	return Vector2(rect.end)
+
+
+## Between the outermost opaque pixels of a sprite's bottom row, on its bottom edge.
+static func _feet_anchor(image: Image) -> Vector2:
+	var h := image.get_height()
+	var y := h - 1
+	var left := -1
+	var right := -1
+	for x in image.get_width():
+		if image.get_pixel(x, y).a > 0.5:
+			right = x
+			if left < 0:
+				left = x
+	if left < 0:
+		return Vector2(image.get_width() * 0.5, h)
+	return Vector2((left + right + 1) * 0.5, h)
 
 
 ## Where a knee goes, between `hip` and `foot` with both bones `bone` long, bent `fwd`.
@@ -2473,16 +2604,20 @@ func _draw() -> void:
 		# UVs in world space (scrolled by distance travelled) so the texture moves with the ground.
 		var uvs := PackedVector2Array()
 		for p in points:
-			uvs.append((p + Vector2(_distance, 0.0)) / float(ground_tile))
+			uvs.append(_ground_uv(p))
 		draw_colored_polygon(points, Color.WHITE, uvs, _ground_texture)
 	for s in _segs:
 		if _on_screen(s):
-			draw_polyline(_surface_line(s), edge_color, 5.0)
+			if _edge_strip:
+				_draw_edge_strip(_surface_line(s))
+			else:
+				draw_polyline(_surface_line(s), edge_color, 5.0)
 	_draw_platforms()
 	_draw_rails()
 	_draw_goal()
 	draw_set_transform(Vector2.ZERO)
-	draw_skater_at(self, skater_pose())
+	if not is_instance_valid(skater_view):
+		draw_skater_at(self, skater_pose())
 	_draw_board()
 
 
@@ -2523,6 +2658,40 @@ func _surface_line(s: Seg) -> PackedVector2Array:
 		return line
 	line.append(Vector2(s.x1, s.y1))
 	return line
+
+
+## Where `p` (drawn this frame) is on the ground texture: world space, scrolled by the
+## distance travelled, so the texture moves with the ground.
+func _ground_uv(p: Vector2) -> Vector2:
+	return (p + Vector2(_distance, 0.0)) / _ground_repeat
+
+
+## `texture` drawn with hard pixels, repeating.
+static func _pixel_texture(texture: Texture2D) -> Texture2D:
+	var canvas := CanvasTexture.new()
+	canvas.diffuse_texture = texture
+	canvas.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	canvas.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	return canvas
+
+
+## The edge strip under a surface line: a band edge_texture tall (at tile_pixel) hanging
+## below each piece, repeating along x. Stair risers (vertical) get none.
+func _draw_edge_strip(line: PackedVector2Array) -> void:
+	var repeat := edge_texture.get_size() * tile_pixel
+	for i in line.size() - 1:
+		var a := line[i]
+		var b := line[i + 1]
+		var d := b - a
+		if absf(d.x) < 0.5:
+			continue
+		var down := Vector2(-d.y, d.x).normalized()
+		if down.y < 0.0:
+			down = -down
+		var u0 := (a.x + _distance) / repeat.x
+		var u1 := (b.x + _distance) / repeat.x
+		draw_colored_polygon(PackedVector2Array([a, b, b + down * repeat.y, a + down * repeat.y]), Color.WHITE,
+				PackedVector2Array([Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, 1.0), Vector2(u0, 1.0)]), _edge_strip)
 
 
 ## A concrete-like tile: base color with speckles and seams on two edges.
@@ -2566,7 +2735,7 @@ func _draw_platforms() -> void:
 				x = maxf(x - 16.0, first.x0)
 		var uvs := PackedVector2Array()
 		for p in points:
-			uvs.append((p + Vector2(_distance, 0.0)) / float(ground_tile))
+			uvs.append(_ground_uv(p))
 		draw_colored_polygon(points, platform_tint, uvs, _ground_texture)
 		for piece: Seg in chain:
 			draw_line(Vector2(piece.x0, piece.y0), Vector2(piece.x1, piece.y1), rail_color, 5.0)
@@ -2605,19 +2774,28 @@ func _draw_goal() -> void:
 
 
 func _draw_board() -> void:
+	if is_instance_valid(board_view):
+		return  # The 3D board (BoardView) draws it.
 	var pose := board_pose()
 	draw_board_at(self, pose[0], pose[1], pose[2])
 
 
-## Where and how the board is drawn this frame: [center, angle, scale], with the
-## scale's signs and size carrying flips, shuvits and slides. Ghosts reuse it.
-func board_pose() -> Array:
-	# Local space: x = -48..48, wheels touch y = +14, kicktails reach y = -13.
-	# The board is placed so an anchor point in local space sits on a point in the
-	# world: the wheel contact midpoint, or the rolling wheel during a manual.
-	var board_scale := board_size / Vector2(96.0, 28.0)
+## How the board sits this frame, for the 3D board (BoardView) and board_pose():
+## {anchor (a point on screen), local_anchor (the point of the board placed on it),
+## angle (in the screen plane), roll (flips: turns around the long axis), yaw (shuvits,
+## body turns and slides: turns around the deck's up)}. Board space (px at the default
+## board_size): x = -48..48 along the deck, y down (wheels touch y = +14, kicktails
+## reach y = -13), z toward the camera. Roll and yaw follow the right hand rule in a
+## y-up space: a kickflip rolls the toe edge down, a backside shuvit takes the tail
+## behind the skater's back.
+func board_motion() -> Dictionary:
+	# The anchor: the wheel contact midpoint, or the rolling wheel during a manual.
+	var base_scale := board_size / Vector2(96.0, 28.0)
 	var anchor := _view_pos
 	var local_anchor := Vector2(0.0, 14.0)
+	var roll := 0.0
+	var yaw := 0.0
+	var facing := -1.0 if _switch else 1.0  # Chest to the camera, or back to it.
 	if (_grounded or _rail != null) and _tilt_dir() != 0.0 and _slam_t < 0.0:
 		var wheel := _riding_manual  # Manual (-1) rolls on the back wheel, nose manual (+1) on the front.
 		anchor = _view_pos + Vector2(wheel * _wheel_offset(), 0.0).rotated(_ground_angle)
@@ -2626,24 +2804,35 @@ func board_pose() -> Array:
 		var loop := _board_trick_t / _trick_cycle()
 		if _trick_flips > 0:
 			# Flips roll around the long axis about the middle of the board.
-			anchor = _view_pos + (Vector2(0.0, -7.0) * board_scale).rotated(_view_angle)
+			anchor = _view_pos + (Vector2(0.0, -7.0) * base_scale).rotated(_view_angle)
 			local_anchor = Vector2(0.0, -7.0)
-			board_scale.y *= cos(loop * _trick_flips * TAU)
+			roll = loop * _trick_flips * TAU * facing * (1.0 if _trick_flip_kind == &"kickflip" else -1.0)
 		if _trick_shuvs > 0:
 			# Shuvits turn around the vertical axis, half a turn each.
-			board_scale.x *= cos(loop * _trick_shuvs * PI)
+			yaw += loop * _trick_shuvs * PI * facing * (-1.0 if _trick_shuv_kind == &"shuvit" else 1.0)
 	if _body_turn >= 0.0 and _slam_t < 0.0 and not _grounded and _rail == null:
 		# Body 180: the board turns around its vertical axis with the skater.
-		board_scale.x *= cos(_body_turn / body_turn_time * PI)
+		yaw += _body_turn / body_turn_time * PI * facing * (1.0 if _body_front else -1.0)
 	if _slide > 0.0 and _slam_t < 0.0:
 		# Slide: the board swings across the ledge (seen end-on, so it shortens) and
 		# rests on its tail or nose, with the trucks hanging over the edge.
 		var k := smoothstep(0.0, 1.0, _slide)
-		board_scale.x *= lerpf(1.0, cos(deg_to_rad(slide_angle)), k)
+		yaw += deg_to_rad(slide_angle) * k
 		if _rail != null and _rail.ledge:
 			anchor = _view_pos
 			local_anchor = local_anchor.lerp(Vector2(signf(_riding_manual) * 40.0, -1.0), k)
-	return [anchor - (local_anchor * board_scale).rotated(_view_angle), _view_angle, board_scale]
+	return {anchor = anchor, local_anchor = local_anchor, angle = _view_angle, roll = roll, yaw = yaw}
+
+
+## Where and how the board is drawn flat this frame: [center, angle, scale], with the
+## scale's signs and size carrying flips, shuvits and slides (board_motion() seen from
+## the side). Ghosts reuse it.
+func board_pose() -> Array:
+	var m := board_motion()
+	var board_scale := board_size / Vector2(96.0, 28.0) * Vector2(cos(m.yaw), cos(m.roll))
+	var local_anchor: Vector2 = m.local_anchor
+	var anchor: Vector2 = m.anchor
+	return [anchor - (local_anchor * board_scale).rotated(m.angle), m.angle, board_scale]
 
 
 ## Draws a board on `canvas` at a pose from board_pose(), faded by `alpha` and tinted

@@ -1,0 +1,12 @@
+{
+  "operation": "edit",
+  "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add a small plain light grey baseball cap worn backwards on the head, the short brim sticking out behind the back of the head; the cap fits the head tightly, the sprite stays the same size. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.",
+  "inputs": [
+    "input.png"
+  ],
+  "tags": [
+    "skatelike",
+    "character",
+    "item"
+  ]
+}

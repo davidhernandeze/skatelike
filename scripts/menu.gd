@@ -1,6 +1,6 @@
 extends Control
 ## Menu pages: the main page (Gaps, Practice, Profile), the level lists, a
-## challenge's scoreboard ("board:<level id>") and the profile editor. The title stays at
+## challenge's scoreboard ("board:<level id>") and the profile editor (name and board). The title stays at
 ## the top; pages scroll below it and start with a Back button. Level buttons come from
 ## Levels.LIST: levels with `challenge = true` go in the challenges table, shown as
 ## "Gaps" (best progress, scoreboard), the rest under Practice.
@@ -403,6 +403,149 @@ func _show_profile() -> void:
 		column.add_child(up)
 		column.add_child(letter)
 		column.add_child(down)
+	_add_skater_picker()
+	_add_board_picker()
+
+
+## Colors that stand for the base character's own layers, for item chips with no ramp.
+const BASE_SWATCH := {skin = Color("d08a50"), shirt = Color("eee8dc"), pants = Color("3c5a8c"),
+	shoes = Color("e8e8e4")}
+const SLOT_TITLES := {skin = "SKIN", hair = "HAIR", hat = "HAT", shirt = "SHIRT", pants = "PANTS",
+	shoes = "SHOES"}
+
+
+## The skater: riding in the middle wearing the outfit, with a row of chips per slot under
+## it; the picked one's name shows by the slot's title.
+func _add_skater_picker() -> void:
+	_add_label("SKATER", 36, Color(0.75, 0.78, 0.9))
+	var preview := SkaterPreview.new()
+	preview.custom_minimum_size = Vector2(TABLE_WIDTH, 340)
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_child(preview)
+	for slot in Outfits.SLOTS:
+		_add_outfit_row(slot, preview)
+
+
+## A slot's title (with the picked item's name) and one chip per item; the picked one
+## stays pressed.
+func _add_outfit_row(slot: String, preview: SkaterPreview) -> void:
+	var title := Label.new()
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.6, 0.62, 0.72))
+	list.add_child(title)
+	var name_of := func(id: String) -> String:
+		return "%s  ·  %s" % [SLOT_TITLES[slot], Outfits.find(slot, id).name.to_upper()]
+	title.text = name_of.call(Profile.outfit[slot])
+	var row := HFlowContainer.new()
+	row.alignment = FlowContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("h_separation", 12)
+	row.add_theme_constant_override("v_separation", 12)
+	row.custom_minimum_size = Vector2(TABLE_WIDTH, 0)
+	list.add_child(row)
+	var group := ButtonGroup.new()
+	for item: Dictionary in Outfits.ITEMS[slot]:
+		var button := _make_button("", Vector2(96, 80), 24)
+		button.icon = _item_chip(slot, item)
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.toggle_mode = true
+		button.button_group = group
+		button.button_pressed = item.id == Profile.outfit[slot]
+		_style_picked(button)
+		var id: String = item.id
+		button.pressed.connect(func() -> void:
+			Profile.set_outfit_part(slot, id)
+			title.text = name_of.call(id)
+			preview.refresh())
+		row.add_child(button)
+
+
+## An item's chip: the item itself (hair, hats, shirts with their own image), its color
+## (the base's own layers), or a crossed-out chip for nothing (no hat, bald).
+func _item_chip(slot: String, item: Dictionary) -> Texture2D:
+	var chip := 40
+	var image := Outfits.icon(item, 56)
+	if image:
+		return ImageTexture.create_from_image(image)
+	image = Image.create(chip, chip, false, Image.FORMAT_RGBA8)
+	if item.layer == null:
+		image.fill(Color(0.3, 0.31, 0.38))
+		for i in chip:
+			for t in 3:
+				image.set_pixel(clampi(i + t - 1, 0, chip - 1), chip - 1 - i, Color(0.75, 0.3, 0.3))
+	else:
+		image.fill(Outfits.swatch(item, BASE_SWATCH.get(slot, Color.WHITE)))
+	return ImageTexture.create_from_image(image)
+
+
+## The pressed look of a picker button: a yellow border.
+func _style_picked(button: Button) -> void:
+	for state in ["pressed", "hover_pressed"]:
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(1.0, 0.85, 0.3, 0.15)
+		style.border_color = Color(1.0, 0.85, 0.3)
+		style.set_border_width_all(4)
+		style.set_corner_radius_all(8)
+		style.set_content_margin_all(12)
+		button.add_theme_stylebox_override(state, style)
+
+
+## The board: spinning in the middle, with a row of choices for each part under it.
+func _add_board_picker() -> void:
+	_add_label("BOARD", 36, Color(0.75, 0.78, 0.9))
+	var spinner := BoardSpinner.new()
+	spinner.custom_minimum_size = Vector2(TABLE_WIDTH, 300)
+	spinner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_child(spinner)
+	var graphics := []
+	for g: Dictionary in Boards.GRAPHICS:
+		graphics.append({id = g.id, name = g.name, icon = _graphic_icon(g.id)})
+	_add_part_row("GRAPHIC", "graphic", graphics, Profile.board_graphic, spinner)
+	var grips := []
+	for g: Dictionary in Boards.GRIPS:
+		grips.append({id = g.id, name = g.name, icon = _swatch([g.color])})
+	_add_part_row("GRIP", "grip", grips, Profile.board_grip, spinner)
+	var wheels := []
+	for w: Dictionary in Boards.WHEELS:
+		wheels.append({id = w.id, name = w.name, icon = _swatch([w.color, w.core])})
+	_add_part_row("WHEELS", "wheels", wheels, Profile.board_wheels, spinner)
+
+
+## A title and one button per option of a board part; the picked one stays pressed.
+func _add_part_row(title: String, part: String, options: Array, picked: String, spinner: BoardSpinner) -> void:
+	_add_label(title, 26, Color(0.6, 0.62, 0.72))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	list.add_child(row)
+	var group := ButtonGroup.new()
+	for option: Dictionary in options:
+		var button := _make_button(option.name, Vector2(280, 88), 28)
+		button.icon = option.icon
+		button.toggle_mode = true
+		button.button_group = group
+		button.button_pressed = option.id == picked
+		_style_picked(button)
+		button.pressed.connect(func() -> void:
+			Profile.set_board_part(part, option.id)
+			spinner.refresh())
+		row.add_child(button)
+
+
+## A deck graphic as a button icon, at the game's pixel size.
+func _graphic_icon(id: String) -> Texture2D:
+	var image := Boards.graphic_texture(id).get_image()
+	image.resize(image.get_width() * Runner.PIXEL, image.get_height() * Runner.PIXEL, Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(image)
+
+
+## Color chips side by side, as a button icon.
+func _swatch(colors: Array) -> Texture2D:
+	var chip := 32
+	var image := Image.create(chip * colors.size(), chip, false, Image.FORMAT_RGBA8)
+	for i in colors.size():
+		image.fill_rect(Rect2i(i * chip, 0, chip, chip), colors[i])
+	return ImageTexture.create_from_image(image)
 
 
 ## Moves character i of the name by `step` through its charset, wrapping, and saves.

@@ -1,0 +1,14 @@
+data: {"type":"started","request_id":"req_fe4b9abc-ccac-4e5f-8045-27598c01dbce","operation":"edit","credits":{"reserved":15,"remaining":354}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+: keep-alive
+
+data: {"type":"output","index":0,"asset":{"id":"f4921440-783b-4e40-b216-9fe59775674b","type":"image","createdAt":"2026-11-07T17:49:45.830Z","updatedAt":"2026-11-07T17:49:45.830Z","prompt":"Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add short curly hair in plain light silver grey, a round cloud of tight curls on top of the head, the face stays visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.","width":20,"height":37,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/f4921440-783b-4e40-b216-9fe59775674b/image.png?v=1794073785830","style":"default","tags":["skatelike","character","item"],"contentType":"image/png","batchId":"5e6300e1-161f-41db-bf26-24904ff9dd60","batchIndex":0,"batchSize":2,"action":{"kind":"edit"}}}
+
+data: {"type":"output","index":1,"asset":{"id":"38836a5f-ae62-498c-9e5f-5594c4658b42","type":"image","createdAt":"2026-11-07T17:49:46.479Z","updatedAt":"2026-11-07T17:49:46.479Z","prompt":"Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add short curly hair in plain light silver grey, a round cloud of tight curls on top of the head, the face stays visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.","width":23,"height":37,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/38836a5f-ae62-498c-9e5f-5594c4658b42/image.png?v=1794073786479","style":"default","tags":["skatelike","character","item"],"contentType":"image/png","batchId":"5e6300e1-161f-41db-bf26-24904ff9dd60","batchIndex":1,"batchSize":2,"action":{"kind":"edit"}}}
+
+data: {"type":"completed","status":"succeeded","output_count":2,"credits":{"remaining":354}}
+

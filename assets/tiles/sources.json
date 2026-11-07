@@ -1,0 +1,34 @@
+{
+  "_about": "Stage terrain tiles made with Sprite Fusion (spritefusion.com), drawn by Runner (fill_texture, edge_texture) at 2 screen px per texel. source/ holds the images as generated.",
+  "concrete_fill": {
+    "file": "concrete_fill.png",
+    "source": "source/concrete_fill.png",
+    "use": "seamless fill tiled inside the ground",
+    "steps": [
+      {
+        "operation": "generate",
+        "size": 32,
+        "request_id": "req_a0024694-fbf3-4176-86b3-a8cf54c851bc",
+        "asset_id": "75e0c4e4-471d-40a1-a5e6-09864dd6da9e",
+        "batch_index": 9,
+        "prompt": "Seamless tileable texture of smooth skatepark concrete, cool blue-gray, subtle speckles and small cracks, a faint expansion seam, flat and evenly lit, fills the entire square edge to edge with no border, no background, side-scrolling game ground fill tile"
+      }
+    ]
+  },
+  "concrete_edge": {
+    "file": "concrete_edge.png",
+    "source": "source/concrete_edge.png",
+    "use": "strip along the surface line: rows 2-10 of the source (highlight, lip, dark line, shadow, one row of concrete)",
+    "steps": [
+      {
+        "operation": "generate",
+        "size": 32,
+        "request_id": "req_44c1dd2e-9af7-4f61-bfdc-587c5374c46f",
+        "asset_id": "e787f9b6-5607-4035-b384-c93ce24ff32b",
+        "batch_index": 10,
+        "prompt": "Seamless horizontally tileable ground edge tile for a side-scrolling skate game, smooth skatepark concrete in cool blue-gray with subtle speckles: a bright worn concrete curb lip along the top few rows with a thin light highlight and a dark shadow line beneath it, plain concrete filling the rest down to the bottom, no vertical seams, no border, flat even lighting"
+      }
+    ]
+  },
+  "_failed": "style-reference from concrete_fill failed twice (generation_failed, refunded): req_e16f8a75-4b21-44c8-b595-ae5a6daac99b, req_9924a85e-6267-4b1c-8cda-1173fc5663c9"
+}

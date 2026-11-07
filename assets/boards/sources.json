@@ -1,0 +1,43 @@
+{
+  "_about": "Deck graphics made with Sprite Fusion (spritefusion.com). source/ holds the image as generated; the graphic is source/ fitted to 32x8 with tools/fit_deck_graphic.gd.",
+  "flames": {
+    "graphic": "flames.png",
+    "source": "source/flames.png",
+    "steps": [
+      {
+        "operation": "generate",
+        "size": 48,
+        "request_id": "req_cbcedc6d-e48d-4d4b-ac00-27a307f17eef",
+        "asset_id": "1335f1bd-1c83-4ffa-a8be-e372b78daea3",
+        "prompt": "Underside of a skateboard deck seen from directly below, lying horizontally and filling the full width of the image, bold orange and yellow flames graphic running from nose to tail on a black deck, plain transparent background"
+      },
+      {
+        "operation": "edit",
+        "request_id": "req_5e68c93d-4759-4b13-b592-9c5637c18420",
+        "asset_id": "a7e96889-0bd9-4228-8a5b-76a1f1b8d59d",
+        "batch_index": 1,
+        "prompt": "Remove the trucks and wheels completely so only the flat deck underside remains; continue the flames graphic where the trucks were; keep the deck shape, outline, size and position exactly the same"
+      }
+    ]
+  },
+  "waves": {
+    "graphic": "waves.png",
+    "source": "source/waves.png",
+    "steps": [
+      {
+        "operation": "generate",
+        "size": 48,
+        "request_id": "req_36e82d5c-5298-4adf-8faf-9a5aa412e32c",
+        "asset_id": "bbda9aac-3c86-473f-8a68-36bbc715c091",
+        "prompt": "Underside of a skateboard deck seen from directly below, lying horizontally and filling the full width of the image, bold blue and white ocean wave graphic running from nose to tail on a teal deck, plain transparent background"
+      },
+      {
+        "operation": "edit",
+        "request_id": "req_2904525a-c2f7-4c88-8f1d-4784d13dbd45",
+        "asset_id": "14fddab1-a051-4f56-b0cc-47aeff75cd31",
+        "batch_index": 1,
+        "prompt": "Remove the trucks and wheels completely so only the flat deck underside remains; redraw the blue and white ocean wave graphic so it runs along the whole deck from nose to tail and stays inside the deck outline, nothing outside the deck; keep the deck shape, outline, size and position exactly the same"
+      }
+    ]
+  }
+}

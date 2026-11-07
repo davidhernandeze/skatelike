@@ -1,0 +1,14 @@
+data: {"type":"started","request_id":"req_f89528e9-bdde-4907-a16c-0381f0c2bf90","operation":"edit","credits":{"reserved":15,"remaining":399}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+: keep-alive
+
+data: {"type":"output","index":0,"asset":{"id":"bc375d7c-b5ea-4ce2-958a-7a732d5681a8","type":"image","createdAt":"2026-11-07T17:47:34.201Z","updatedAt":"2026-11-07T17:47:34.201Z","prompt":"Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add a plain light grey knitted beanie that covers the top of the head down to just above the eye. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.","width":24,"height":36,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/bc375d7c-b5ea-4ce2-958a-7a732d5681a8/image.png?v=1794073654201","style":"default","tags":["skatelike","character","item"],"contentType":"image/png","batchId":"100e8283-6707-49ab-abf4-a581a94bccb4","batchIndex":0,"batchSize":2,"action":{"kind":"edit"}}}
+
+data: {"type":"output","index":1,"asset":{"id":"3c019817-875e-4038-809b-25606b957764","type":"image","createdAt":"2026-11-07T17:47:34.865Z","updatedAt":"2026-11-07T17:47:34.865Z","prompt":"Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: add a plain light grey knitted beanie that covers the top of the head down to just above the eye. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added.","width":60,"height":112,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/3c019817-875e-4038-809b-25606b957764/image.png?v=1794073654865","style":"default","tags":["skatelike","character","item"],"contentType":"image/png","batchId":"100e8283-6707-49ab-abf4-a581a94bccb4","batchIndex":1,"batchSize":2,"action":{"kind":"edit"}}}
+
+data: {"type":"completed","status":"succeeded","output_count":2,"credits":{"remaining":399}}
+

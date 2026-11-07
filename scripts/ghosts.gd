@@ -1,5 +1,6 @@
 extends Node2D
-## Other online skaters on the same challenge, drawn as faded boards with their names,
+## Other online skaters on the same challenge, drawn as faded skaters (SkaterView rigs)
+## on faded boards with their names,
 ## plus a name tag over the player's own board. A child of the Runner (shares its
 ## coordinates).
 ##
@@ -36,9 +37,13 @@ var _ghosts := {}
 var _clock := 0.0
 
 @onready var _runner: Runner = get_parent()
+## Draws the name tags: the last child, so they're over the ghosts' figures.
+var _tags := Node2D.new()
 
 
 func _ready() -> void:
+	_tags.draw.connect(_draw_tags)
+	add_child(_tags)
 	Online.ghost_joined.connect(_on_joined)
 	Online.ghost_left.connect(_on_left)
 	Online.ghost_snapshot.connect(_on_snapshot)
@@ -55,13 +60,23 @@ func _clear() -> void:
 
 func _on_joined(id: int, skater: String) -> void:
 	_on_left(id)
+	# The ghost's figure: the same rig as the player's, in the default outfit (outfits
+	# aren't sent online), tinted and faded.
+	var view := SkaterView.new()
+	view.pixel = _runner.skater_pixel
+	view.modulate = Color(Color.WHITE.lerp(ghost_color, 0.6), alpha)
+	view.visible = false
+	add_child(view)
+	move_child(view, 0)  # Under the name tags.
 	_ghosts[id] = {skater = skater, sim = null, snapshots = [], actions = [], through = 0,
-			play = 0.0, heard = _clock, restarts = 0}
+			play = 0.0, heard = _clock, restarts = 0, view = view}
 
 
 func _on_left(id: int) -> void:
 	if _ghosts.has(id) and _ghosts[id].sim:
 		_ghosts[id].sim.queue_free()
+	if _ghosts.has(id):
+		_ghosts[id].view.queue_free()
 	_ghosts.erase(id)
 
 
@@ -178,21 +193,39 @@ func _valid(state: Array) -> bool:
 
 func _draw() -> void:
 	for ghost in _ghosts.values():
-		if ghost.sim == null or _clock - ghost.heard > stale_time:
+		var view: SkaterView = ghost.view
+		view.visible = ghost.sim != null and _clock - ghost.heard <= stale_time
+		if not view.visible:
 			continue
 		var sim: Runner = ghost.sim
 		var pose := sim.board_pose()
 		var center := _runner.from_level(sim.to_level(pose[0]))
-		_runner.draw_skater_at(self, sim.skater_pose(), center - pose[0], alpha, ghost_color)
+		view.show_pose(_moved(sim.skater_pose(), center - pose[0]), sim.board_size.x / 96.0)
 		_runner.draw_board_at(self, center, pose[1], pose[2], alpha, ghost_color)
-		_draw_name(center, ghost.skater, Color(ghost_color, 0.8))
+		ghost.center = center
+	_tags.queue_redraw()
+
+
+## The name tags, over the ghosts' figures (on _tags, the last child).
+func _draw_tags() -> void:
+	for ghost in _ghosts.values():
+		if ghost.view.visible and ghost.has("center"):
+			_draw_name(ghost.center, ghost.skater, Color(ghost_color, 0.8))
 	var pose := _runner.board_pose()
 	_draw_name(pose[0], Profile.skater_name, _runner.player_color)
+
+
+## A skater_pose() moved by `offset`.
+static func _moved(pose: Dictionary, offset: Vector2) -> Dictionary:
+	var out := pose.duplicate()
+	out.base = pose.base + offset
+	out.feet = [pose.feet[0] + offset, pose.feet[1] + offset]
+	return out
 
 
 func _draw_name(center: Vector2, text: String, color: Color) -> void:
 	var font: Font = ThemeDB.fallback_font
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x
 	var at := center + Vector2(-width * 0.5, -name_lift)
-	draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size, 6, Color(0, 0, 0, color.a * 0.8))
-	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size, color)
+	_tags.draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size, 6, Color(0, 0, 0, color.a * 0.8))
+	_tags.draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size, color)
