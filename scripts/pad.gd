@@ -22,8 +22,18 @@ extends Panel
 @export var side_middle := ""
 ## Shown faded, for pads without a function yet.
 @export var dimmed := false
+## How the paint shows that the touch position matters: "auto" picks from the marks
+## (arrows: a gradient down, bright at the strong top; side arrows or a center mark: one
+## across), "flat" one color (it doesn't matter where it's touched).
+@export_enum("auto", "flat", "down", "across") var paint_mode := "auto"
+## Colors of the two ends of an "across" gradient (left, right); unset: from `color`.
+@export var across_colors := PackedColorArray()
+## A burned-in icon (UiKit.icon, big) above the label, mirrored with `icon_flip`.
+@export var icon := ""
+@export var icon_flip := false
 
-var _style := StyleBoxFlat.new()
+var _board: NinePatchRect
+var _paint: ShaderMaterial
 var _tween: Tween
 var _enabled := true
 ## Pie indicator (e.g. push cooldown): remaining fraction, hidden at 0.
@@ -35,26 +45,73 @@ var _label_nodes: Array[Label] = []
 var _aiming := false
 var _aim := 0
 var _aim_text := ""
+## Bulb glow: 1 normally, up while flashing.
+var _glow := 1.0
+var _time := 0.0
 
 
 func _ready() -> void:
-	_style.bg_color = color.darkened(0.45)
-	_style.set_corner_radius_all(24)
-	_style.set_border_width_all(4)
-	_style.border_color = color
-	add_theme_stylebox_override("panel", _style)
+	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	# The signboard: a worn plank, its paint flat or a gradient (see paint_mode).
+	_board = NinePatchRect.new()
+	_board.texture = ImageTexture.create_from_image(UiKit.scaled(UiKit.PAD.get_image()))
+	var m := UiKit.PAD_MARGIN * UiKit.PIXEL
+	_board.patch_margin_left = m.x
+	_board.patch_margin_top = m.y
+	_board.patch_margin_right = m.z
+	_board.patch_margin_bottom = m.w
+	_board.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE_FIT
+	_board.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE_FIT
+	_board.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board.show_behind_parent = true
+	var ends := _paint_ends()
+	_paint = UiKit.paint_material(ends[0], ends[1], ends[2])
+	_board.material = _paint
+	add_child(_board)
+	_board.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_board.resized.connect(func() -> void: _paint.set_shader_parameter("size", _board.size))
 	_apply_alpha()
 	if label_bottom != "":
 		_add_label(label, Control.PRESET_TOP_WIDE)
 		_add_label(label_bottom, Control.PRESET_BOTTOM_WIDE)
 	elif label != "":
 		_add_label(label, Control.PRESET_FULL_RECT)
+		if icon != "":
+			_label_nodes[0].anchor_top = 0.24  # Under the icon and the top arrow.
+
+
+## The paint's two ends and whether they run across (else down), from paint_mode.
+func _paint_ends() -> Array:
+	var mode := paint_mode
+	if mode == "auto":
+		mode = "down" if arrows else ("across" if side_arrows or center_mark else "flat")
+	match mode:
+		"down":
+			return [color.lightened(0.18), color.darkened(0.45), false]
+		"across":
+			if across_colors.size() == 2:
+				return [across_colors[0], across_colors[1], true]
+			return [color.darkened(0.35), color.lightened(0.15), true]
+	return [color, color, false]
+
+
+func _process(delta: float) -> void:
+	_time += delta
+	queue_redraw()
 
 
 func _add_label(string: String, preset: Control.LayoutPreset) -> void:
 	var text := Label.new()
 	text.text = string
-	text.add_theme_font_size_override("font_size", font_size)
+	# Short names in the brush font, like the signboards; long lines in the UI font.
+	var brush := string.length() <= 12 and not string.contains("·")
+	text.add_theme_font_override("font", UiKit.LOGO_FONT if brush else UiKit.UI_FONT)
+	text.add_theme_font_size_override("font_size", roundi(font_size * 1.5) if brush else font_size)
+	text.add_theme_constant_override("line_spacing", -roundi(font_size * 0.5) if brush else 0)
+	text.add_theme_color_override("font_color", UiKit.LIGHT)
+	text.add_theme_color_override("font_outline_color", UiKit.INK)
+	text.add_theme_constant_override("outline_size", 10)
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -101,68 +158,105 @@ func set_aim(holding: bool, aim := 0, text := "") -> void:
 
 
 func _apply_alpha() -> void:
-	modulate.a = 0.35 if dimmed or not _enabled else 1.0
+	var off := dimmed or not _enabled
+	modulate.a = 0.55 if dimmed else 1.0
+	if _paint:
+		_paint.set_shader_parameter("faded", 1.0 if off else 0.0)
+	for label_node in _label_nodes:
+		label_node.modulate.a = 0.5 if off else 1.0
 
 
 func _draw() -> void:
+	var p := float(UiKit.PIXEL)
+	var lit := _enabled and not dimmed
+	# The bulb strip along the top edge, lit while the pad can be used.
+	var bulbs := maxi(3, int(size.x / (p * 12.0)))
+	UiKit.draw_bulbs(self, Vector2(p * 9, p * 4), Vector2(size.x - p * 9, p * 4), bulbs, lit, _time, _glow)
+	var ink := Color(UiKit.INK, 0.85)
 	if label_bottom != "":
-		var y := size.y * 0.5
-		draw_line(Vector2(12.0, y), Vector2(size.x - 12.0, y), Color(color, 0.6), 3.0)
+		var y := roundf(size.y * 0.5 / p) * p
+		draw_rect(Rect2(p * 6, y - p * 0.5, size.x - p * 12, p), ink)
 	if center_mark:
-		var x := size.x * 0.5
-		draw_line(Vector2(x, 12.0), Vector2(x, size.y - 12.0), Color(color, 0.6), 3.0)
+		var x := roundf(size.x * 0.5 / p) * p
+		draw_rect(Rect2(x - p * 0.5, p * 9, p, size.y - p * 15), ink)
+	if icon != "":
+		var texture := UiKit.icon(icon, ink, true)
+		var at := (Vector2(size.x * 0.5, size.y * 0.2) - texture.get_size() * 0.5) / p
+		var rect := Rect2(at.floor() * p, texture.get_size())
+		if icon_flip:
+			draw_set_transform(Vector2(rect.position.x * 2 + rect.size.x, 0), 0.0, Vector2(-1, 1))
+		draw_texture_rect(texture, rect, false)
+		draw_set_transform(Vector2.ZERO)
 	if _aiming:
 		# A held pop: slide sideways to aim it into a 180 (drawn, not text arrows).
 		var y := size.y * 0.5
 		for side: int in [-1, 1]:
-			var lit: bool = side == _aim
+			var on: bool = side == _aim
 			var tip := Vector2(size.x * (0.5 + 0.38 * side), y)
-			draw_colored_polygon(Icons.triangle(tip, Vector2(side, 0), 34.0 if lit else 24.0),
-					Color(1, 1, 1, 0.95 if lit else 0.3))
+			_draw_arrow(tip, Vector2(side, 0), 34.0 if on else 24.0, Color(UiKit.LIGHT, 0.95 if on else 0.35))
 		if _aim != 0:
-			var font := get_theme_default_font()
-			draw_string(font, Vector2(0.0, size.y * 0.3), _aim_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 30,
-					Color(1.0, 0.95, 0.6))
+			_draw_text(Vector2(0.0, size.y * 0.3), _aim_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 30, UiKit.BULB)
 	# Symbols are shapes, not text: the web build's font has no arrow glyphs.
-	var arrow := font_size * 0.7
+	var arrow := font_size * 0.8
 	if arrows:
-		draw_colored_polygon(Icons.triangle(Vector2(size.x * 0.5, size.y * 0.18), Vector2.UP, arrow), Color.WHITE)
-		draw_colored_polygon(Icons.triangle(Vector2(size.x * 0.5, size.y * 0.82), Vector2.DOWN, arrow), Color.WHITE)
+		var top := 0.36 if icon != "" else 0.18
+		_draw_arrow(Vector2(size.x * 0.5, size.y * top), Vector2.UP, arrow, UiKit.LIGHT)
+		_draw_arrow(Vector2(size.x * 0.5, size.y * 0.86), Vector2.DOWN, arrow, UiKit.LIGHT)
 	if side_arrows:
 		var y := size.y * 0.5 + font_size * 0.68
-		var font := get_theme_default_font()
 		var left := Vector2(size.x * 0.12, y)
 		var right := Vector2(size.x * 0.88, y)
-		draw_colored_polygon(Icons.triangle(left, Vector2.LEFT, arrow), Color.WHITE)
-		draw_colored_polygon(Icons.triangle(right, Vector2.RIGHT, arrow), Color.WHITE)
+		_draw_arrow(left, Vector2.LEFT, arrow, UiKit.LIGHT)
+		_draw_arrow(right, Vector2.RIGHT, arrow, UiKit.LIGHT)
+		var font := get_theme_default_font()
 		var baseline := y + font_size * 0.35
-		draw_string(font, Vector2(left.x + arrow, baseline), side_left, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		_draw_text(Vector2(left.x + arrow, baseline), side_left, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, UiKit.LIGHT)
 		var width := font.get_string_size(side_right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		draw_string(font, Vector2(right.x - arrow - width, baseline), side_right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		_draw_text(Vector2(right.x - arrow - width, baseline), side_right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size,
+				UiKit.LIGHT)
 		if side_middle != "":
 			var middle := font.get_string_size(side_middle, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 			var box := Rect2(Vector2(size.x * 0.5 - middle.x * 0.5 - 8.0, y - middle.y * 0.5), middle + Vector2(16.0, 0.0))
-			draw_rect(box, _style.bg_color)  # Covers the center line behind the text.
-			draw_string(font, Vector2(size.x * 0.5 - middle.x * 0.5, baseline), side_middle,
-					HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+			draw_rect(box, UiKit.INK)  # A burned patch over the center line, behind the text.
+			_draw_text(Vector2(size.x * 0.5 - middle.x * 0.5, baseline), side_middle, HORIZONTAL_ALIGNMENT_LEFT, -1,
+					font_size, UiKit.LIGHT)
 	if _pie > 0.0 or _pie_queue > 0:
-		var radius := 24.0
-		var center := Vector2(size.x - radius - 14.0, radius + 14.0)
-		draw_circle(center, radius, Color(0, 0, 0, 0.4))
+		# Push cooldown: a little brass dial in the corner, queued kicks as bulbs under it.
+		var radius := 8.0 * p
+		var center := (Vector2(size.x - radius - p * 8, radius + p * 9) / p).floor() * p
+		draw_circle(center, radius + p, Color("6a4a1a"))
+		draw_circle(center, radius, Color("e8d8b0"))
 		if _pie > 0.0:
 			var points := PackedVector2Array([center])
 			var steps := maxi(2, ceili(_pie * 32.0))
 			for i in steps + 1:
 				var a := -PI * 0.5 + TAU * _pie * float(i) / steps
-				points.append(center + Vector2(cos(a), sin(a)) * radius)
-			draw_colored_polygon(points, color.lightened(0.3))
+				points.append(center + Vector2(cos(a), sin(a)) * (radius - p))
+			draw_colored_polygon(points, Color(UiKit.INK, 0.8))
 		for i in _pie_queue:
-			draw_circle(center + Vector2(0.0, radius + 16.0 + i * 18.0), 6.0, color.lightened(0.3))
+			var at := center + Vector2(-p, radius + p * 4 + i * p * 6)
+			UiKit.draw_bulbs(self, at, at, 1, true, _time + i, 1.5)
+
+
+## A light triangle with a burned dark edge.
+func _draw_arrow(tip: Vector2, dir: Vector2, arrow: float, fill: Color) -> void:
+	draw_colored_polygon(Icons.triangle(tip, dir, arrow + 8.0), Color(UiKit.INK, fill.a))
+	draw_colored_polygon(Icons.triangle(tip, dir, arrow), fill)
+
+
+## Light lettering with a dark edge, in the UI font.
+func _draw_text(at: Vector2, text: String, align: HorizontalAlignment, width: float, text_size: int,
+		fill: Color) -> void:
+	var font := get_theme_default_font()
+	draw_string_outline(font, at, text, align, width, text_size, 8, UiKit.INK)
+	draw_string(font, at, text, align, width, text_size, fill)
 
 
 func flash() -> void:
 	if _tween:
 		_tween.kill()
-	_style.bg_color = color
-	_tween = create_tween()
-	_tween.tween_property(_style, "bg_color", color.darkened(0.45), 0.15)
+	_paint.set_shader_parameter("flash", 1.0)
+	_glow = 2.5
+	_tween = create_tween().set_parallel()
+	_tween.tween_method(func(v: float) -> void: _paint.set_shader_parameter("flash", v), 1.0, 0.0, 0.2)
+	_tween.tween_property(self, "_glow", 1.0, 0.3)

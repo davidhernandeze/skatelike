@@ -224,7 +224,7 @@ static func _moved(pose: Dictionary, offset: Vector2) -> Dictionary:
 
 
 func _draw_name(center: Vector2, text: String, color: Color) -> void:
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = UiKit.UI_FONT
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x
 	var at := center + Vector2(-width * 0.5, -name_lift)
 	_tags.draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size, 6, Color(0, 0, 0, color.a * 0.8))

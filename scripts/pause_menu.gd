@@ -1,7 +1,7 @@
 class_name PauseMenu
 extends CanvasLayer
-## The pause screen: a dim full-screen veil over the game with PAUSED and three big
-## buttons, Home (back to the menu), Restart (the level from the start) and Play (back
+## The pause screen: a dim full-screen veil over the game with a hanging PAUSED sign and
+## three big painted signboard buttons, Home (back to the menu), Restart (the level from the start) and Play (back
 ## to the game). It keeps working while the tree is paused; Main pauses and resumes the
 ## game around it.
 
@@ -9,7 +9,7 @@ signal home
 signal restart
 signal play
 
-const VEIL := Color(0.03, 0.03, 0.06, 0.72)
+const VEIL := Color(0.05, 0.02, 0.1, 0.7)
 
 
 func _ready() -> void:
@@ -17,6 +17,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	var veil := ColorRect.new()
+	veil.theme = UiKit.theme()  # A CanvasLayer: the game's theme doesn't reach here.
 	veil.color = VEIL
 	veil.mouse_filter = Control.MOUSE_FILTER_STOP  # Nothing reaches the game under it.
 	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -28,22 +29,23 @@ func _ready() -> void:
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 48)
 	veil.add_child(column)
-	var title := Label.new()
+	var title := HangingSign.new()
 	title.text = "PAUSED"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 64)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	title.font_size = 80
+	title.paint = UiKit.PAINTS.teal
+	title.chain = 120.0
 	column.add_child(title)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
 	column.add_child(row)
-	row.add_child(_button("HOME", Icons.home_texture(96), home))
-	row.add_child(_button("RESTART", Icons.restart_texture(96), restart))
-	row.add_child(_button("PLAY", Icons.triangle_texture(Vector2.RIGHT, 96), play))
+	row.add_child(_button("HOME", "home", UiKit.PAINTS.red, home))
+	row.add_child(_button("RESTART", "restart", UiKit.PAINTS.orange, restart))
+	row.add_child(_button("PLAY", "play", UiKit.PAINTS.green, play))
 
 
-func _button(text: String, icon: Texture2D, pressed: Signal) -> Button:
+func _button(text: String, icon_name: String, paint: Color, pressed: Signal) -> Button:
+	var icon := UiKit.icon(icon_name, UiKit.INK, true)
 	var button := Button.new()
 	button.text = text
 	button.icon = icon
@@ -53,5 +55,6 @@ func _button(text: String, icon: Texture2D, pressed: Signal) -> Button:
 	button.focus_mode = Control.FOCUS_NONE
 	button.custom_minimum_size = Vector2(196, 220)
 	button.add_theme_font_size_override("font_size", 30)
+	UiKit.paint_button(button, paint, "pad")
 	button.pressed.connect(func() -> void: pressed.emit())
 	return button

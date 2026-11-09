@@ -1,0 +1,30 @@
+{
+  "generator": "Runway gpt_image_2, quality high, 2560:1440 (20 credits each)",
+  "processing": "tools/make_backgrounds.gd: key the flat magenta, cross-fade 8% where each layer wraps, cubic resize to 427 texels tall (Runner.PIXEL 3 on a 1280 px screen), hard alpha",
+  "master": {
+    "file": "source/master.png",
+    "task": "caa163b6-34fd-4897-83f6-693358a2744d",
+    "reference": "art direction round 3 Dusk Boardwalk mockup",
+    "prompt": "Reference 1 sets the exact art style and world to keep: Dusk Boardwalk pixel art (blue hour dusk over a beach boardwalk, purple and orange sky, ocean, palm trees, surf shack and taco stand with warm string lights, a red neon GOOD VIBES sign). Create a wide horizontal side-scrolling parallax background panorama for a 2D pixel art skateboarding game, seen straight from the side: from the top, a deep dusk sky with soft pixel clouds and the last glow of the sunset near the horizon, then the calm ocean horizon with a distant pier and its lights, then a row of beach shacks, surf shop fronts, palm trees and warm string light garlands along the boardwalk, all ending at the bottom edge on the boardwalk railing line. No foreground floor, no people, no skater, no readable text except tiny shop signs, crisp hand-made pixel art, clean pixel clusters, no blur. The left and right edges must continue seamlessly so the image can tile horizontally."
+  },
+  "layers": {
+    "sky": {
+      "file": "source/sky.png",
+      "task": "80128397-3bfe-4b13-bd93-3a9b2657b06c",
+      "reference": "source/master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the sky, filling the whole image: the deep dusk sky gradient from dark blue at the top to purple, pink and orange near the bottom, soft pixel clouds and a few stars, the sunset glow low in the image. Remove the ocean, pier, sun, buildings, palms, lamps, string lights and railing: where they were, the sky gradient and the sunset glow simply continue down to the bottom edge."
+    },
+    "sea": {
+      "file": "source/sea.png",
+      "task": "5f032f29-ad6a-4507-8979-d643090d6895",
+      "reference": "source/master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the ocean and what is out at sea: the setting sun on the horizon, the calm ocean with its light reflections and waves, the distant pier with its lights and building, at exactly the same height as in reference 1, the ocean continuing down to the bottom edge across the whole width behind where the buildings were. Everything above the horizon (the sky and clouds) is one perfectly flat solid magenta color #FF00FF, no gradient. No buildings, no palms, no lamps, no string lights, no railing."
+    },
+    "town": {
+      "file": "source/town.png",
+      "task": "f3575b1e-cfce-47aa-889a-cca2d164b542",
+      "reference": "source/master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the boardwalk front: the beach shacks, surf shops, taco stand, the building with the red GOOD VIBES neon sign, the palm trees, the street lamps, the warm string light garlands between the poles, the surfboards, plants and the wooden railing along the bottom, at exactly the same positions and size as in reference 1. Everything else, the sky, the clouds, the sun, the ocean and the pier, including the gaps between buildings, is one perfectly flat solid magenta color #FF00FF, no gradient, no glow on it."
+    }
+  }
+}

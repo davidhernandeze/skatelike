@@ -11,8 +11,8 @@ const BUTTON_SIZE := Vector2(480, 88)
 const TABLE_WIDTH := 640.0
 const BEST_WIDTH := 120.0
 const BOARD_WIDTH := 130.0
-const HEADER_COLOR := Color(0.6, 0.62, 0.72)
-const BACK_COLOR := Color(0.55, 0.62, 0.85)
+const HEADER_COLOR := UiKit.DIM
+const CHECK_COLOR := Color("a6d96a")
 
 ## Page to show; kept so that leaving a level returns to its list.
 static var page := "main"
@@ -47,9 +47,13 @@ var _drag_v := 0.0
 var _drag_last := 0.0
 var _drag_last_y := 0.0
 var _clock := 0.0
+## Buttons painted so far on this page (see _paint_next).
+var _paint_turn := 0
 
 
 func _ready() -> void:
+	theme = UiKit.theme()
+	_dress()
 	Levels.load_progress()
 	Profile.load_profile()
 	Scoreboard.flush()  # Clears queued while offline.
@@ -136,6 +140,7 @@ func _button_at(at: Vector2) -> Button:
 func _show(new_page: String) -> void:
 	page = new_page
 	_fling_v = 0.0
+	_paint_turn = 0
 	for child in list.get_children():
 		child.queue_free()
 	match page:
@@ -151,16 +156,18 @@ func _show(new_page: String) -> void:
 			_show_board(page.trim_prefix("board:"))
 		_:
 			page = "main"
-			_add_label("skater " + Profile.skater_name, 32, Color(0.75, 0.78, 0.9))
-			_add_button("Gaps", _show.bind("challenges"))
-			_add_button("Practice", _show.bind("practice"))
-			_add_button("Profile", _show.bind("profile"))
-			_add_button("Credits", _show.bind("credits"))
+			_add_label("skater " + Profile.skater_name, 32, UiKit.LIGHT)
+			for entry in [["Gaps", "gaps", "challenges"], ["Practice", "practice", "practice"],
+					["Profile", "profile", "profile"], ["Credits", "star", "credits"]]:
+				var button := _add_button(entry[0], _show.bind(entry[2]))
+				button.icon = UiKit.icon(entry[1])
+				button.custom_minimum_size = Vector2(480, 104)
+				button.add_theme_font_size_override("font_size", 48)
 
 
 func _show_levels(challenges: bool) -> void:
 	_add_back("main")
-	_add_label("GAPS" if challenges else "PRACTICE", 36, Color(0.75, 0.78, 0.9))
+	_add_label("GAPS" if challenges else "PRACTICE", 36, UiKit.LIGHT)
 	if challenges:
 		_add_online_switch()
 		_show_challenge_table()
@@ -175,7 +182,7 @@ func _show_levels(challenges: bool) -> void:
 			n += 1
 			var button := _add_button(("%d. %s" % [n, level.name]) if lessons else level.name, _start.bind(level.id))
 			if Levels.is_cleared(level.id):
-				button.icon = Icons.check_texture(36, Color(0.5, 0.9, 0.5))
+				button.icon = UiKit.icon("check")
 				button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 
@@ -190,18 +197,21 @@ func _show_challenge_table() -> void:
 		play.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		play.pressed.connect(_start.bind(level.id))
+		UiKit.paint_button(play, UiKit.PAINTS.teal)
 		var best: float = Levels.best.get(level.id, 0.0)
 		var best_cell: Control
 		if Levels.is_cleared(level.id):
 			var check := TextureRect.new()
-			check.texture = Icons.check_texture(40, Color(0.5, 0.9, 0.5))
+			check.texture = UiKit.icon("check", CHECK_COLOR)
 			check.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 			check.custom_minimum_size = Vector2(BEST_WIDTH, 0)
 			best_cell = check
 		else:
 			best_cell = _cell("%d%%" % floori(best * 100.0) if best > 0.0 else "-", BEST_WIDTH, 32,
-					Color(0.9, 0.9, 0.95) if best > 0.0 else HEADER_COLOR)
+					UiKit.LIGHT if best > 0.0 else HEADER_COLOR)
 		var board := _make_button("Top", Vector2(BOARD_WIDTH, 84), 28)
+		board.icon = UiKit.icon("trophy")
+		UiKit.paint_button(board, UiKit.PAINTS.orange, "plank_bare")
 		board.disabled = not Profile.online  # The boards come from the server.
 		board.pressed.connect(_show.bind("board:" + level.id))
 		list.add_child(_table_row([play, best_cell, board]))
@@ -234,23 +244,12 @@ func _cell(text: String, width: float, font_size: int, color: Color,
 	return label
 
 
-## The Back button: outlined in BACK_COLOR with a left arrow, at the top left of the page.
+## The Back button: a small red plank with a left arrow, at the top left of the page.
 func _add_back(target: String) -> void:
 	var back := _make_button("Back", Vector2(200, 72), 32)
-	back.icon = Icons.triangle_texture(Vector2.LEFT, 28, BACK_COLOR)
+	back.icon = UiKit.icon("back")
 	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	back.add_theme_color_override("font_color", BACK_COLOR)
-	back.add_theme_color_override("font_hover_color", BACK_COLOR.lightened(0.3))
-	back.add_theme_color_override("font_pressed_color", BACK_COLOR.lightened(0.3))
-	for state in ["normal", "hover", "pressed", "focus"]:
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(BACK_COLOR, 0.18 if state == "pressed" else (0.1 if state == "hover" else 0.0))
-		style.border_color = BACK_COLOR
-		style.set_border_width_all(3)
-		style.set_corner_radius_all(36)
-		style.content_margin_left = 18
-		style.content_margin_right = 24
-		back.add_theme_stylebox_override(state, style)
+	UiKit.paint_button(back, UiKit.PAINTS.red)
 	back.pressed.connect(_show.bind(target))
 	list.add_child(back)
 
@@ -259,12 +258,12 @@ func _add_back(target: String) -> void:
 func _show_board(id: String) -> void:
 	_add_back("challenges")
 	var level := Levels.get_level(id)
-	_add_label(level.name.to_upper(), 36, Color(0.75, 0.78, 0.9))
+	_add_label(level.name.to_upper(), 36, UiKit.LIGHT)
 	var state := Label.new()
 	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	state.add_theme_font_size_override("font_size", 26)
-	state.add_theme_color_override("font_color", Color(0.6, 0.62, 0.72))
+	state.add_theme_color_override("font_color", UiKit.DIM)
 	list.add_child(state)
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", 4)
@@ -320,13 +319,13 @@ func _fill_board(rows: VBoxContainer, state: Label, board: Dictionary) -> void:
 		more.text = "and %d more" % (total - BOARD_ROWS)
 		more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		more.add_theme_font_size_override("font_size", 24)
-		more.add_theme_color_override("font_color", Color(0.6, 0.62, 0.72))
+		more.add_theme_color_override("font_color", UiKit.DIM)
 		rows.add_child(more)
 
 
 ## A board row: position, skater and how often they cleared it; yours in yellow.
 func _board_row(position: int, clear: Dictionary, mine: bool) -> HBoxContainer:
-	var color := Color(1, 0.85, 0.3) if mine else Color(0.9, 0.9, 0.95)
+	var color := UiKit.BULB if mine else UiKit.LIGHT
 	return _table_row([_cell(str(position), 90.0, 34, color), _cell(clear.get("skater", "?????"), 0.0, 34, color),
 			_cell(str(int(clear.get("clears", 1))), 150.0, 34, color)])  # JSON numbers are floats.
 
@@ -349,7 +348,7 @@ func _add_online_switch() -> void:
 				&"online": "online: ghosts and scoreboards",
 				&"offline": "scoreboards on, ghost server unreachable (retrying)"}.get(status, "")
 		state.add_theme_color_override("font_color",
-				Color(0.5, 0.9, 0.5) if status == &"online" else Color(0.6, 0.62, 0.72))
+				CHECK_COLOR if status == &"online" else UiKit.DIM)
 	switch.toggled.connect(func(on: bool) -> void:
 		Profile.set_online(on)
 		Online.refresh()
@@ -365,20 +364,22 @@ func _add_online_switch() -> void:
 ## The assets the game uses and their licenses (CC BY 4.0 asks for the sounds' credit).
 func _show_credits() -> void:
 	_add_back("main")
-	_add_label("Credits", 40, Color(1.0, 0.85, 0.3))
+	_add_label("Credits", 40, UiKit.BULB)
 	for credit in [
 		["Sounds", "\"Skateboarding Tricks\" by SoundBiterSFX\nfreesound.org/s/746602\nCC BY 4.0, cut and mixed for the game"],
-		["Trick callout font", "Graffiti (dafont.com/graffiti.font)\nauthor unknown, license not stated"],
+		["Logo and sign font", "Knewave by Tyler Finck\nSIL Open Font License 1.1"],
+		["Interface font", "Lilita One by Juan Montoreano\nSIL Open Font License 1.1"],
+		["Art", "backgrounds and mockups made with Runway,\nsprites made with Sprite Fusion"],
 		["Engine", "Godot Engine\nMIT license"],
 	]:
-		_add_label(credit[0], 26, Color(0.75, 0.78, 0.9))
-		_add_label(credit[1], 18, Color(0.6, 0.63, 0.72))
+		_add_label(credit[0], 26, UiKit.LIGHT)
+		_add_label(credit[1], 18, UiKit.DIM)
 
 
 func _show_profile() -> void:
 	_add_back("main")
-	_add_label("SKATER NAME", 36, Color(0.75, 0.78, 0.9))
-	_add_label("3 letters + 2 numbers", 26, Color(0.6, 0.62, 0.72))
+	_add_label("SKATER NAME", 36, UiKit.LIGHT)
+	_add_label("3 letters + 2 numbers", 26, UiKit.DIM)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
@@ -388,20 +389,29 @@ func _show_profile() -> void:
 		column.add_theme_constant_override("separation", 8)
 		row.add_child(column)
 		var up := _make_button("", Vector2(84, 84), 36)
-		up.icon = Icons.triangle_texture(Vector2.UP, 36)
+		up.icon = Icons.triangle_texture(Vector2.UP, 36, UiKit.LIGHT)
+		_style_stepper(up)
 		up.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		# A wooden tile of a combination lock.
 		var letter := Label.new()
 		letter.text = Profile.skater_name[i]
 		letter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		letter.add_theme_font_size_override("font_size", 72)
-		letter.add_theme_color_override("font_color", Color(1, 0.85, 0.3))
+		letter.add_theme_font_override("font", UiKit.LOGO_FONT)
+		letter.add_theme_font_size_override("font_size", 64)
+		letter.add_theme_color_override("font_color", UiKit.INK)
+		letter.add_theme_constant_override("outline_size", 0)
+		var tile := PanelContainer.new()
+		tile.add_theme_stylebox_override("panel", UiKit.plank(UiKit.PAINTS.orange, "normal", "pad_bare"))
+		tile.custom_minimum_size = Vector2(84, 100)
+		tile.add_child(letter)
 		var down := _make_button("", Vector2(84, 84), 36)
-		down.icon = Icons.triangle_texture(Vector2.DOWN, 36)
+		down.icon = Icons.triangle_texture(Vector2.DOWN, 36, UiKit.LIGHT)
+		_style_stepper(down)
 		down.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		up.pressed.connect(_step_char.bind(i, 1, letter))
 		down.pressed.connect(_step_char.bind(i, -1, letter))
 		column.add_child(up)
-		column.add_child(letter)
+		column.add_child(tile)
 		column.add_child(down)
 	_add_skater_picker()
 	_add_board_picker()
@@ -417,11 +427,11 @@ const SLOT_TITLES := {skin = "SKIN", hair = "HAIR", hat = "HAT", shirt = "SHIRT"
 ## The skater: riding in the middle wearing the outfit, with a row of chips per slot under
 ## it; the picked one's name shows by the slot's title.
 func _add_skater_picker() -> void:
-	_add_label("SKATER", 36, Color(0.75, 0.78, 0.9))
+	_add_label("SKATER", 36, UiKit.LIGHT)
 	var preview := SkaterPreview.new()
 	preview.custom_minimum_size = Vector2(TABLE_WIDTH, 340)
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(preview)
+	list.add_child(_stage(preview))
 	for slot in Outfits.SLOTS:
 		_add_outfit_row(slot, preview)
 
@@ -432,7 +442,7 @@ func _add_outfit_row(slot: String, preview: SkaterPreview) -> void:
 	var title := Label.new()
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(0.6, 0.62, 0.72))
+	title.add_theme_color_override("font_color", UiKit.DIM)
 	list.add_child(title)
 	var name_of := func(id: String) -> String:
 		return "%s  ·  %s" % [SLOT_TITLES[slot], Outfits.find(slot, id).name.to_upper()]
@@ -478,25 +488,45 @@ func _item_chip(slot: String, item: Dictionary) -> Texture2D:
 	return ImageTexture.create_from_image(image)
 
 
-## The pressed look of a picker button: a yellow border.
+## A name stepper: a small dark plank (its light arrow is the icon).
+func _style_stepper(button: Button) -> void:
+	UiKit.paint_button(button, UiKit.PAINTS.brown, "plank_bare")
+
+
+## `content` in a shop window: dark wooden boards behind it.
+func _stage(content: Control) -> PanelContainer:
+	var stage := PanelContainer.new()
+	stage.add_theme_stylebox_override("panel", UiKit.backboard(0.55))
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(content)
+	return stage
+
+
+## A picker button: a small dark wooden token, and picked, lit up all around like a
+## bulb strip.
 func _style_picked(button: Button) -> void:
+	UiKit.paint_button(button, UiKit.PAINTS.brown, "plank_bare")
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		button.add_theme_color_override(c, UiKit.LIGHT)
 	for state in ["pressed", "hover_pressed"]:
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(1.0, 0.85, 0.3, 0.15)
-		style.border_color = Color(1.0, 0.85, 0.3)
-		style.set_border_width_all(4)
-		style.set_corner_radius_all(8)
+		style.bg_color = Color("6a4428")
+		style.border_color = UiKit.BULB
+		style.set_border_width_all(UiKit.PIXEL * 2)
+		style.set_corner_radius_all(UiKit.PIXEL * 2)
+		style.shadow_color = Color(UiKit.BULB, 0.55)
+		style.shadow_size = UiKit.PIXEL * 4
 		style.set_content_margin_all(12)
 		button.add_theme_stylebox_override(state, style)
 
 
 ## The board: spinning in the middle, with a row of choices for each part under it.
 func _add_board_picker() -> void:
-	_add_label("BOARD", 36, Color(0.75, 0.78, 0.9))
+	_add_label("BOARD", 36, UiKit.LIGHT)
 	var spinner := BoardSpinner.new()
 	spinner.custom_minimum_size = Vector2(TABLE_WIDTH, 300)
 	spinner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(spinner)
+	list.add_child(_stage(spinner))
 	var graphics := []
 	for g: Dictionary in Boards.GRAPHICS:
 		graphics.append({id = g.id, name = g.name, icon = _graphic_icon(g.id)})
@@ -513,7 +543,7 @@ func _add_board_picker() -> void:
 
 ## A title and one button per option of a board part; the picked one stays pressed.
 func _add_part_row(title: String, part: String, options: Array, picked: String, spinner: BoardSpinner) -> void:
-	_add_label(title, 26, Color(0.6, 0.62, 0.72))
+	_add_label(title, 26, UiKit.DIM)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
@@ -557,18 +587,32 @@ func _step_char(i: int, step: int, letter: Label) -> void:
 	letter.text = next
 
 
+## A line of text on the page; big ones (36 and up) are titles: a red plank tag with the
+## logo font.
 func _add_label(text: String, font_size: int, color: Color) -> void:
 	var label := Label.new()
 	label.text = text
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
-	list.add_child(label)
+	if font_size < 36:
+		list.add_child(label)
+		return
+	label.add_theme_font_override("font", UiKit.LOGO_FONT)
+	label.add_theme_color_override("font_color", UiKit.LIGHT)
+	label.add_theme_constant_override("outline_size", 10)
+	var tag := PanelContainer.new()
+	tag.add_theme_stylebox_override("panel", UiKit.plank(UiKit.PAINTS.red))
+	tag.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	tag.custom_minimum_size = Vector2(300, 0)
+	tag.add_child(label)
+	list.add_child(tag)
 
 
 func _add_button(text: String, action: Callable) -> Button:
 	var button := _make_button(text, BUTTON_SIZE, 40)
 	button.pressed.connect(action)
+	_paint_next(button)
 	list.add_child(button)
 	return button
 
@@ -579,6 +623,30 @@ func _make_button(text: String, min_size: Vector2, font_size: int) -> Button:
 	button.custom_minimum_size = min_size
 	button.add_theme_font_size_override("font_size", font_size)
 	return button
+
+
+## Paints `button` the next color of UiKit.ROTATION (starting over on each page).
+func _paint_next(button: Button) -> void:
+	UiKit.paint_button(button, UiKit.PAINTS[UiKit.ROTATION[_paint_turn % UiKit.ROTATION.size()]])
+	_paint_turn += 1
+
+
+## The menu's set: the Dusk Boardwalk drifting by behind the pages (dimmed so they read),
+## and the logo on a hanging sign.
+func _dress() -> void:
+	var dim: ColorRect = $Background
+	dim.color = Color(0.05, 0.02, 0.1, 0.45)
+	var backdrop := ParallaxBackdrop.new()
+	backdrop.drift = 18.0
+	add_child(backdrop)
+	move_child(backdrop, 0)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var title: Label = $Safe/Page/Title
+	var sign := HangingSign.new()
+	sign.text = title.text
+	title.get_parent().add_child(sign)
+	title.get_parent().move_child(sign, title.get_index())
+	title.queue_free()
 
 
 func _start(id: String) -> void:

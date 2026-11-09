@@ -15,7 +15,8 @@ signal tapped
 ## &"landed" or &"slammed").
 signal line_changed(tricks: PackedStringArray, ended: StringName)
 
-@export var radius := 56.0
+## Half the dial's size (px): the brass dial (UiKit.DIAL) at the UI's pixel size.
+@export var radius := UiKit.DIAL.get_width() * UiKit.PIXEL * 0.5
 ## Length of flow state, in real seconds.
 @export var duration := 5.0
 ## Game speed during flow state, as a fraction of the normal speed.
@@ -169,19 +170,39 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	# An analog brass dial: the needle sweeps over the arc as the meter fills (in flow it
+	# shows the time left), and the bulb under it lights up, pulsing, once it's full.
+	var p := float(UiKit.PIXEL)
 	var center := size * 0.5
 	var full := is_full() and not in_flow()
+	var dial := _dial_texture()
+	var top_left := ((center - dial.get_size() * 0.5) / p).floor() * p
+	draw_texture(dial, top_left)
+	var hub := top_left + Vector2(23, 23) * p  # The dial's hub, in its art.
+	var angle := lerpf(PI + 0.35, TAU - 0.35, clampf(_meter, 0.0, 1.0))
+	var tip := hub + Vector2.from_angle(angle) * 15.0 * p
+	for i in 16:
+		var at := (hub.lerp(tip, i / 15.0) / p).floor() * p
+		draw_rect(Rect2(at, Vector2(p, p)), Color("a8261c") if i > 9 else UiKit.INK)
+	draw_rect(Rect2(hub - Vector2(p, p), Vector2(p * 2, p * 2)), Color("6a4a1a"))
 	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 120.0)
-	draw_circle(center, radius, color.darkened(0.6 if not full else 0.2 - 0.15 * pulse))
-	draw_circle(center, radius - 10.0, Color(0, 0, 0, 0.35))
-	# The meter fills the ring clockwise from the top; in flow it shows the time left.
-	if _meter > 0.0:
-		draw_arc(center, radius - 5.0, -PI * 0.5, -PI * 0.5 + TAU * _meter,
-				maxi(4, ceili(64.0 * _meter)), color.lightened(0.4 if full or in_flow() else 0.0), 10.0, true)
-	draw_arc(center, radius, 0.0, TAU, 64, color, 3.0, true)
+	var bulb := hub + Vector2(-p, p * 15)  # On the bezel, under the name.
+	UiKit.draw_bulbs(self, bulb, bulb, 1, full or in_flow(), Time.get_ticks_msec() / 1000.0,
+			1.0 + pulse * 1.5 if full else 1.0)
 	var font := get_theme_default_font()
 	var text := "FLOW" if full or in_flow() else "%d%%" % floori(_meter * 100.0)
-	draw_string(font, Vector2(0.0, center.y + 9.0), text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 26)
+	draw_string(font, Vector2(0.0, hub.y + p * 11), text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 22, UiKit.INK)
 	if _line.size() > 1 and not in_flow():
-		draw_string(font, Vector2(0.0, center.y + 34.0), "x%d" % multiplier(), HORIZONTAL_ALIGNMENT_CENTER,
-				size.x, 18, color.lightened(0.5))
+		var at := Vector2(0.0, top_left.y - p)
+		draw_string_outline(font, at, "x%d" % multiplier(), HORIZONTAL_ALIGNMENT_CENTER, size.x, 26, 8, UiKit.INK)
+		draw_string(font, at, "x%d" % multiplier(), HORIZONTAL_ALIGNMENT_CENTER, size.x, 26, UiKit.BULB)
+
+
+static var _dial: Texture2D
+
+
+## The dial's art at the UI's pixel size (made once).
+static func _dial_texture() -> Texture2D:
+	if _dial == null:
+		_dial = ImageTexture.create_from_image(UiKit.scaled(UiKit.DIAL.get_image()))
+	return _dial

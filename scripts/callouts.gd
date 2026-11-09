@@ -3,7 +3,7 @@ extends Node2D
 ## Runner, so it shares its coordinates. Bursts pop in, float up and fade; sustained
 ## ones (manuals, grinds) follow the board and shake until end_sustained().
 
-@export var font: Font = preload("res://assets/fonts/Graffiti.ttf")
+@export var font: Font = UiKit.LOGO_FONT
 ## Manuals, grinds and slams; pop tricks use pop_font_size.
 @export var font_size := 34
 @export var pop_font_size := 28

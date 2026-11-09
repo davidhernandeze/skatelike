@@ -24,10 +24,9 @@ const LAYOUTS := {
 	&"air": [&"trick", &"lock_tilt"],
 	&"balance": [&"balance_pop", &"balance"],
 }
-const PANEL_COLOR := Color(0.07, 0.08, 0.12, 0.82)
-const TEXT_COLOR := Color(0.88, 0.9, 0.96)
-const GOAL_COLOR := Color(1.0, 0.85, 0.3)
-const DONE_COLOR := Color(0.5, 0.9, 0.5)
+const TEXT_COLOR := UiKit.LIGHT
+const GOAL_COLOR := UiKit.BULB
+const DONE_COLOR := Color("a6d96a")
 ## Size of the miniature control panel (px).
 const MINI_SIZE := Vector2(230.0, 150.0)
 
@@ -254,16 +253,19 @@ func _finger_spot() -> Vector2:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), PANEL_COLOR)
-	var font := ThemeDB.fallback_font
+	# A dark wooden board, like a shop's notice board.
+	draw_style_box(UiKit.backboard(0.4), Rect2(Vector2.ZERO, size))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(UiKit.INK, 0.35))
+	draw_rect(Rect2(Vector2.ZERO, size), UiKit.INK, false, UiKit.PIXEL * 2)
+	var font := UiKit.UI_FONT
 	for entry in _mini_pads():
 		var action: StringName = entry[0]
 		var r: Rect2 = entry[1]
 		var pad: Pad = pads.get(action)
 		var color: Color = pad.color if pad else Color(0.5, 0.5, 0.6)
 		var lit := _pressing and action == _finger_pad
-		draw_rect(r, color.darkened(0.1 if lit else 0.5))
-		draw_rect(r, color, false, 2.0)
+		draw_rect(r, color.darkened(0.0 if lit else 0.25))  # A tiny painted signboard.
+		draw_rect(r, UiKit.INK, false, UiKit.PIXEL)
 		# The pad's label, short: its first part, a line at a time.
 		var label: String = (pad.label if pad and pad.label != "" else String(action).to_upper()).get_slice("  ·", 0)
 		var lines := label.split("\n")

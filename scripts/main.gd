@@ -61,6 +61,8 @@ var _level: Dictionary
 
 
 func _ready() -> void:
+	theme = UiKit.theme()
+	$Layout/ControlPanel.add_theme_stylebox_override("panel", UiKit.backboard(0.45))
 	Engine.time_scale = game_speed
 	_level = Levels.get_level(Levels.current)
 	runner.configure(_level)  # Every run starts from the beginning: a slam resets it.
@@ -75,6 +77,13 @@ func _ready() -> void:
 	skater_view.apply_profile()
 	runner.add_child(skater_view)
 	runner.move_child(skater_view, 1)
+	# The Dusk Boardwalk behind the level, scrolling with it.
+	var backdrop := ParallaxBackdrop.new()
+	backdrop.runner = runner
+	var play_area := $Layout/PlayArea
+	play_area.add_child(backdrop)
+	play_area.move_child(backdrop, 0)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Pausing stops the game (everything under Layout, and the flow button) while Main
 	# keeps the ghost room fed and the pause screen keeps taking input.
 	get_tree().paused = false  # A reload can come from a paused game (e.g. a timer).
@@ -138,11 +147,19 @@ func _ready() -> void:
 	# pause is connected: a copy takes the connections along.)
 	var restart_button := menu_button.duplicate() as Button
 	restart_button.name = "Restart"
-	restart_button.icon = Icons.restart_texture(32)
+	restart_button.icon = UiKit.icon("restart")
 	menu_button.add_sibling(restart_button)
 	restart_button.pressed.connect(restart)
-	menu_button.icon = Icons.pause_texture(32)
+	menu_button.icon = UiKit.icon("pause")
 	menu_button.pressed.connect(pause)
+	# The top bar: small painted planks with burned-in icons, the score in the logo font.
+	stats_button.text = ""
+	stats_button.icon = UiKit.icon("stats")
+	for button: Button in [menu_button, restart_button, stats_button]:
+		_hud_plank(button)
+	score_label.add_theme_font_override("font", UiKit.LOGO_FONT)
+	score_label.add_theme_font_size_override("font_size", 48)
+	score_label.add_theme_color_override("font_color", UiKit.BULB)
 	stats_button.button_pressed = show_stats
 	stats_button.toggled.connect(_show_stats)
 	_show_stats(show_stats)
@@ -241,13 +258,24 @@ func _add_lesson(spec: Dictionary) -> void:
 	tips.custom_minimum_size = Vector2(170, 72)
 	tips.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	tips.add_theme_font_size_override("font_size", 32)
-	tips.icon = Icons.box_texture(40, show_tips)
+	tips.icon = Icons.box_texture(40, show_tips, UiKit.INK)
+	_hud_plank(tips)
 	tips.toggled.connect(func(on: bool) -> void:
 		show_tips = on
 		lesson.visible = on
-		tips.icon = Icons.box_texture(40, on))
+		tips.icon = Icons.box_texture(40, on, UiKit.INK))
 	_frame_below_lesson()
 	stats_button.get_parent().add_child(tips)  # Last in the top bar: the right edge.
+
+
+## A top bar button: a small painted plank without screws (pushed in, for toggles that
+## are on), burned-in lettering: it reads on the bright sky and the dark sea alike.
+func _hud_plank(button: Button) -> void:
+	UiKit.paint_button(button, UiKit.PAINTS.orange, "plank_bare")
+	button.custom_minimum_size = Vector2(maxf(button.custom_minimum_size.x, 84.0), 72.0)
+	button.focus_mode = Control.FOCUS_NONE
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		button.add_theme_color_override(c, UiKit.INK)
 
 
 ## While the explanation panel shows, the view keeps the ground (with room for a pop) and

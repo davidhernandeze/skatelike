@@ -1,0 +1,36 @@
+{
+  "processing": "tools/make_ui_kit.gd crops the sprites and cuts the icon sheet into 16 and 28 texel masks; UiKit draws everything at 3 screen px per texel and repaints the cream paint (UiKit.paint, scripts/paint.gdshader)",
+  "plank": {
+    "file": "source/plank_sf.png",
+    "generator": "Sprite Fusion generate (size 64, 12 results, 15 credits), result 0",
+    "request_id": "req_8cb7f4af-2914-4493-8b4d-eef1c6e78145",
+    "prompt": "A single wide horizontal wooden sign plank seen straight from the front, filling the whole image width, painted in plain smooth off-white cream paint, old and gently worn by years of use: the paint softly faded and thinned, worn through to warm brown wood only along the rounded edges and corners, the wood grain faintly visible under the paint. Clean surface: no dirt, no stains, no grime, no spots, no splatters, no scratches, no cracks. A dark brown one-pixel outline, a small dark iron screw head in each of the four corners. Flat front view, no text, no shadow, transparent background, crisp clean pixel art with tidy pixel clusters, no noise."
+  },
+  "pad": {
+    "file": "source/pad_sf.png",
+    "generator": "the same Sprite Fusion request, result 10",
+    "request_id": "req_8cb7f4af-2914-4493-8b4d-eef1c6e78145"
+  },
+  "backboard": {
+    "file": "source/backboard_sf.png",
+    "generator": "Sprite Fusion generate (size 64), result 4",
+    "request_id": "req_90dbae92-0aba-42f7-a633-a9987d8d60d2",
+    "prompt": "A square panel of old dark stained wooden boards seen straight from the front, filling the whole image edge to edge, vertical boards with dark gaps between them, visible wood grain and knots, scuffed and scratched by heavy use, a few nail heads, deep warm brown, no text, no frame, crisp pixel art, seamless texture."
+  },
+  "dial": {
+    "file": "source/dial_sf.png",
+    "generator": "Sprite Fusion generate (size 48), result 10",
+    "request_id": "req_ccec9c5a-8b15-4d1a-b289-d06c65d5075c",
+    "prompt": "A round analog brass pressure gauge dial seen straight from the front: a thick polished brass bezel ring with a few scratches, a cream colored face with dark tick marks around the edge from left to right, no needle, no numbers, no text, transparent background, crisp pixel art."
+  },
+  "icons": {
+    "file": "source/icons_runway.png",
+    "generator": "Runway gpt_image_2 medium 1920:1088, task fc4793b6-addc-4ab9-8d6c-f5cd4f6aea3d",
+    "prompt": "A sprite sheet of 18 game interface icons for a pixel art skateboarding game with a wooden surf-shop signboard style, arranged in a neat grid of 6 columns and 3 rows on a perfectly flat plain solid white background, each icon well separated with lots of white space around it. Every icon is a bold simple silhouette in a single very dark brown color, like a symbol burned into wood with a hot iron, thick shapes, readable at small size, no outlines of other colors, no shading, no text. Row 1: a skateboard seen from the side tilted up at the tail (tail pop), a sneaker with speed lines (push), a skateboard seen from the side tilted up at the nose (nose pop), a pause symbol (two vertical bars), a circular restart arrow, a play triangle. Row 2: a house (home), a left pointing arrow (back), a person bust (profile), a star (credits), a gap jump ramp with a skater flying over (gaps), a traffic cone (practice). Row 3: a check mark, a trophy (scoreboard), a bar chart (stats), a lock, a globe with signal waves (online), a lightning bolt in a circle (flow)."
+  },
+  "concepts": "Runway medium mockups of the main, Gaps, profile and pause screens (tasks 105da3d7, 18116124, ba0de7bc, 149c41cf), used as the reference for the layout ideas: hanging chained signs, painted plank buttons in turn, a lever toggle, combination-lock name tiles, lit picker tokens, a brass FLOW dial",
+  "fonts": {
+    "ui": "Lilita One (OFL, assets/fonts/OFL-lilitaone.txt)",
+    "logo": "Knewave (OFL, assets/fonts/OFL-knewave.txt)"
+  }
+}
