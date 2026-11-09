@@ -45,16 +45,33 @@ func _ready() -> void:
 
 
 func _button(text: String, icon_name: String, paint: Color, pressed: Signal) -> Button:
-	var icon := UiKit.icon(icon_name, UiKit.INK, true)
 	var button := Button.new()
-	button.text = text
-	button.icon = icon
-	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-	button.expand_icon = false
 	button.focus_mode = Control.FOCUS_NONE
 	button.custom_minimum_size = Vector2(196, 220)
-	button.add_theme_font_size_override("font_size", 30)
 	UiKit.paint_button(button, paint, "pad")
+	# The icon above its name, the two together in the middle of the pad (a Button's own
+	# icon would sit on its top edge).
+	var content := VBoxContainer.new()
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 12)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(content)
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var icon := TextureRect.new()
+	icon.texture = UiKit.icon(icon_name, UiKit.INK, true)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(icon)
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 30)
+	label.add_theme_color_override("font_color", UiKit.INK)  # Burned in, as on the buttons.
+	label.add_theme_constant_override("outline_size", 0)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(label)
+	# Pushed in: the content goes down a texel with the plank.
+	button.button_down.connect(func() -> void: content.position.y = UiKit.PIXEL)
+	button.button_up.connect(func() -> void: content.position.y = 0.0)
 	button.pressed.connect(func() -> void: pressed.emit())
 	return button

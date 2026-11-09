@@ -2,10 +2,10 @@
 
 A portrait mobile skate game prototype made with Godot 4.7. The ground scrolls past a board
 that stays at a fixed spot on screen. The board keeps its speed on flat ground; you push to
-go faster, pop over steps and off
-ledges, and catch every trick before landing. Everything is drawn in code with basic shapes.
-The only assets are the graffiti font used for trick callouts and the sound effects (see
-Credits).
+go faster, pop over steps and off ledges, and catch every trick before landing. It's pixel
+art in a "Dusk Boardwalk" look (see Look): a cutout-rig skater you can dress, a 3D board
+drawn as pixel art, wooden signboard pads and menus. Sprites come from Sprite Fusion,
+backgrounds from Runway, fonts and sounds from open sources (see Credits).
 
 Live at **https://skatelike.com** (web export, served from the servi2 infra repo).
 
@@ -26,7 +26,7 @@ played with the one finger still down from holding CATCH. New taps on these pads
 
 | Pad | Action |
 |---|---|
-| POP (top row) | Slide the finger up into it to pop out: the nose for nose tricks (nose manual, nosegrind, noseslide), the tail for tail tricks and 50-50s. A normal pop: catch it. |
+| POP (top row) | Slide the finger up into it, then lift, to pop out: the nose for nose tricks (nose manual, nosegrind, noseslide), the tail for tail tricks and 50-50s. Sliding sideways on it before lifting aims a 180. A normal pop: catch it. In a manual, a second finger on POP does the same. |
 | BALANCE (bottom row, where CATCH was) | Slide the held finger left or right to keep the balance needle (the meter above the board) up. It falling off an end slams. |
 | (lift the finger) | Ends the trick cleanly: a manual puts the wheels down, a grind drops off the rail (no catch needed), a slide keeps rolling along the ledge top. |
 
@@ -275,7 +275,7 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   - Reaching the end of a rail or ledge drops you off, no catch needed. A ledge that runs down onto the floor turns the
     slide into a manual.
   - Grinding again before touching the floor counts as a double grind.
-- **Callouts.** Landed tricks pop up next to the board in the graffiti font: "ollie!",
+- **Callouts.** Landed tricks pop up next to the board in the sign font (Knewave): "ollie!",
   "nollie!", "kickflip!", "nollie heelflip!". Manuals, grinds and slides ("5-0 grind!", "tailslide!") stay up and
   shake for as long as they last. Slams show a red "slam!" on the spot where the rider fell.
 - **Flow.** The round FLOW button above the pads is a meter. Landed tricks fill it, and
@@ -404,9 +404,10 @@ The main menu has these pages, in order:
   with Online on).
 - **Practice:** the lessons first, numbered, then every other level without
   `challenge = true` under Free ride.
-- **Profile:** your skater name, 3 letters and 2 numbers (default SKT01). Set it with the
-  ▲/▼ buttons over each character. It's saved in `user://profile.cfg` and shown on the main
-  page.
+- **Profile:** your skater name, 3 letters and 2 numbers (default SKT01), set with the
+  ▲/▼ buttons over each character; your skater (a preview riding in place, and a picker
+  per outfit slot); your board (a spinning preview, and pickers for the deck graphic,
+  grip and wheels). It's all saved in `user://profile.cfg`.
 
 The title stays at the top, and pages scroll below it. Each page starts with an outlined
 **Back** button. Leaving a level returns to the page it was started from.
@@ -447,8 +448,8 @@ further down.
 
 ## Online: ghosts
 
-With the switch on, everyone riding the same challenge shows up as a faded blue board with
-their skater name. Your own board gets a name tag too. It's purely visual: no competition
+With the switch on, everyone riding the same challenge shows up as a faded, tinted skater
+(the same rig, in the default outfit: outfits aren't sent online) with their skater name. Your own board gets a name tag too. It's purely visual: no competition
 or collisions. Under the switch, the menu shows the connection state (connecting, online,
 or retrying).
 
@@ -488,6 +489,53 @@ overhangs) and `challenge = true`.
 
 The random terrain generator (steps and slopes) still exists. Give a level `random = N` to use it.
 
+## Look
+
+Art direction "Dusk Boardwalk": a pixel-art beach boardwalk at blue-hour dusk, with
+wooden surf-shop signboards for the controls and menus. The world is drawn at
+`Runner.PIXEL` (3) screen px per art pixel; the skater at `Runner.skater_pixel` (5), so
+they stand about 1.8 boards tall.
+
+- **The board** (`BoardView`) is a small 3D model rendered into a low-res viewport and
+  drawn back as pixel art (stepped toon shading, 1 texel outline). Flips, shuvits, body
+  turns and slides are real 3D turns from `Runner.board_motion()`, so the grip shows on
+  top and the deck graphic underneath; the wheels roll with the speed and keep spinning
+  in the air. `Runner.board_pose()` is the same pose seen flat, for anything drawn
+  without the view.
+- **The skater** (`SkaterView`) is a 2D cutout rig: the Sprite Fusion base sprite
+  (`assets/characters/skater.png`) cut into 10 pieces by a label map and joints
+  (`tools/make_skater_rig.gd`, `assets/characters/rig/`), posed every frame from
+  `Runner.skater_pose()`: the hip drops and the torso leans with the crouch, the legs
+  reach the feet with two-bone IK, the arms come up for balance, and the whole rig turns
+  with the body (narrowing through a 180, mirrored with the back to the camera). Turned
+  pieces are drawn RotSprite style, so they stay hard pixel art.
+- **Outfits** (`Outfits`, saved in `Profile`): skin, hair, hat, shirt, pants and shoe
+  slots. Items have the base's shape, so every pose works with no new animation: a layer
+  recolored by a [dark, mid, light] color ramp. Hair, hats, the hoodie and the long sleeve
+  are cut from Sprite Fusion edits of the base (`tools/sf_item.sh`,
+  `tools/extract_item.gd`).
+- **Board parts** (`Boards`): deck graphics (`assets/boards`, fitted with
+  `tools/fit_deck_graphic.gd`), grip and wheel colors.
+- **The ground** is tiled with boardwalk concrete (`assets/tiles`: a fill inside the
+  ground and an edge strip along its surface). A floor with another floor under it is a
+  slab instead (see Floors over floors).
+- **The backdrop** (`ParallaxBackdrop`): sky, sea and town layers (`assets/backgrounds`,
+  made with Runway, `tools/make_backgrounds.gd`) scrolling at their own speeds behind the
+  level, and drifting by themselves behind the menus.
+- **The UI** (`UiKit`, its theme on every screen): clean old cream-painted planks
+  repainted per color (on the CPU, or `scripts/paint.gdshader` for the pads), small
+  screwless planks for small buttons, dark backboards behind panels, burned-in (INK) or
+  lit icons (`assets/ui/icons`), strips of warm bulbs. The pads follow one rule: a
+  gradient where the touch position matters (pop and push: bright top = strong; catch:
+  tail red to nose orange across), flat paint otherwise. FLOW is a brass dial whose
+  needle fills with the meter; the Online switch is a wooden lever. The logo is a neon
+  sign (`NeonSign`, glowing and flickering on), and the pause title a hanging sign
+  (`HangingSign`). `tools/make_ui_kit.gd` rebuilds the UI sprites from their sources.
+- **Fonts:** Lilita One for the interface, Knewave for signs, titles, pad lettering and
+  callouts, Tilt Neon for the neon sign.
+- Where every generated asset came from (prompts, tools, edits) is in the `sources.json`
+  next to it; the raw sources sit in `source/` folders that Godot ignores (`.gdignore`).
+
 ## Project layout
 
 ```
@@ -500,10 +548,22 @@ scenes/
   main.tscn          play area + HUD + control panel
 scripts/
   runner.gd          the game: terrain, platforms, rails, board physics, tricks, drawing
-                     (the board and a placeholder skater that pushes, tucks, turns and falls)
+                     (the ground; the board and skater poses the views draw, with a flat
+                     board and a stick figure as fallbacks)
+  board_view.gd      the board as a 3D model drawn as pixel art (BoardView)
+  skater_view.gd     the skater as a cutout rig drawn as pixel art (SkaterView)
+  outfits.gd         outfit items per slot, recolored by ramps (Outfits)
+  boards.gd          board parts: deck graphics, grips, wheels (Boards)
+  skater_preview.gd  the profile page's skater, riding in place
+  board_spinner.gd   the profile page's board, turning and flipping
+  ui_kit.gd          the wooden UI: planks, paints, backboards, icons, bulbs, theme (UiKit)
+  paint.gdshader     repaints a plank's cream on the pads (flat or a gradient)
+  parallax_backdrop.gd  sky, sea and town layers behind the level and the menus
+  neon_sign.gd       the logo as a neon sign
+  hanging_sign.gd    a wooden sign hanging on chains (the pause title)
   main.gd            wires control pads → runner, HUD messages, level flow
   control_panel.gd   multi-touch hit testing, ground/air pad layouts
-  pad.gd             a tappable pad (flash, dimming, pie indicator, split label)
+  pad.gd             a tappable pad: painted signboard, bulbs, icon, arrows, aim, push dial
   trick_pad.gd       four-sector trick pad that follows the pop side
   callouts.gd        trick onomatopoeias next to the board
   flow_button.gd     flow meter, lines and slow-motion flow state
@@ -511,25 +571,38 @@ scripts/
   balance_meter.gd   the balance needle drawn above the board
   sfx.gd             board sounds: pops, catches, landings, slams, rolling and grinding loops
   lesson.gd          a lesson's explanation panel, input demo and goal
-  pause_menu.gd      the pause screen (Home / Play)
+  pause_menu.gd      the pause screen (Home / Restart / Play)
   icons.gd           UI symbols (arrows, menu bars, check) drawn as shapes: the web build's
                      font has no glyphs for them and no system fonts to fall back on
   balance_pad.gd     the balance needle for manuals and grinds, steered by the held finger
   levels.gd          level definitions
   menu.gd            menu pages: main, Gaps (challenges), Practice, Profile, Credits
-  toggle.gd          big on/off switch (the Online ghosts switch)
-  profile.gd         skater name (3 letters + 2 numbers) and the online switch, saved on the device
+  toggle.gd          a wooden lever on/off switch (the Online ghosts switch)
+  profile.gd         skater name, online switch, outfit and board, saved on the device
   online.gd          online ghosts: WebSocket client and headless relay server (autoload)
   scoreboard.gd      challenge scoreboards from the server/ API, with an offline queue (autoload)
   ghosts.gd          draws other riders' skaters, boards and the name tags
   safe_area.gd       keeps UI clear of notches and home indicators
-assets/fonts/
-  Graffiti.ttf       callout font, from dafont.com/graffiti.font (author and license not stated)
+assets/
+  characters/        the base skater, its rig (label map, joints), outfit items, sources
+  boards/            deck graphics
+  tiles/             ground fill and edge
+  backgrounds/       sky, sea and town layers
+  ui/                planks, pads, backboard, dial, icons
+  fonts/             Lilita One, Knewave, Tilt Neon (with their OFL licenses)
+  sfx/               sound effects
 docs/
   online.md          online server handoff: running, TLS/URL, protocol
 server/              scoreboard API (Node + Postgres), see server/README.md
 tools/
   android-release.sh build (and upload) the signed APK
+  make_skater_rig.gd cut the base skater into the rig's pieces (label map, joints)
+  sf_item.sh         ask Sprite Fusion for an outfit item drawn on the base
+  extract_item.gd    cut an item out of a Sprite Fusion edit, aligned to the rig
+  fit_deck_graphic.gd fit a generated deck underside to the board's deck graphic
+  make_ui_kit.gd     build the UI planks, pads and icons from their sources
+  make_backgrounds.gd build the backdrop layers from their sources
+tests/               headless tests of the game's behaviour (see tests/README.md)
 skatepark.blend      unused 3D sketch
 ```
 
@@ -547,6 +620,12 @@ From the command line:
 
 ```sh
 godot --path .
+```
+
+Tests (headless, about two minutes; see `tests/README.md`):
+
+```sh
+tests/run.sh
 ```
 
 ## Web export and deploy
@@ -583,7 +662,12 @@ previous one. It restores `export_presets.cfg` when it's done. Server-side steps
 Sound effects are cut from ["Skateboarding Tricks"](https://freesound.org/people/SoundBiterSFX/sounds/746602/)
 by SoundBiterSFX, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The
 clips in `assets/sfx/` (pop, landings, catch, slam, and the rolling and grinding loops,
-crossfaded to repeat) are trimmed, faded, mixed to mono and normalized from it. The trick
-callout font is "Graffiti" from [dafont.com](https://www.dafont.com/graffiti.font) (in
-`assets/fonts/`): the font names no author and dafont states no license (it's a 1996
-Fontographer font), so its terms of use are unknown. The menu's Credits page lists both.
+crossfaded to repeat) are trimmed, faded, mixed to mono and normalized from it.
+
+Fonts, all under the [SIL Open Font License 1.1](https://openfontlicense.org) (license
+files in `assets/fonts/`): Lilita One by Juan Montoreano (interface), Knewave by Tyler
+Finck (signs and callouts), Tilt Neon by Andy Clymer (the neon sign).
+
+Art: backgrounds and mockups made with Runway, sprites (skater, outfit items, deck
+graphics, tiles, UI planks) with Sprite Fusion; provenance in each `sources.json`. The
+menu's Credits page lists all of these.

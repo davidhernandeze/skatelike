@@ -367,7 +367,8 @@ func _show_credits() -> void:
 	_add_label("Credits", 40, UiKit.BULB)
 	for credit in [
 		["Sounds", "\"Skateboarding Tricks\" by SoundBiterSFX\nfreesound.org/s/746602\nCC BY 4.0, cut and mixed for the game"],
-		["Logo and sign font", "Knewave by Tyler Finck\nSIL Open Font License 1.1"],
+		["Neon sign font", "Tilt Neon by Andy Clymer\nSIL Open Font License 1.1"],
+		["Sign font", "Knewave by Tyler Finck\nSIL Open Font License 1.1"],
 		["Interface font", "Lilita One by Juan Montoreano\nSIL Open Font License 1.1"],
 		["Art", "backgrounds and mockups made with Runway,\nsprites made with Sprite Fusion"],
 		["Engine", "Godot Engine\nMIT license"],
@@ -632,7 +633,7 @@ func _paint_next(button: Button) -> void:
 
 
 ## The menu's set: the Dusk Boardwalk drifting by behind the pages (dimmed so they read),
-## and the logo on a hanging sign.
+## and the name on a neon sign lighting it up.
 func _dress() -> void:
 	var dim: ColorRect = $Background
 	dim.color = Color(0.05, 0.02, 0.1, 0.45)
@@ -642,7 +643,7 @@ func _dress() -> void:
 	move_child(backdrop, 0)
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var title: Label = $Safe/Page/Title
-	var sign := HangingSign.new()
+	var sign := NeonSign.new()
 	sign.text = title.text
 	title.get_parent().add_child(sign)
 	title.get_parent().move_child(sign, title.get_index())

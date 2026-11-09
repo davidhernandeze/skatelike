@@ -113,7 +113,7 @@ static func plank(color: Color, state := "normal", sprite := "plank") -> StyleBo
 	style.texture_margin_bottom = m.w * PIXEL
 	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
 	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
-	var side := 4 if sprite.ends_with("_bare") else 10  # Clear of the screws.
+	var side := 4 if sprite.ends_with("_bare") else 14  # Clear of the screws, with room.
 	style.content_margin_left = side * PIXEL
 	style.content_margin_right = side * PIXEL
 	style.content_margin_top = (3 if state == "pressed" else 2) * PIXEL
