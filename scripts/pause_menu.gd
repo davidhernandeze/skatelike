@@ -39,7 +39,7 @@ func _ready() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
 	column.add_child(row)
-	row.add_child(_button("HOME", "home", UiKit.PAINTS.red, home))
+	row.add_child(_button("MENU", "home", UiKit.PAINTS.red, home))
 	row.add_child(_button("RESTART", "restart", UiKit.PAINTS.orange, restart))
 	row.add_child(_button("PLAY", "play", UiKit.PAINTS.green, play))
 

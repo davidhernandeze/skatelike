@@ -157,8 +157,7 @@ func _on_line_event(air: String, balance: String, _wheels_down: bool) -> void:
 	for name: String in [air, balance]:
 		if name == "":
 			continue
-		if (match_by == "contains" and name.contains(trick)) or (match_by == "starts" and name.begins_with(trick)) \
-				or (match_by == "end" and (name == trick or name.ends_with(" " + trick))):
+		if Goal.trick_matches(name, trick, match_by):
 			_landed += 1
 	if _landed >= _goal.get("count", 1):
 		_reach()

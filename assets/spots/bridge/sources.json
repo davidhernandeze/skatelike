@@ -1,0 +1,99 @@
+{
+  "icon": {
+    "sprite": "icon.png",
+    "drawn": "MapView: the Bridge spot's icon, floating over the map (its shadow drawn in code)",
+    "operation": "Sprite Fusion generate (size 48, count 1, 3 credits)",
+    "source": "../source/bridge_icon/s48/result_0.png",
+    "prompt": "A small standalone game icon of an old arched stone city bridge with three arches and a low parapet, seen from a slight three-quarter angle above, a self-contained object that reads on its own as 'bridge'. Chunky, readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left, warm stone colors. Transparent background, no ground, no water, no shadow, no text, nothing else.",
+    "request_id": "req_e7db7dfe-b159-477f-98bc-f67f16d97aa3"
+  },
+  "_about": "Bridge's asset group (SpotArt). tools/make_spot_assets.gd makes fill, edge and props from assets/spots/source/bridge_set (see make.json there); tools/make_backgrounds.gd makes backdrop/ (sky, river:key, near:key).",
+  "fill": {
+    "file": "fill.png",
+    "source": "../source/bridge_set/fill/result_0.png",
+    "use": "the ground's fill: wrap mended, dusk tint",
+    "operation": "Sprite Fusion generate (size 32, count 1, 3 credits)",
+    "prompt": "Seamless tileable pixel art texture, perfectly tiling on all four edges: the side wall of an old city bridge, warm sandstone masonry of staggered rectangular stone blocks with thin dark mortar lines, a few weathered stones, seen straight on, clean hard pixels, three-tone shading, no outline around the edges, no border, no frame, flat even lighting, fills the whole square edge to edge, Game Boy Advance era game art, limited palette.",
+    "request_id": "req_12fa8cae-56ad-4f5d-833b-057091ba36ee"
+  },
+  "edge": {
+    "file": "edge.png",
+    "source": "../source/bridge_set/edge/result_0.png",
+    "use": "the strip along the surface: rows 0-10 (curb, shadow line, a mortar band), dusk tint",
+    "operation": "Sprite Fusion generate (size 32, count 1, 3 credits)",
+    "prompt": "Seamless horizontally tileable ground edge tile for a side-scrolling skate game, the top of an old stone city bridge seen from the side: along the top a flat warm grey stone curb with a thin light highlight on its top row and a dark shadow line beneath it, then warm sandstone masonry blocks with thin mortar lines filling the rest down to the bottom, no vertical seams, no border, clean hard pixels, flat even lighting, Game Boy Advance era game art.",
+    "request_id": "req_4750978f-f19e-4f3b-ba89-fedfae7086b0"
+  },
+  "props": {
+    "lamp": {
+      "file": "props/lamp.png",
+      "source": "../source/bridge_set/lamp/result_3.png",
+      "operation": "Sprite Fusion style-reference with the base skater (9 sprites, 15 credits)",
+      "prompt": "An old ornate black cast-iron street lamp post with one warm glowing lantern on top, seen exactly from the side, as a background prop for a 2D side-scrolling skateboarding game set on an old city bridge at dusk. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the lamp post is about twice as tall as the reference figure), transparent background, no ground, no shadow.",
+      "request_id": "req_8d983b22-ab1f-476a-a37e-558ff8c59a18"
+    },
+    "bench": {
+      "file": "props/bench.png",
+      "source": "../source/bridge_set/bench/result_0.png",
+      "operation": "Sprite Fusion style-reference with the base skater (9 sprites, 15 credits)",
+      "prompt": "A city street furniture prop seen exactly from the side, as a background prop for a 2D side-scrolling skateboarding game set on an old city bridge at dusk: an old park bench with dark green painted wooden slats and black cast-iron legs and armrests, pure side view. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the bench seat is at the reference figure's knee height), transparent background, no ground, no shadow.",
+      "request_id": "req_7bd63f71-1b3d-495c-88ea-2b8ad6cd0607"
+    },
+    "car_beige": {
+      "file": "props/car_beige.png",
+      "source": "../source/experiment_1/car/result_0.png",
+      "operation": "Sprite Fusion style-reference with the base skater (9 sprites, 15 credits)",
+      "prompt": "A parked compact city car seen exactly from the side (pure side view, facing right), as a background prop for a 2D side-scrolling skateboarding game set on an old city bridge at dusk. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the car is about as tall as the reference figure's chest), transparent background, no ground, no shadow.",
+      "request_id": "req_623da3aa-d454-45cb-8ed8-4687ceadce89"
+    },
+    "van": {
+      "file": "props/van.png",
+      "source": "../source/experiment_1/car/result_6.png",
+      "operation": "Sprite Fusion style-reference with the base skater (9 sprites, 15 credits)",
+      "prompt": "A parked compact city car seen exactly from the side (pure side view, facing right), as a background prop for a 2D side-scrolling skateboarding game set on an old city bridge at dusk. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the car is about as tall as the reference figure's chest), transparent background, no ground, no shadow.",
+      "request_id": "req_623da3aa-d454-45cb-8ed8-4687ceadce89"
+    },
+    "car_olive": {
+      "file": "props/car_olive.png",
+      "source": "../source/experiment_1/car/result_5.png",
+      "operation": "Sprite Fusion style-reference with the base skater (9 sprites, 15 credits)",
+      "prompt": "A parked compact city car seen exactly from the side (pure side view, facing right), as a background prop for a 2D side-scrolling skateboarding game set on an old city bridge at dusk. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the car is about as tall as the reference figure's chest), transparent background, no ground, no shadow.",
+      "request_id": "req_623da3aa-d454-45cb-8ed8-4687ceadce89"
+    },
+    "car_orange": {
+      "file": "props/car_orange.png",
+      "source": "../source/experiment_1/car/result_7.png",
+      "operation": "Sprite Fusion style-reference with the base skater (9 sprites, 15 credits)",
+      "prompt": "A parked compact city car seen exactly from the side (pure side view, facing right), as a background prop for a 2D side-scrolling skateboarding game set on an old city bridge at dusk. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the car is about as tall as the reference figure's chest), transparent background, no ground, no shadow.",
+      "request_id": "req_623da3aa-d454-45cb-8ed8-4687ceadce89"
+    }
+  },
+  "backdrop": {
+    "generator": "Runway gpt_image_2, quality high, 2560:1440 (20 credits each)",
+    "processing": "tools/make_backgrounds.gd -- assets/spots/source/bridge_set/backdrop assets/spots/bridge/backdrop sky river:key near:key",
+    "master": {
+      "file": "../source/bridge_set/backdrop/master.png",
+      "task": "9e486dfa-1821-4135-b179-e28964f1d292",
+      "reference": "assets/backgrounds/source/master.png (Dusk Boardwalk)",
+      "prompt": "Reference 1 sets the exact art style to keep: crisp hand-made pixel art at blue-hour dusk, purple and orange sky, warm lights, clean pixel clusters, no blur. Create a new wide horizontal side-scrolling parallax background panorama for a 2D pixel art skateboarding game, seen straight from the side, for a level called BRIDGE set on an old city bridge: from the top, a deep dusk sky with soft pixel clouds and the last sunset glow near the horizon; then a calm wide river with light reflections, a big old arched stone bridge with several arches crossing the river in the middle distance with small lamps along its parapet, and an old town skyline across the river (church tower, rooftops, warm lit windows); then in front, along the near embankment, a row of old stone and brick town houses, a cafe with an awning, trees, iron street lamps with warm glow, all ending at the bottom edge on a stone balustrade along the riverside walk. No foreground floor, no people, no skater, no cars, no readable text, crisp pixel art, no blur. The left and right edges must continue seamlessly so the image can tile horizontally."
+    },
+    "sky": {
+      "file": "../source/bridge_set/backdrop/sky.png",
+      "task": "425c5586-5bb6-4e47-b0cc-fe4093f9c640",
+      "reference": "master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the sky, filling the whole image: the deep dusk sky gradient from dark blue at the top to purple, pink and orange near the bottom, the soft pixel clouds and a few stars, the sunset glow low in the image. Remove the bridge, the river, the town skyline, the houses, trees, lamps and the balustrade: where they were, the sky gradient and the sunset glow simply continue down to the bottom edge."
+    },
+    "river": {
+      "file": "../source/bridge_set/backdrop/river.png",
+      "task": "55cea1d6-5ef0-4914-a648-69236e188414",
+      "reference": "master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the river and what is across it: the old town skyline with its church tower and lit windows, the big old arched stone bridge with its lamps, at exactly the same height and position as in reference 1, and the calm river with its light reflections continuing down to the bottom edge across the whole width, behind where the near houses and trees were. Everything above the skyline and the bridge (the sky and clouds) is one perfectly flat solid magenta color #FF00FF, no gradient. No near houses, no cafe, no trees, no street lamps, no balustrade."
+    },
+    "near": {
+      "file": "../source/bridge_set/backdrop/near.png",
+      "task": "0ff8a8ce-14cf-493b-9282-1c3f2354c0ab",
+      "reference": "master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the near embankment: the old stone and brick town houses, the cafe with its striped awning, the trees, the iron street lamps with their glow, the stone balustrade and the stone wall along the bottom, at exactly the same positions and size as in reference 1. Everything else, the sky, the clouds, the bridge, the town skyline and the river, including the gaps between the houses and the openings of the balustrade, is one perfectly flat solid magenta color #FF00FF, no gradient, no glow on it."
+    }
+  }
+}

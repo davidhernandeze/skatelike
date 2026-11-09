@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_e7db7dfe-b159-477f-98bc-f67f16d97aa3","operation":"generate","credits":{"reserved":3,"remaining":207}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"2e73b91f-1b41-481e-91bd-584b65915d04","type":"image","createdAt":"2026-11-09T18:12:24.500Z","updatedAt":"2026-11-09T18:12:24.500Z","prompt":"A small standalone game icon of an old arched stone city bridge with three arches and a low parapet, seen from a slight three-quarter angle above, a self-contained object that reads on its own as 'bridge'. Chunky, readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left, warm stone colors. Transparent background, no ground, no water, no shadow, no text, nothing else.","width":48,"height":48,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/2e73b91f-1b41-481e-91bd-584b65915d04/image.png?v=1794247944500","style":"default","tags":["skatelike","spot-icon"],"contentType":"image/png","batchId":"aa58798c-520f-44f0-9d47-da2f992b49aa","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":207}}
+

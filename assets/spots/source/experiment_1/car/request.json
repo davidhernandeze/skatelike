@@ -1,0 +1,13 @@
+{
+  "operation": "style-reference",
+  "prompt": "A parked compact city car seen exactly from the side (pure side view, facing right), as a background prop for a 2D side-scrolling skateboarding game set on an old city bridge at dusk. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the car is about as tall as the reference figure's chest), transparent background, no ground, no shadow.",
+  "inputs": [
+    "../../../../characters/skater.png"
+  ],
+  "size": 80,
+  "tags": [
+    "skatelike",
+    "experiment",
+    "prop"
+  ]
+}

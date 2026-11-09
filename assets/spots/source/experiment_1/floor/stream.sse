@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_ae08d354-e67e-4b52-a81a-b9383b7bb907","operation":"generate","credits":{"reserved":3,"remaining":231}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"f29a2b9b-0352-44fd-acdd-eb19d75e8de8","type":"image","createdAt":"2026-11-09T17:48:05.090Z","updatedAt":"2026-11-09T17:48:05.090Z","prompt":"Seamless tileable pixel art texture, perfectly tiling on all four edges: the weathered concrete deck of an old city bridge seen straight on from the side as a wall surface, grey concrete with subtle expansion joints and a few small cracks, clean hard pixels, no outline around the edges, no border, no frame, flat even lighting, fills the whole square, Game Boy Advance era game art, limited palette.","width":64,"height":64,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/f29a2b9b-0352-44fd-acdd-eb19d75e8de8/image.png?v=1794246485090","style":"default","tags":["skatelike","experiment","tile"],"contentType":"image/png","batchId":"afbc41a0-1e7f-4607-9723-6c60f1074f9f","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":231}}
+

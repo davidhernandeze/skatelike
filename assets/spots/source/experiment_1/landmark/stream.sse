@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_1edb6c27-ac98-4bc5-8d7f-9a4bf0dfbeb4","operation":"generate","credits":{"reserved":3,"remaining":228}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"d2e389ca-a604-4b18-a585-e4745534678e","type":"image","createdAt":"2026-11-09T17:48:23.012Z","updatedAt":"2026-11-09T17:48:23.012Z","prompt":"A small landmark icon for a hand-drawn paper city map lying on a table: an old arched stone bridge over a river, seen from above at a slight angle, drawn like an illustration printed on paper, soft muted ink colors, light paper tones, clean, no text, transparent background.","width":48,"height":48,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/d2e389ca-a604-4b18-a585-e4745534678e/image.png?v=1794246503012","style":"default","tags":["skatelike","experiment","map"],"contentType":"image/png","batchId":"7a584be8-cf50-4939-9fbe-89e68bb17c38","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":228}}
+

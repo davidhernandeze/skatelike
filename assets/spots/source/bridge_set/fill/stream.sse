@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_12fa8cae-56ad-4f5d-833b-057091ba36ee","operation":"generate","credits":{"reserved":3,"remaining":204}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"5bbdbe14-752e-421a-8187-8b6a8303a2f5","type":"image","createdAt":"2026-11-09T18:25:33.258Z","updatedAt":"2026-11-09T18:25:33.258Z","prompt":"Seamless tileable pixel art texture, perfectly tiling on all four edges: the side wall of an old city bridge, warm sandstone masonry of staggered rectangular stone blocks with thin dark mortar lines, a few weathered stones, seen straight on, clean hard pixels, three-tone shading, no outline around the edges, no border, no frame, flat even lighting, fills the whole square edge to edge, Game Boy Advance era game art, limited palette.","width":32,"height":32,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/5bbdbe14-752e-421a-8187-8b6a8303a2f5/image.png?v=1794248733258","style":"default","tags":["skatelike","bridge","tile"],"contentType":"image/png","batchId":"8329241b-34e8-4969-afa1-549e30396798","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":204}}
+

@@ -1,0 +1,11 @@
+{
+  "operation": "generate",
+  "prompt": "Seamless tileable pixel art texture, perfectly tiling on all four edges: the weathered concrete deck of an old city bridge seen straight on from the side as a wall surface, grey concrete with subtle expansion joints and a few small cracks, clean hard pixels, no outline around the edges, no border, no frame, flat even lighting, fills the whole square, Game Boy Advance era game art, limited palette.",
+  "size": 64,
+  "count": 1,
+  "tags": [
+    "skatelike",
+    "experiment",
+    "tile"
+  ]
+}

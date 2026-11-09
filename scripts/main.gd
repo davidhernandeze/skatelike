@@ -58,6 +58,8 @@ var _actions_since := PackedFloat64Array()
 var _send_left := 0.0
 ## The level being played.
 var _level: Dictionary
+## A spot's goals being watched this run (Goal).
+var _goals: Array[Goal] = []
 
 
 func _ready() -> void:
@@ -83,9 +85,10 @@ func _ready() -> void:
 	skater_view.apply_profile()
 	runner.add_child(skater_view)
 	runner.move_child(skater_view, 1)
-	# The Dusk Boardwalk behind the level, scrolling with it.
+	# The Dusk Boardwalk behind the level (or its spot's own backdrop), scrolling with it.
 	var backdrop := ParallaxBackdrop.new()
 	backdrop.runner = runner
+	backdrop.use_art(_level.get("art", ""))
 	var play_area := $Layout/PlayArea
 	play_area.add_child(backdrop)
 	play_area.move_child(backdrop, 0)
@@ -189,6 +192,7 @@ func _ready() -> void:
 	meter.pad = balance_pad
 	runner.add_child(meter)
 	runner.landed.connect(func(style: String) -> void: last_input.text += "\n" + style)
+	_watch_spot_goals()
 	runner.level_cleared.connect(_on_level_cleared)
 	runner.game_over.connect(_on_game_over)
 	_layout_world()
@@ -466,6 +470,26 @@ func _on_balance_changed(mode: StringName) -> void:
 func _on_caught(catch_index: int, angle_deg: float, apex_ms: int) -> void:
 	var what: String = ["catch %+.0f°" % angle_deg, "timed catch"][catch_index - 1]
 	last_input.text += "\n%s  apex %+d ms" % [what, apex_ms]
+
+
+## Riding a spot's stage (started from the map, Spots.current): its goals are watched,
+## and each one met is recorded with its reward (Spots.meet), said on screen and kept for
+## the map to show.
+func _watch_spot_goals() -> void:
+	var spot := Spots.find(Spots.current)
+	if spot.is_empty() or spot.get("level", "") != _level.id:
+		Spots.current = ""
+		return
+	for spec: Dictionary in spot.goals:
+		var goal := Goal.new(spec)
+		goal.watch(runner, flow)
+		goal.reached.connect(func() -> void:
+			var given := Spots.meet(spot.id, spec.id)
+			if given.is_empty():
+				return
+			Spots.news.append_array(given)
+			callouts.show_callout(given[0].to_lower() + "!", true))
+		_goals.append(goal)
 
 
 func _on_level_cleared() -> void:

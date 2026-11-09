@@ -5,7 +5,11 @@ extends SceneTree
 ## shrinks it to the world's pixel grid (one texel per Runner.PIXEL screen px) with a
 ## cubic resize, the look the skaters have.
 ##
-##   godot --headless --path . -s tools/make_backgrounds.gd
+##   godot --headless --path . -s tools/make_backgrounds.gd [-- <source dir> <out dir> <layer>[:key] ...]
+##
+## With no arguments: the Dusk Boardwalk (sky, sea:key, town:key). A spot's backdrop
+## (see Spots.backdrop) passes its own folders and layers, back to front; `:key` keys out
+## the flat magenta.
 
 const SOURCE := "res://assets/backgrounds/source/"
 const OUT := "res://assets/backgrounds/"
@@ -17,17 +21,28 @@ const LAYERS := {sky = false, sea = true, town = true}
 
 
 func _initialize() -> void:
-	for name: String in LAYERS:
-		var image := Image.load_from_file(ProjectSettings.globalize_path(SOURCE + name + ".png"))
+	var source := SOURCE
+	var out := OUT
+	var layers := LAYERS
+	var args := OS.get_cmdline_user_args()
+	if args.size() >= 3:
+		source = "res://" + args[0].trim_prefix("res://").trim_suffix("/") + "/"
+		out = "res://" + args[1].trim_prefix("res://").trim_suffix("/") + "/"
+		layers = {}
+		for layer in args.slice(2):
+			layers[layer.trim_suffix(":key")] = layer.ends_with(":key")
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
+	for name: String in layers:
+		var image := Image.load_from_file(ProjectSettings.globalize_path(source + name + ".png"))
 		image.convert(Image.FORMAT_RGBA8)
-		if LAYERS[name]:
+		if layers[name]:
 			_key(image)
 		image = _tiled(image)
 		_premultiply(image, true)
 		var width := roundi(image.get_width() * float(HEIGHT) / image.get_height())
 		image.resize(width, HEIGHT, Image.INTERPOLATE_CUBIC)
 		_premultiply(image, false)
-		image.save_png(ProjectSettings.globalize_path(OUT + name + ".png"))
+		image.save_png(ProjectSettings.globalize_path(out + name + ".png"))
 		print(name, " ", image.get_size())
 	quit()
 

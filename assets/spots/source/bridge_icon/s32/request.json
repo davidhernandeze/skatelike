@@ -1,0 +1,10 @@
+{
+  "operation": "generate",
+  "prompt": "A small standalone game icon of an old arched stone city bridge with three arches and a low parapet, seen from a slight three-quarter angle above, a self-contained object that reads on its own as 'bridge'. Chunky, readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left, warm stone colors. Transparent background, no ground, no water, no shadow, no text, nothing else.",
+  "size": 32,
+  "count": 1,
+  "tags": [
+    "skatelike",
+    "spot-icon"
+  ]
+}

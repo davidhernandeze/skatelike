@@ -21,8 +21,9 @@ extends RefCounted
 ## two points (height above the piece's extended surface line), e.g. sloping across a gap.
 ## Platform points can lie over a gap too: where there's no floor below, the platform
 ## is drawn as an overhang.
-## `challenge = true` lists the level under Gaps (with its best progress) instead of
-## Practice.
+## `challenge = true` marks the old challenge levels (scoreboards, online ghosts): no
+## longer in the menu, kept for testing until the spots replace them.
+## `spot = true` makes it a spot's stage (Spots): played from the map, not under Practice.
 ## `max_fall = px` sets the hardest landing (Runner.max_fall; 0 = no limit).
 ## `lesson = {title, text, demo, goal}` makes it a practice lesson (see Lesson): listed
 ## first under Practice, with an explanation panel and a goal it needs to clear.
@@ -32,9 +33,49 @@ extends RefCounted
 ## carry on from it. `goal = px` puts the finish flag that far into the piece instead of
 ## after the last one: reached rolling past it either way, on that floor.
 ## `random` adds that many randomly generated platforms afterwards.
+## `art = "<name>"` gives the stage a spot's asset group (SpotArt): its ground, backdrop
+## and props. `props = [[name, px], ...]` on a floor piece stands those props on it (their
+## middle px from its start); `start_props` does it on the start platform (px from its
+## end: negative is before it). Props are only drawn (see-through): nothing rides on them.
+## `obstacles = [[name, px], ...]` stands props that are in the way (Runner._add_obstacles):
+## solid, running into one slams, its top can be landed on. Put a kicker before them.
 ## A flat goal platform with the finish flag always follows the last obstacle.
 
+## How high the small kickers (three 20 px pieces at 15°, 25° and 30°) rise.
+const KICKER_RISE := 20 * (0.26795 + 0.46631 + 0.57735)
+
 const LIST := [
+	# Spot stages (Spots): played from the map, not listed under Practice.
+	# Bridge, the first spot: beginner jumps and obstacles, all clearable with ollies and
+	# a push now and then (the rail and the box are there to try, not needed).
+	{id = "bridge", name = "Bridge", spot = true, start_y = 0.6, art = "bridge",
+		start_props = [["lamp", -900], ["bench", -560], ["lamp", -150]], segments = [
+		Vector2(300, 0),
+		{width = 700, gap = 140, mark = "gap1", props = [["bench", 380]]},
+		{width = 700, step = -50, mark = "step_up", props = [["lamp", 120], ["lamp", 600]]},
+		{width = 800, step = 80, mark = "drop", props = [["bench", 420]]},
+		{width = 1500, rail = Vector3(400, 500, 50), mark = "rail", props = [["lamp", 150], ["lamp", 1250]]},
+		{width = 700, gap = 180, mark = "gap2", props = [["bench", 350]]},
+		# A small kicker (15°, 25°, 30°) over a gap, landing back at the floor's height.
+		Vector3(20, 0, -20 * tan(deg_to_rad(15.0))),
+		Vector3(20, 0, -20 * tan(deg_to_rad(25.0))),
+		{width = 20, rise = -20 * tan(deg_to_rad(30.0)), mark = "kicker"},
+		{width = 900, gap = 260, step = KICKER_RISE, mark = "landing", props = [["lamp", 520]]},
+		{width = 1300, platform = [Vector2(400, 40), Vector2(800, 40)], mark = "box",
+			props = [["bench", 1050]]},
+		# A parked car after a kicker: jump it, or land on it and ride off the end.
+		Vector3(20, 0, -20 * tan(deg_to_rad(15.0))),
+		Vector3(20, 0, -20 * tan(deg_to_rad(25.0))),
+		{width = 20, rise = -20 * tan(deg_to_rad(30.0)), mark = "car_kicker"},
+		{width = 1100, step = KICKER_RISE, obstacles = [["car_beige", 360]], mark = "car",
+			props = [["lamp", 900]]},
+		# Then a van, the same way.
+		Vector3(20, 0, -20 * tan(deg_to_rad(15.0))),
+		Vector3(20, 0, -20 * tan(deg_to_rad(25.0))),
+		{width = 20, rise = -20 * tan(deg_to_rad(30.0)), mark = "van_kicker"},
+		{width = 1100, step = KICKER_RISE, obstacles = [["van", 360]], mark = "van"},
+		Vector2(500, 0),
+	]},
 	# Lessons: one mechanic each, in order.
 	{id = "lesson_push", name = "Pushing", start_y = 0.8, lesson = {
 		title = "1. Pushing",

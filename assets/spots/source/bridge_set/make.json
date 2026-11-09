@@ -1,0 +1,15 @@
+{
+  "out": "res://assets/spots/bridge/",
+  "tint": [0.6, 0.52, 0.68],
+  "prop_tint": [0.88, 0.82, 0.92],
+  "fill": {"from": "fill/result_0.png"},
+  "edge": {"from": "edge/result_0.png", "rows": [0, 11]},
+  "props": {
+    "lamp": {"from": "lamp/result_3.png"},
+    "bench": {"from": "bench/result_0.png"},
+    "car_beige": {"from": "../experiment_1/car/result_0.png"},
+    "van": {"from": "../experiment_1/car/result_6.png"},
+    "car_olive": {"from": "../experiment_1/car/result_5.png"},
+    "car_orange": {"from": "../experiment_1/car/result_7.png"}
+  }
+}

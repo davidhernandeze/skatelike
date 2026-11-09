@@ -40,6 +40,8 @@ const FLING_HOLD := 0.08
 ## Fastest glide (px/s).
 const FLING_MAX := 6000.0
 var _fling_v := 0.0
+## What a page pins outside the scroll (the map's Back), freed when the page changes.
+var _pinned: Control = null
 ## Scroll position as a float while gliding (the container's is whole pixels).
 var _fling_pos := 0.0
 ## The finger's speed while dragging, and when it last moved (s).
@@ -138,12 +140,19 @@ func _button_at(at: Vector2) -> Button:
 
 
 func _show(new_page: String) -> void:
+	if page == "map":
+		Spots.save_progress()  # Leaving the map: where it was scrolled to.
 	page = new_page
 	_fling_v = 0.0
 	_paint_turn = 0
 	for child in list.get_children():
 		child.queue_free()
+	if _pinned:
+		_pinned.queue_free()
+		_pinned = null
 	match page:
+		"map":
+			_show_map()
 		"practice":
 			_show_levels(false)
 		"challenges":
@@ -157,7 +166,7 @@ func _show(new_page: String) -> void:
 		_:
 			page = "main"
 			_add_label("skater " + Profile.skater_name, 32, UiKit.LIGHT)
-			for entry in [["Gaps", "gaps", "challenges"], ["Practice", "practice", "practice"],
+			for entry in [["Map", "gaps", "map"], ["Practice", "practice", "practice"],
 					["Profile", "profile", "profile"], ["Credits", "star", "credits"]]:
 				var button := _add_button(entry[0], _show.bind(entry[2]))
 				button.icon = UiKit.icon(entry[1])
@@ -177,7 +186,7 @@ func _show_levels(challenges: bool) -> void:
 		_add_label("Lessons" if lessons else "Free ride", 26, HEADER_COLOR)
 		var n := 0
 		for level in Levels.LIST:
-			if level.get("challenge", false) or level.has("lesson") != lessons:
+			if level.get("challenge", false) or level.get("spot", false) or level.has("lesson") != lessons:
 				continue
 			n += 1
 			var button := _add_button(("%d. %s" % [n, level.name]) if lessons else level.name, _start.bind(level.id))
@@ -245,13 +254,14 @@ func _cell(text: String, width: float, font_size: int, color: Color,
 
 
 ## The Back button: a small red plank with a left arrow, at the top left of the page.
-func _add_back(target: String) -> void:
+func _add_back(target: String, parent: Control = null) -> Button:
 	var back := _make_button("Back", Vector2(200, 72), 32)
 	back.icon = UiKit.icon("back")
 	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	UiKit.paint_button(back, UiKit.PAINTS.red)
 	back.pressed.connect(_show.bind(target))
-	list.add_child(back)
+	(parent if parent else list).add_child(back)
+	return back
 
 
 ## A challenge's scoreboard: who cleared it, in the order they first did.
@@ -671,6 +681,53 @@ func _dress() -> void:
 	title.queue_free()
 
 
+## The city map (MapView), opened where it was last scrolled to (at first, the bottom:
+## the map grows up), with what the last run gave, if anything, under it. Back stays
+## pinned above the map (outside the scroll), at the map's left edge.
+func _show_map() -> void:
+	var map := MapView.new()
+	map.spot_pressed.connect(_start_spot)
+	list.add_child(map)
+	_pinned = HBoxContainer.new()
+	_pinned.name = "PinnedBack"
+	_pinned.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_pinned.custom_minimum_size.x = map.custom_minimum_size.x
+	scroll.get_parent().add_child(_pinned)
+	scroll.get_parent().move_child(_pinned, scroll.get_index())
+	_add_back("main", _pinned)
+	# Under the map, where it opens: what the last run gave.
+	if not Spots.news.is_empty():
+		_add_label("\n".join(Spots.news), 30, UiKit.BULB)
+		Spots.news.clear()
+	var bar := scroll.get_v_scroll_bar()
+	if not bar.value_changed.is_connected(_on_scrolled):
+		bar.value_changed.connect(_on_scrolled)
+	# Once laid out: back where it was, or at the bottom.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if page != "map":
+		return
+	Spots.load_progress()
+	scroll.scroll_vertical = int(bar.max_value) if Spots.map_scroll < 0 else Spots.map_scroll
+
+
+func _on_scrolled(value: float) -> void:
+	if page == "map":
+		Spots.set_map_scroll(int(value))
+
+
+## Rides a spot's stage (from the map), its goals watched (Main).
+func _start_spot(id: String) -> void:
+	var spot := Spots.find(id)
+	if spot.get("level", "") == "" or not Spots.is_unlocked(id):
+		return
+	Spots.save_progress()
+	Levels.current = spot.level
+	Spots.current = id
+	get_tree().change_scene_to_file(GAME_SCENE)
+
+
 func _start(id: String) -> void:
+	Spots.current = ""  # Not a spot's run.
 	Levels.current = id
 	get_tree().change_scene_to_file(GAME_SCENE)

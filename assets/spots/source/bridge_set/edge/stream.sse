@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_4750978f-f19e-4f3b-ba89-fedfae7086b0","operation":"generate","credits":{"reserved":3,"remaining":201}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"7d77adab-6051-488f-ae9a-fd2f8e34b0c9","type":"image","createdAt":"2026-11-09T18:25:44.997Z","updatedAt":"2026-11-09T18:25:44.997Z","prompt":"Seamless horizontally tileable ground edge tile for a side-scrolling skate game, the top of an old stone city bridge seen from the side: along the top a flat warm grey stone curb with a thin light highlight on its top row and a dark shadow line beneath it, then warm sandstone masonry blocks with thin mortar lines filling the rest down to the bottom, no vertical seams, no border, clean hard pixels, flat even lighting, Game Boy Advance era game art.","width":32,"height":32,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/7d77adab-6051-488f-ae9a-fd2f8e34b0c9/image.png?v=1794248744997","style":"default","tags":["skatelike","bridge","tile"],"contentType":"image/png","batchId":"d78d9947-e49b-4a4d-bdf3-2981742f69ff","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":201}}
+

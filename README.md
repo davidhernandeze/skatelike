@@ -150,7 +150,9 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
     high as a normal pop and spins at `balance_pop_spin` (60%).
 - **Catch or slam.** Every pop, and every roll-off of a floor ledge (the nose tips down),
   must be caught before landing, and the board angle must match the ground within
-  `land_tolerance` (15°). Rolling off a platform and hopping over a crest need no catch,
+  `land_tolerance` (15°). Rolling off a platform, off a small step down (`small_drop`,
+  90 px or less, onto floor right past the edge: the board drops flat, and pushing off it
+  just ends the push) and hopping over a crest need no catch,
   but the landing rules still hold: the board keeps the angle it left at, so if that's
   more than 15° off the ground it lands on, catch to fix it. Leaving a grind (off the end
   of a rail or slide, or lifting the finger) needs nothing: the board levels out to the
@@ -318,7 +320,8 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   inputs (pop strength, catches, landings, slam reasons). Hidden by default; the choice is
   kept across restarts.
 - **Slams.** Other causes: hitting a wall, a transition that's too steep, rolling off a ledge
-  while pushing, or stopping.
+  while pushing, running into an obstacle (a parked car, see Spots and the map), or
+  stopping.
   - On a slam the board goes loose for `slam_duration` (1 s) before the restart: it keeps
     the velocity it had (on a landing, the speed it came down at), tumbles, bounces off
     and slides along surfaces, and stops against steps. The view follows it.
@@ -393,6 +396,7 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 
 | Level | What it's for |
 |---|---|
+| Bridge | The first spot (from the map): beginner gaps, a step up, a drop, a rail, a kicker over a gap, a box |
 | Downhill cruise | 30,000 px at 0.7°, where gravity about makes up for rolling resistance and drag: speed holds (3.3 to about 5 m/s over the minute), so you can manual the whole way |
 | Flat | Pushing and riding |
 | Push | Uphill and downhill slopes |
@@ -412,10 +416,7 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 
 The main menu has these pages, in order:
 
-- **Gaps** (the challenges): the **Online** switch (see below), then a table of the
-  levels with `challenge = true` (Sketchy #1 to #4, Vert). Each row has the play button,
-  your best progress (a check once cleared), and **Top**, the challenge's scoreboard (only
-  with Online on).
+- **Map:** the city map (see Spots and the map below).
 - **Practice:** the lessons first, numbered, then every other level without
   `challenge = true` under Free ride.
 - **Profile:** your skater name, 3 letters and 2 numbers (default SKT01), set with the
@@ -441,6 +442,54 @@ in `user://progress.cfg`: on a phone or desktop that's the app's data folder; in
 browser it's the page's IndexedDB (`/userfs`), which Godot syncs whenever a file is
 written. They survive restarts and page reloads, but not clearing site data or a private
 window.
+
+## Spots and the map
+
+The game is moving to a map of spots, each a stage with goals and rewards
+(`scripts/spots.gd`). The old challenges (Gaps: Sketchy #1 to #4, Vert) are out of the
+menu, kept as levels for testing until spots replace them.
+
+- **The map** (`MapView`) is a paper map lying on a wooden table, pixel art made in
+  code: a clean sheet, a river under each spot, and a dotted route leading up through the
+  spots in order. Each spot's icon is a standalone low-res sprite (it reads on its own,
+  not drawn to match the paper) that floats over the sheet: drawn on top, with its shadow
+  on the paper and a slow one-pixel rise and fall. Sections stack upward as spots are
+  added, so the map grows up. It opens where it was last scrolled to (the bottom, at
+  first), with what the last run gave under it; Back stays pinned above the map.
+- **Spots** unlock in order: the first is open, the next when a reward unlocks it. On the
+  map: a bobbing pointer on the spot to ride next, a check once cleared, a lock while
+  locked. A spot entry has its stage (a level with `spot = true`, not listed under
+  Practice), its place on the map (section and position) and icon (`landmark`), and its goals.
+- **Goals** (`Goal`) are watched during a spot's run: `clear` (reach the flag; required,
+  it clears the spot), `trick` (land one, by name), `line` (a line of n tricks), `speed`.
+  Each can carry a **reward**; the only kind so far is `{unlock = spot id}`. Adding "land a
+  kickflip" with a reward is one entry in the spot's `goals`.
+- **Bridge** is the first spot: beginner jumps and obstacles (gaps, a step up, a drop, a
+  rail, a kicker over a gap, a box). Clearing it unlocks **School**, which isn't on the map
+  yet (coming soon).
+- **Each spot has its own look**, an asset group (`SpotArt`, `assets/spots/<spot>/`) its
+  level picks with `art`: the ground's fill and edge strip, a parallax backdrop matching
+  its name, and props standing on the floor, drawn at the world's pixel size behind the
+  skater:
+  - **scenery** (`props` on a floor piece, `start_props`: lamps, benches) is only drawn,
+    a little see-through (`prop_alpha`) so it reads as not in the way;
+  - **obstacles** (`obstacles` on a floor piece: parked cars) are solid. Their outline
+    (the top of each pixel column of the sprite) is a hitbox: the board running into it
+    slams. Their top (hood, roof, trunk) is a platform to land on, ride and grind, off
+    the end of which the board drops with no catch. A level puts a kicker before each.
+  Ramps, rails and boxes stay drawn by the runner, stretched to fit. Bridge's:
+  sandstone bridge masonry with a stone curb, a riverside old town at dusk (an arched
+  bridge across the river, embankment houses, a cafe), iron lamps, benches, and two
+  parked cars after kickers (a small car, then a van) to jump or ride over. The art is generated (Sprite Fusion for the tiles
+  and props, with the base skater as the style reference; Runway for the backdrop) and
+  processed by `tools/make_spot_assets.gd` (tiles mended to wrap, props trimmed to stand
+  on their bottom row, a dusk tint, from the set's `make.json`) and
+  `tools/make_backgrounds.gd` (the backdrop layers). Sources and prompts: each
+  `sources.json`.
+- Progress (goals met, spots unlocked) and the map's scroll are saved in
+  `user://spots.cfg` (`SKATELIKE_SPOTS_SAVE` overrides it, for tests).
+- Online scoreboards and ghosts aren't on spots yet: they still belong to the old
+  challenges.
 
 ## Online: scoreboards
 
@@ -547,11 +596,15 @@ they stand about 1.8 boards tall.
 - **Board parts** (`Boards`): deck graphics (`assets/boards`, fitted with
   `tools/fit_deck_graphic.gd`), grip and wheel colors.
 - **The ground** is tiled with boardwalk concrete (`assets/tiles`: a fill inside the
-  ground and an edge strip along its surface). A floor with another floor under it is a
+  ground and an edge strip along its surface), or a spot's own tiles (see Spots and the
+  map). A floor with another floor under it is a
   slab instead (see Floors over floors).
 - **The backdrop** (`ParallaxBackdrop`): sky, sea and town layers (`assets/backgrounds`,
   made with Runway, `tools/make_backgrounds.gd`) scrolling at their own speeds behind the
-  level, and drifting by themselves behind the menus.
+  level, and drifting by themselves behind the menus. A spot's stage has its own layers.
+  Each layer moves up and down at its own speed with the camera, so every layer but the
+  front one carries on below its bottom edge (its bottom band repeated mirrored: sky
+  glow, water); on Bridge the front one's bottom is open, so the river shows in pits.
 - **The UI** (`UiKit`, its theme on every screen): clean old cream-painted planks
   repainted per color (on the CPU, or `scripts/paint.gdshader` for the pads), small
   screwless planks for small buttons, dark backboards behind panels, burned-in (INK) or
@@ -606,7 +659,11 @@ scripts/
                      font has no glyphs for them and no system fonts to fall back on
   balance_pad.gd     the balance needle for manuals and grinds, steered by the held finger
   levels.gd          level definitions
-  menu.gd            menu pages: main, Gaps (challenges), Practice, Profile, Credits
+  spots.gd           the map's spots: stages, goals, rewards, unlocks, saved progress (Spots)
+  goal.gd            a spot's goal watched during a run (Goal)
+  map_view.gd        the city map: a paper map on a table, spots and their markers (MapView)
+  spot_art.gd        a spot's asset group: ground tiles, props, backdrop layers (SpotArt)
+  menu.gd            menu pages: main, Map, Practice, Profile, Credits
   toggle.gd          a wooden lever on/off switch (the Online ghosts switch)
   profile.gd         skater name, online switch, outfit and board, saved on the device
   online.gd          online ghosts: WebSocket client and headless relay server (autoload)
@@ -616,6 +673,8 @@ scripts/
 assets/
   characters/        the base skater, its rig (label map, joints), outfit items, sources
   boards/            deck graphics
+  spots/             per spot: its map icon and asset group (fill, edge, props/, backdrop/);
+                     source/ holds the generated originals (not exported)
   tiles/             ground fill and edge
   backgrounds/       sky, sea and town layers
   ui/                planks, pads, backboard, dial, icons
@@ -631,7 +690,8 @@ tools/
   extract_item.gd    cut an item out of a Sprite Fusion edit, aligned to the rig
   fit_deck_graphic.gd fit a generated deck underside to the board's deck graphic
   make_ui_kit.gd     build the UI planks, pads and icons from their sources
-  make_backgrounds.gd build the backdrop layers from their sources
+  make_backgrounds.gd build the backdrop layers from their sources (the boardwalk's, or a spot's)
+  make_spot_assets.gd build a spot's tiles and props from its generated set (make.json)
 tests/               headless tests of the game's behaviour (see tests/README.md)
 skatepark.blend      unused 3D sketch
 ```

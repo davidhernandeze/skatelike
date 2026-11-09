@@ -100,6 +100,11 @@ class Seg:
 	## Number of stairs drawn on this floor piece (0 = a plain surface). Stairs can't
 	## be ridden or landed on: ollie them or grind their handrail.
 	var stairs := 0
+	## Props standing on it (drawn only): [texture, px from its start] each.
+	var props: Array = []
+	## Obstacles standing on it (see _add_obstacles): {texture, at (px from its start to
+	## the middle), profile (height in px over the floor per texel column)} each.
+	var obstacles: Array = []
 
 	## Makes `after` the piece following this one.
 	func link(after: Seg) -> void:
@@ -151,6 +156,10 @@ class Seg:
 ## Nose-down spin when the wheels leave a floor ledge at drop_ref_speed (rad/s); the
 ## board has to be caught. Platforms and rail ends drop off flat, no catch needed.
 @export var drop_spin := 2.5
+## A step down this high or less (px), onto floor right after the edge, isn't a ledge to
+## catch: the board drops off it flat like off a platform, no catch needed, and pushing
+## off it doesn't slam (the push just ends).
+@export var small_drop := 90.0
 ## Spin factor = drop_ref_speed / speed: slow roll-offs tip more, fast ones fly flatter (m/s).
 @export var drop_ref_speed := 3.3
 ## Clamp for the speed factor.
@@ -357,6 +366,16 @@ class Seg:
 @export var fill_texture: Texture2D = preload("res://assets/tiles/concrete_fill.png")
 @export var edge_texture: Texture2D = preload("res://assets/tiles/concrete_edge.png")
 @export var tile_pixel := PIXEL
+## The stage's asset group (SpotArt), "" for the default look: set by configure() from
+## the level's `art`. Its props and obstacles are drawn at the world's pixel size (PIXEL);
+## props (only scenery) see-through by prop_alpha, so they read as not in the way.
+var art := ""
+@export var prop_alpha := 0.7
+## How far into an obstacle's outline (px) the board can get before it hits it.
+@export var obstacle_tolerance := 6.0
+## An obstacle's top that can be landed on: its columns at least this share of its height
+## (the hood, the roof, the trunk; not the bumpers' rounded ends).
+@export var obstacle_top_share := 0.4
 @export var truck_color := Color(0.7, 0.72, 0.78)
 @export var wheel_color := Color(0.95, 0.95, 0.95)
 ## The skater (Sprite Fusion, see assets/characters), drawn `skater_pixel` screen px per
@@ -582,6 +601,10 @@ var _push_peak := 0.0
 var _push_queue: Array[float] = []
 
 var _segs: Array[Seg] = []
+## The level's props on the start platform ([name, px from its end] each) and the prop
+## textures loaded so far (name -> texture), see `art`.
+var _start_props: Array = []
+var _prop_textures := {}
 var _ground_texture: Texture2D
 ## Screen px one repeat of the ground texture covers.
 var _ground_repeat := Vector2.ONE
@@ -625,14 +648,7 @@ var marks := {}
 
 func _ready() -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	if fill_texture:
-		_ground_texture = _pixel_texture(fill_texture)
-		_ground_repeat = fill_texture.get_size() * tile_pixel
-	else:
-		_ground_texture = _make_ground_texture()
-		_ground_repeat = Vector2(ground_tile, ground_tile)
-	if edge_texture:
-		_edge_strip = _pixel_texture(edge_texture)
+	_apply_skin()
 	if skater_texture:
 		_skater = _pixel_texture(skater_texture)
 		_skater_feet = _feet_anchor(skater_texture.get_image())
@@ -640,6 +656,17 @@ func _ready() -> void:
 			_push_sheet = _pixel_texture(skater_push)
 			_push_anchors = _push_frame_anchors(skater_texture.get_image(), skater_push.get_image(),
 					skater_push_frames)
+
+
+## The ground's textures from fill_texture and edge_texture (or the generated concrete).
+func _apply_skin() -> void:
+	if fill_texture:
+		_ground_texture = _pixel_texture(fill_texture)
+		_ground_repeat = fill_texture.get_size() * tile_pixel
+	else:
+		_ground_texture = _make_ground_texture()
+		_ground_repeat = Vector2(ground_tile, ground_tile)
+	_edge_strip = _pixel_texture(edge_texture) if edge_texture else null
 
 
 ## Sets the layout to play; call before setup().
@@ -657,6 +684,13 @@ func configure(level: Dictionary) -> void:
 			_keep_behind = INF  # Floors to ride back along, way behind: keep everything.
 	max_fall = level.get("max_fall", max_fall)
 	_rng.seed = hash(level.get("id", ""))
+	_start_props = level.get("start_props", [])
+	if level.get("art", "") != "" and level.art != art:
+		art = level.art
+		fill_texture = SpotArt.fill(art)
+		edge_texture = SpotArt.edge(art)
+		_prop_textures.clear()
+		_apply_skin()
 
 
 func setup(area: Vector2) -> void:
@@ -674,6 +708,7 @@ func setup(area: Vector2) -> void:
 	_start_seg = _segs[0]
 	_support = _segs[0]
 	_origin = Vector2(_segs[0].x1, ground_y)
+	_add_props(_start_seg, _start_props, _start_seg.x1 - _start_seg.x0)
 	_fill_platforms()
 	_place_progress_marks()
 	_settle_view()
@@ -1264,6 +1299,8 @@ func step() -> void:
 	_prev_distance = _distance
 	_prev_cam = _cam
 	_step(STEP)
+	if not _dead:
+		_hit_obstacles()
 	_step_figure(STEP)
 	if not _dead:
 		_cross_progress_marks()
@@ -1966,18 +2003,28 @@ func _leave_ground() -> void:
 	var ahead := _linked_ahead(_support)
 	var lip := (ahead != null and _joint(_support, ahead, _dir) == &"launch") \
 			or (not _support.ledge and _rel(_support.angle()) < 0.0)
+	var small := not lip and _small_drop_ahead()
 	if is_pushing():
-		if not lip:
+		if not lip and not small:
 			_slam("pushing")
 			return
 		_stop_pushing()
-	if _support.ledge:
-		_drop_off()  # Off the end of a platform: no catch needed.
+	if _support.ledge or small:
+		_drop_off()  # Off the end of a platform or a small step down: no catch needed.
 		return
 	# Off a floor ledge: the nose tips down and the board has to be caught.
 	_roll_off()
 	if lip:
 		_lip_t = lip_pop_time
+
+
+## The floor goes on just past the edge the board's rolling off, at most small_drop lower.
+func _small_drop_ahead() -> bool:
+	var ahead := _linked_ahead(_support)
+	if ahead == null or _gap(_support, ahead) > board_size.x * 0.5:
+		return false
+	var drop := (ahead.y0 if _dir > 0.0 else ahead.y1) - _ahead_end_y(_support)
+	return drop > 0.0 and drop <= small_drop
 
 
 ## The leading end tips down off the edge (the nose, or the tail rolling backward): the
@@ -2459,6 +2506,8 @@ func _fill_platforms() -> void:
 						segment.get("gap", 0.0))
 			if segment is Dictionary:
 				_segs.back().stairs = segment.get("stairs", 0)
+				_add_props(_segs.back(), segment.get("props", []))
+				_add_obstacles(_segs.back(), segment.get("obstacles", []))
 				if segment.has("rail"):
 					_add_rail(_segs.back(), segment.rail)
 				if segment.has("platform"):
@@ -2483,6 +2532,94 @@ func _fill_platforms() -> void:
 			_goal_x = _segs.back().x0 + goal_offset
 		else:
 			_append_platform(2000.0, 0.0, 0.0, 0.0, _rightmost())
+
+
+## Stands `props` ([name, px] each: a SpotArt prop of the stage's art, its middle `from`
+## + px along `on`) on a floor piece.
+func _add_props(on: Seg, props: Array, from := 0.0) -> void:
+	for prop: Array in props:
+		if not _prop_textures.has(prop[0]):
+			var texture := SpotArt.prop(art, prop[0])
+			_prop_textures[prop[0]] = _pixel_texture(texture) if texture else null
+		if _prop_textures[prop[0]]:
+			on.props.append([_prop_textures[prop[0]], from + float(prop[1])])
+
+
+## Stands `obstacles` ([name, px] each: a SpotArt prop, its middle px along `on`) on a
+## floor piece as things in the way: drawn solid, their outline (the top of each texel
+## column of the sprite) slams a board running into it (_hit_obstacles), and their top
+## (the columns at least obstacle_top_share of the height, simplified to a few pieces) is
+## a platform to land on, ride and grind, drawn by the sprite itself. Jump them off a
+## kicker or land on them.
+func _add_obstacles(on: Seg, obstacles: Array) -> void:
+	for entry: Array in obstacles:
+		var texture := SpotArt.prop(art, entry[0])
+		if texture == null:
+			continue
+		var image := texture.get_image()
+		var profile := PackedFloat32Array()
+		for x in image.get_width():
+			var top := image.get_height()
+			for y in image.get_height():
+				if image.get_pixel(x, y).a >= 0.5:
+					top = y
+					break
+			profile.append((image.get_height() - top) * PIXEL)
+		var obstacle := {texture = _pixel_texture(texture), at = float(entry[1]), profile = profile}
+		on.obstacles.append(obstacle)
+		var left: float = obstacle.at - image.get_width() * PIXEL * 0.5
+		var tallest: float = Array(profile).max()
+		var top: Array[Vector2] = []
+		for x in profile.size():
+			if profile[x] >= tallest * obstacle_top_share:
+				top.append(Vector2(left + (x + 0.5) * PIXEL, profile[x]))
+		top = _simplified(top, PIXEL * 1.5)
+		if top.size() >= 2:
+			_add_platform(on, top)
+			_platforms.back()["hidden"] = true
+
+
+## `points` with the ones within `tolerance` of the line through their neighbours left
+## out (Douglas-Peucker), keeping the ends.
+static func _simplified(points: Array[Vector2], tolerance: float) -> Array[Vector2]:
+	if points.size() <= 2:
+		return points
+	var a := points[0]
+	var b: Vector2 = points.back()
+	var far := 0
+	var far_d := 0.0
+	for i in range(1, points.size() - 1):
+		var d := Geometry2D.get_closest_point_to_segment(points[i], a, b).distance_to(points[i])
+		if d > far_d:
+			far_d = d
+			far = i
+	if far_d <= tolerance:
+		return [a, b]
+	var left := _simplified(points.slice(0, far + 1), tolerance)
+	var right := _simplified(points.slice(far), tolerance)
+	left.pop_back()
+	left.append_array(right)
+	return left
+
+
+## Slams if the board ran into an obstacle (_add_obstacles): its middle or either end
+## inside one's outline. Not while riding or grinding on top of something.
+func _hit_obstacles() -> void:
+	if (_grounded and _support.ledge) or _rail != null:
+		return
+	for s in _segs:
+		for obstacle: Dictionary in s.obstacles:
+			var profile: PackedFloat32Array = obstacle.profile
+			var left: float = s.x0 + obstacle.at - profile.size() * PIXEL * 0.5
+			if _pos.x + board_size.x < left or _pos.x - board_size.x > left + profile.size() * PIXEL:
+				continue
+			for x in [_pos.x, _pos.x + board_size.x * 0.5, _pos.x - board_size.x * 0.5]:
+				var column := floori((x - left) / PIXEL)
+				if column < 0 or column >= profile.size():
+					continue
+				if _pos.y > s.y_at(x) - profile[column] + obstacle_tolerance:
+					_slam("hit an obstacle")
+					return
 
 
 ## Starts a new stretch of floor at `at` (level coordinates: px from the end of the start
@@ -2726,6 +2863,7 @@ func _draw() -> void:
 				_draw_edge_strip(_surface_line(s))
 			else:
 				draw_polyline(_surface_line(s), edge_color, 5.0)
+	_draw_props()
 	_draw_platforms()
 	_draw_rails()
 	_draw_goal()
@@ -2826,8 +2964,31 @@ func _make_ground_texture() -> Texture2D:
 	return ImageTexture.create_from_image(image)
 
 
+## The props and obstacles on the floor (see _add_props, _add_obstacles): standing on
+## its surface line, behind the platforms, rails and the skater; props see-through.
+func _draw_props() -> void:
+	for s in _segs:
+		for prop: Array in s.props:
+			_draw_standing(s, prop[0], prop[1], Color(1, 1, 1, prop_alpha))
+		for obstacle: Dictionary in s.obstacles:
+			_draw_standing(s, obstacle.texture, obstacle.at, Color.WHITE)
+
+
+## `texture` standing on `s`, its middle `at` px along it, at PIXEL.
+func _draw_standing(s: Seg, texture: Texture2D, at: float, modulate: Color) -> void:
+	var size := (texture.get_size() as Vector2) * PIXEL
+	var x := s.x0 + at
+	if x + size.x * 0.5 + _view_dx < 0.0 or x - size.x * 0.5 + _view_dx > _area.x:
+		return
+	# Its bottom row on the line.
+	var corner := Vector2(x - size.x * 0.5, s.y_at(x) - size.y)
+	draw_texture_rect(texture, Rect2(corner.round(), size), false, modulate)
+
+
 func _draw_platforms() -> void:
 	for platform in _platforms:
+		if platform.get("hidden", false):
+			continue  # An obstacle's top: its sprite draws it.
 		var chain: Array = platform.top
 		var first: Seg = chain[0]
 		var last: Seg = chain.back()

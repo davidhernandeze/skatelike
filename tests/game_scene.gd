@@ -3,7 +3,7 @@ extends SceneTree
 ## shows its aim and lands a frontside 180 kickflip; the board and skater views are on;
 ## flow is unrestricted on free rides only; restart reloads the level; balance pops wait
 ## for the lift (the landing finger slid into POP, or a second finger on it) and take
-## their aim; the menu puts Gaps first and its lists glide after a fling.
+## their aim; the menu puts Map first and its lists glide after a fling.
 
 var main
 
@@ -136,7 +136,7 @@ func menu() -> void:
 	for b in m.list.find_children("*", "Button", true, false):
 		if b.is_visible_in_tree():
 			first = b.text; break
-	TestUtil.check("menu: Gaps first", first == "Gaps", "first '%s'" % first)
+	TestUtil.check("menu: Map first", first == "Map", "first '%s'" % first)
 	m._show("practice")
 	for i in 5: await process_frame
 	var at := Vector2(270, 700)
