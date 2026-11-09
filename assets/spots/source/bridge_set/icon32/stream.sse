@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_15236e24-1b9e-4caa-9a60-80c4169242f2","operation":"generate","credits":{"reserved":3,"remaining":120}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"a83c6023-9823-4c11-a193-8022e50368a5","type":"image","createdAt":"2026-11-09T21:02:08.128Z","updatedAt":"2026-11-09T21:02:08.128Z","prompt":"A tiny standalone game icon of an old stone city bridge seen from the front side: a flat road deck with a low parapet on top, resting on three round arches with dark openings, warm sandstone colors, instantly readable as 'bridge'. Chunky readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left. Transparent background, no water, no ground, no shadow, no text, nothing else.","width":32,"height":32,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/a83c6023-9823-4c11-a193-8022e50368a5/image.png?v=1794258128128","style":"default","tags":["skatelike","bridge","icon"],"contentType":"image/png","batchId":"ec949620-3c33-45a1-9b1a-68157044bddb","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":120}}
+

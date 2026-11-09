@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_62590b92-56b9-4ec5-b975-9bc23af272ea","operation":"generate","credits":{"reserved":3,"remaining":165}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"673417a9-b1d0-4073-aefe-01c323009cfb","type":"image","createdAt":"2026-11-09T20:46:50.550Z","updatedAt":"2026-11-09T20:46:50.550Z","prompt":"Seamless tileable pixel art texture, perfectly tiling on all four edges: a red brick wall of staggered rectangular bricks with thin light grey mortar lines, a few darker and lighter bricks, seen straight on, clean hard pixels, three-tone shading, no outline around the edges, no border, no frame, flat even lighting, fills the whole square edge to edge, Game Boy Advance era game art, limited palette.","width":32,"height":32,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/673417a9-b1d0-4073-aefe-01c323009cfb/image.png?v=1794257210550","style":"default","tags":["skatelike","school","tile"],"contentType":"image/png","batchId":"2bc28c92-6c24-4584-9cf7-e979460e1b84","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":165}}
+

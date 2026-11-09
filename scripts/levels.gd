@@ -76,6 +76,26 @@ const LIST := [
 		{width = 1100, step = KICKER_RISE, obstacles = [["van", 360]], mark = "van"},
 		Vector2(500, 0),
 	]},
+	# School, the second spot: a step up from Bridge, still clearable with ollies (the
+	# ledge and the handrail are there to grind): a gap, a planter ledge, four stairs
+	# down with a handrail, the school bus after a kicker, a gap up to a higher yard.
+	{id = "school", name = "School", spot = true, start_y = 0.55, art = "school",
+		start_props = [["hoop", -800], ["bike_rack", -380]], segments = [
+		Vector2(300, 0),
+		{width = 900, gap = 160, mark = "gap", props = [["bike_rack", 520]]},
+		{width = 1200, platform = [Vector2(300, 45), Vector2(800, 45)], mark = "ledge",
+			props = [["hoop", 1050]]},
+		{width = 320, rise = 128, stairs = 4, rail = Vector3(-40, 400, 60), mark = "stairs"},
+		{width = 1000, mark = "yard", props = [["bike_rack", 650]]},
+		# The bus, after a kicker: jump it, or land on its roof and ride off the end.
+		Vector3(20, 0, -20 * tan(deg_to_rad(15.0))),
+		Vector3(20, 0, -20 * tan(deg_to_rad(25.0))),
+		{width = 20, rise = -20 * tan(deg_to_rad(30.0)), mark = "bus_kicker"},
+		{width = 1300, step = KICKER_RISE, obstacles = [["bus", 440]], mark = "bus",
+			props = [["hoop", 1100]]},
+		{width = 900, gap = 120, step = -60, mark = "gap_up"},
+		Vector2(500, 0),
+	]},
 	# Lessons: one mechanic each, in order.
 	{id = "lesson_push", name = "Pushing", start_y = 0.8, lesson = {
 		title = "1. Pushing",

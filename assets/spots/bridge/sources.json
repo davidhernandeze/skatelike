@@ -1,11 +1,11 @@
 {
   "icon": {
-    "sprite": "icon.png",
-    "drawn": "MapView: the Bridge spot's icon, floating over the map (its shadow drawn in code)",
-    "operation": "Sprite Fusion generate (size 48, count 1, 3 credits)",
-    "source": "../source/bridge_icon/s48/result_0.png",
-    "prompt": "A small standalone game icon of an old arched stone city bridge with three arches and a low parapet, seen from a slight three-quarter angle above, a self-contained object that reads on its own as 'bridge'. Chunky, readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left, warm stone colors. Transparent background, no ground, no water, no shadow, no text, nothing else.",
-    "request_id": "req_e7db7dfe-b159-477f-98bc-f67f16d97aa3"
+    "file": "icon.png",
+    "source": "../source/bridge_set/icon32/result_0.png",
+    "use": "the map icon (32 px), as generated",
+    "operation": "Sprite Fusion generate (size 32, 3 credits)",
+    "prompt": "A tiny standalone game icon of an old stone city bridge seen from the front side: a flat road deck with a low parapet on top, resting on three round arches with dark openings, warm sandstone colors, instantly readable as 'bridge'. Chunky readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left. Transparent background, no water, no ground, no shadow, no text, nothing else.",
+    "request_id": "req_15236e24-1b9e-4caa-9a60-80c4169242f2"
   },
   "_about": "Bridge's asset group (SpotArt). tools/make_spot_assets.gd makes fill, edge and props from assets/spots/source/bridge_set (see make.json there); tools/make_backgrounds.gd makes backdrop/ (sky, river:key, near:key).",
   "fill": {

@@ -10,7 +10,10 @@ extends SceneTree
 ##    "edge": {"from": "edge/result_0.png", "rows": [0, 10]}
 ##                                            -> edge.png: the strip along the surface
 ##    "props": {"lamp": {"from": "lamp/result_3.png"}, ...}
-##                                            -> props/<name>.png: trimmed to the sprite}
+##                                            -> props/<name>.png: trimmed to the sprite;
+##                                               "scale": 0.6 shrinks one drawn too big
+##                                               (cubic, then hard alpha)
+##    "icon": {"from": "icon/result_0.png"}    -> icon.png: the spot's map icon, as is}
 ##
 ## Tiles are mended to wrap (see _wrapping). Props are cut to their opaque bounds (the bottom
 ## row is where they stand) and stray magenta pixels (generation noise) are painted over
@@ -40,12 +43,36 @@ func _initialize() -> void:
 		var rows: Array = make.edge.get("rows", [0, edge.get_height()])
 		edge = edge.get_region(Rect2i(0, rows[0], edge.get_width(), rows[1] - rows[0]))
 		_save(_tinted(edge), out + "edge.png")
+	if make.has("icon"):
+		_save(_load(source + make.icon.from), out + "icon.png")
 	for name: String in make.get("props", {}):
 		var prop := _load(source + make.props[name].from)
 		_clean_magenta(prop)
 		prop = prop.get_region(_opaque_rect(prop))
+		var scale: float = make.props[name].get("scale", 1.0)
+		if scale != 1.0:
+			prop = _shrunk(prop, scale)
 		_save(_tinted(prop, _prop_tint), out + "props/" + name + ".png")
 	quit()
+
+
+## `image` resized by `scale` (cubic, colours premultiplied so see-through pixels don't
+## bleed), every pixel then solid or clear: hard pixel-art edges.
+func _shrunk(image: Image, scale: float) -> Image:
+	for y in image.get_height():
+		for x in image.get_width():
+			var c := image.get_pixel(x, y)
+			image.set_pixel(x, y, Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a))
+	image.resize(maxi(1, roundi(image.get_width() * scale)), maxi(1, roundi(image.get_height() * scale)),
+			Image.INTERPOLATE_CUBIC)
+	for y in image.get_height():
+		for x in image.get_width():
+			var c := image.get_pixel(x, y)
+			if c.a >= 0.5:
+				image.set_pixel(x, y, Color(minf(c.r / c.a, 1.0), minf(c.g / c.a, 1.0), minf(c.b / c.a, 1.0), 1.0))
+			else:
+				image.set_pixel(x, y, Color(0, 0, 0, 0))
+	return image.get_region(_opaque_rect(image))
 
 
 func _load(path: String) -> Image:

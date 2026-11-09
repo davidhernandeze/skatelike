@@ -450,23 +450,35 @@ The game is moving to a map of spots, each a stage with goals and rewards
 menu, kept as levels for testing until spots replace them.
 
 - **The map** (`MapView`) is a paper map lying on a wooden table, pixel art made in
-  code: a clean sheet, a river under each spot, and a dotted route leading up through the
-  spots in order. Each spot's icon is a standalone low-res sprite (it reads on its own,
+  code: a clean sheet printed with a city plan (blocks with building footprints, parks
+  and plazas between the streets, an avenue through each spot, a river under each spot
+  with bridges where the avenues cross it, riverside parks, for a spot with `river`), a double rule and a compass
+  rose on its margin, and a dotted red route along the streets through the spots in
+  order. Each section holds four spots, zigzagging up the route 64 art px apart
+  (`MapView.SLOTS`), so four or more are in sight on a phone screen; their icons are
+  32 px sprites. The top of the last section is still being surveyed: the blocks thin out
+  into blank paper where the next spots will go. Names sit on small paper tags. Each spot's icon is a standalone low-res sprite (it reads on its own,
   not drawn to match the paper) that floats over the sheet: drawn on top, with its shadow
   on the paper and a slow one-pixel rise and fall. Sections stack upward as spots are
   added, so the map grows up. It opens where it was last scrolled to (the bottom, at
   first), with what the last run gave under it; Back stays pinned above the map.
-- **Spots** unlock in order: the first is open, the next when a reward unlocks it. On the
-  map: a bobbing pointer on the spot to ride next, a check once cleared, a lock while
-  locked. A spot entry has its stage (a level with `spot = true`, not listed under
+- **Spots** unlock in order: the first is open, each next one once the spot before it gives
+  its `{unlock = "next"}` reward (its required goal). It follows from that goal being met,
+  not saved, so a spot added in an update is already open for a player who cleared the
+  one before it. On the map: a bobbing pointer on the spot to ride next, a check once
+  cleared, a lock while locked. A spot entry has its stage (a level with `spot = true`, not listed under
   Practice), its place on the map (section and position) and icon (`landmark`), and its goals.
 - **Goals** (`Goal`) are watched during a spot's run: `clear` (reach the flag; required,
   it clears the spot), `trick` (land one, by name), `line` (a line of n tricks), `speed`.
-  Each can carry a **reward**; the only kind so far is `{unlock = spot id}`. Adding "land a
-  kickflip" with a reward is one entry in the spot's `goals`.
+  Each can carry a **reward**; the only kind so far is unlocking (`{unlock = "next"}`, or
+  `{unlock = spot id}`). Adding "land a kickflip" with a reward is one entry in the
+  spot's `goals`.
 - **Bridge** is the first spot: beginner jumps and obstacles (gaps, a step up, a drop, a
-  rail, a kicker over a gap, a box). Clearing it unlocks **School**, which isn't on the map
-  yet (coming soon).
+  rail, a kicker over a gap, a box, a car and a van after kickers). Clearing it unlocks
+  **School**, the second, next up the route on the map: a step up, still clearable with ollies
+  (a gap, a planter ledge, four stairs down with a handrail, the school bus after a
+  kicker, a gap up to a higher yard). Clearing School unlocks the next spot in advance
+  ("Next spot coming soon").
 - **Each spot has its own look**, an asset group (`SpotArt`, `assets/spots/<spot>/`) its
   level picks with `art`: the ground's fill and edge strip, a parallax backdrop matching
   its name, and props standing on the floor, drawn at the world's pixel size behind the
@@ -480,12 +492,15 @@ menu, kept as levels for testing until spots replace them.
   Ramps, rails and boxes stay drawn by the runner, stretched to fit. Bridge's:
   sandstone bridge masonry with a stone curb, a riverside old town at dusk (an arched
   bridge across the river, embankment houses, a cafe), iron lamps, benches, and two
-  parked cars after kickers (a small car, then a van) to jump or ride over. The art is generated (Sprite Fusion for the tiles
+  parked cars after kickers (a small car, then a van) to jump or ride over. School's:
+  red brick with a concrete coping and a yellow line, a red brick high school with a
+  clock and a flagpole before the distant city and its water tower, basketball hoops,
+  bike racks, and the school bus. The art is generated (Sprite Fusion for the tiles
   and props, with the base skater as the style reference; Runway for the backdrop) and
   processed by `tools/make_spot_assets.gd` (tiles mended to wrap, props trimmed to stand
   on their bottom row, a dusk tint, from the set's `make.json`) and
-  `tools/make_backgrounds.gd` (the backdrop layers). Sources and prompts: each
-  `sources.json`.
+  `tools/make_backgrounds.gd` (the backdrop layers); the map icon comes from the same
+  set. Sources and prompts: each `sources.json`.
 - Progress (goals met, spots unlocked) and the map's scroll are saved in
   `user://spots.cfg` (`SKATELIKE_SPOTS_SAVE` overrides it, for tests).
 - Online scoreboards and ghosts aren't on spots yet: they still belong to the old
@@ -604,7 +619,8 @@ they stand about 1.8 boards tall.
   level, and drifting by themselves behind the menus. A spot's stage has its own layers.
   Each layer moves up and down at its own speed with the camera, so every layer but the
   front one carries on below its bottom edge (its bottom band repeated mirrored: sky
-  glow, water); on Bridge the front one's bottom is open, so the river shows in pits.
+  glow, water); on the spots the front one's bottom is open, so what's behind carries on
+  in pits and below the yard (Bridge's river, School's distant city).
 - **The UI** (`UiKit`, its theme on every screen): clean old cream-painted planks
   repainted per color (on the CPU, or `scripts/paint.gdshader` for the pads), small
   screwless planks for small buttons, dark backboards behind panels, burned-in (INK) or

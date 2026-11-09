@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_1b3cae49-5d5b-4f4d-bb9c-27b7cb607f86","operation":"generate","credits":{"reserved":3,"remaining":126}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"2b185ac0-6077-47ae-9560-49e0c54decee","type":"image","createdAt":"2026-11-09T20:49:33.088Z","updatedAt":"2026-11-09T20:49:33.088Z","prompt":"A low metal school bike rack with two parked bicycles, pure side view, the bicycles seen from the side. Pixel art game prop for a 2D side-scrolling skateboarding game at dusk, seen exactly from the side, clean one-pixel dark outline, three-tone cel shading lit from the top left, Game Boy Advance era, limited palette, transparent background, no ground, no shadow, no text.","width":80,"height":80,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/2b185ac0-6077-47ae-9560-49e0c54decee/image.png?v=1794257373088","style":"default","tags":["skatelike","school","prop"],"contentType":"image/png","batchId":"f89e754c-5faa-4cd1-b984-f636070bf06f","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":126}}
+

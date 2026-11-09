@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_c7902a5c-d5ce-4450-b96e-796517428333","operation":"generate","credits":{"reserved":3,"remaining":123}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"e27dd951-c7b9-4e11-abd5-8b53ec5c26cb","type":"image","createdAt":"2026-11-09T21:01:48.130Z","updatedAt":"2026-11-09T21:01:48.130Z","prompt":"A small standalone game icon of an old red brick city high school building with a central entrance, a small clock tower with a bell on top, rows of windows and a flagpole, seen from a slight three-quarter angle above, a self-contained object that reads on its own as 'school'. Chunky, readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left, warm colors. Transparent background, no ground, no shadow, no text, nothing else.","width":32,"height":32,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/e27dd951-c7b9-4e11-abd5-8b53ec5c26cb/image.png?v=1794258108130","style":"default","tags":["skatelike","school","icon"],"contentType":"image/png","batchId":"c5ed9aab-7446-4180-ab02-0709736398e7","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":123}}
+

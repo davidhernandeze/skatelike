@@ -1,0 +1,38 @@
+{
+  "out": "res://assets/spots/school/",
+  "tint": [
+    0.62,
+    0.55,
+    0.7
+  ],
+  "prop_tint": [
+    0.88,
+    0.82,
+    0.92
+  ],
+  "icon": {
+    "from": "icon32/result_0.png"
+  },
+  "fill": {
+    "from": "fill/result_0.png"
+  },
+  "edge": {
+    "from": "edge/result_0.png",
+    "rows": [
+      0,
+      14
+    ]
+  },
+  "props": {
+    "bus": {
+      "from": "bus/result_2.png"
+    },
+    "hoop": {
+      "from": "hoop/result_0.png"
+    },
+    "bike_rack": {
+      "from": "rack/result_0.png",
+      "scale": 0.6
+    }
+  }
+}

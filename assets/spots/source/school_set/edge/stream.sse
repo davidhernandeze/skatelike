@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_4f05f081-7b84-46f7-b857-73251f2f57ce","operation":"generate","credits":{"reserved":3,"remaining":162}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"d72544b4-c772-4013-aa85-7bc1885e9e63","type":"image","createdAt":"2026-11-09T20:47:03.428Z","updatedAt":"2026-11-09T20:47:03.428Z","prompt":"Seamless horizontally tileable ground edge tile for a side-scrolling skate game, the edge of a school yard seen from the side: along the top a flat light grey concrete coping with a thin bright highlight on its top row, a thin painted yellow line and a dark shadow line beneath it, then red brick wall with thin light mortar lines filling the rest down to the bottom, no vertical seams, no border, clean hard pixels, flat even lighting, Game Boy Advance era game art.","width":32,"height":32,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/d72544b4-c772-4013-aa85-7bc1885e9e63/image.png?v=1794257223428","style":"default","tags":["skatelike","school","tile"],"contentType":"image/png","batchId":"302ecc08-ab96-4914-9599-e05b69baf983","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":162}}
+

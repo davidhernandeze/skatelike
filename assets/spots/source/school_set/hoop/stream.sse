@@ -1,0 +1,8 @@
+data: {"type":"started","request_id":"req_1db735c2-3246-4ddd-ba8f-d5dbd6328cb5","operation":"generate","credits":{"reserved":3,"remaining":129}}
+
+data: {"type":"progress","message":"Generating sprites"}
+
+data: {"type":"output","index":0,"asset":{"id":"150d9994-0a82-422d-8687-ca02bd80240f","type":"image","createdAt":"2026-11-09T20:49:16.251Z","updatedAt":"2026-11-09T20:49:16.251Z","prompt":"A school yard basketball hoop on a tall black metal pole with a white backboard and an orange rim with a net, pure side view so the backboard is seen edge-on on the right of the pole. Pixel art game prop for a 2D side-scrolling skateboarding game at dusk, seen exactly from the side, clean one-pixel dark outline, three-tone cel shading lit from the top left, Game Boy Advance era, limited palette, transparent background, no ground, no shadow, no text.","width":80,"height":80,"assetUrl":"https://media.spritefusion.com/pixel-art-assets/6665ec88-5675-4fe5-aa67-f5c7b0c8534e/150d9994-0a82-422d-8687-ca02bd80240f/image.png?v=1794257356251","style":"default","tags":["skatelike","school","prop"],"contentType":"image/png","batchId":"8b29164b-f564-4286-a3e9-fe06f96b4670","batchIndex":0,"batchSize":1}}
+
+data: {"type":"completed","status":"succeeded","output_count":1,"credits":{"remaining":129}}
+

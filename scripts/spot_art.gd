@@ -19,6 +19,7 @@ const DIR := "res://assets/spots/%s/"
 const ARTS := {
 	bridge = {backdrop = {layers = ["sky", "river", "near"], speeds = [0.04, 0.12, 0.35],
 		open_bottom = true}},
+	school = {backdrop = {layers = ["sky", "city", "near"], speeds = [0.04, 0.12, 0.35], open_bottom = true}},
 }
 
 

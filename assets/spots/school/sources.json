@@ -1,0 +1,79 @@
+{
+  "_about": "School's asset group (SpotArt). tools/make_spot_assets.gd makes the icon, fill, edge and props from assets/spots/source/school_set (see make.json there); tools/make_backgrounds.gd makes backdrop/ (sky, city:key, near:key).",
+  "icon": {
+    "file": "icon.png",
+    "source": "../source/school_set/icon32/result_0.png",
+    "use": "the map icon (32 px), as generated",
+    "operation": "Sprite Fusion generate (size 32, 3 credits)",
+    "prompt": "A small standalone game icon of an old red brick city high school building with a central entrance, a small clock tower with a bell on top, rows of windows and a flagpole, seen from a slight three-quarter angle above, a self-contained object that reads on its own as 'school'. Chunky, readable low-resolution pixel art, clean one-pixel dark outline around the whole object, three-tone cel shading lit from the top left, warm colors. Transparent background, no ground, no shadow, no text, nothing else.",
+    "request_id": "req_c7902a5c-d5ce-4450-b96e-796517428333"
+  },
+  "fill": {
+    "file": "fill.png",
+    "source": "../source/school_set/fill/result_0.png",
+    "use": "the ground's fill: dusk tint",
+    "operation": "Sprite Fusion generate (size 32, 3 credits)",
+    "prompt": "Seamless tileable pixel art texture, perfectly tiling on all four edges: a red brick wall of staggered rectangular bricks with thin light grey mortar lines, a few darker and lighter bricks, seen straight on, clean hard pixels, three-tone shading, no outline around the edges, no border, no frame, flat even lighting, fills the whole square edge to edge, Game Boy Advance era game art, limited palette.",
+    "request_id": "req_62590b92-56b9-4ec5-b975-9bc23af272ea"
+  },
+  "edge": {
+    "file": "edge.png",
+    "source": "../source/school_set/edge/result_0.png",
+    "use": "the strip along the surface: rows 0-13 (coping, yellow line, shadow line), dusk tint",
+    "operation": "Sprite Fusion generate (size 32, 3 credits)",
+    "prompt": "Seamless horizontally tileable ground edge tile for a side-scrolling skate game, the edge of a school yard seen from the side: along the top a flat light grey concrete coping with a thin bright highlight on its top row, a thin painted yellow line and a dark shadow line beneath it, then red brick wall with thin light mortar lines filling the rest down to the bottom, no vertical seams, no border, clean hard pixels, flat even lighting, Game Boy Advance era game art.",
+    "request_id": "req_4f05f081-7b84-46f7-b857-73251f2f57ce"
+  },
+  "props": {
+    "bus": {
+      "file": "props/bus.png",
+      "source": "../source/school_set/bus/result_2.png",
+      "operation": "Sprite Fusion style-reference with the base skater (size 96: 4 sprites, 15 credits)",
+      "prompt": "A parked yellow American-style school bus seen exactly from the side (pure side view, facing right), short compact model, as a background obstacle for a 2D side-scrolling skateboarding game set in a school yard at dusk. Match the reference's pixel art style: one-pixel dark outline, three-tone cel shading lit from the top left, the same pixel scale (the bus is about one and a half times as tall as the reference figure), transparent background, no ground, no shadow, no text.",
+      "request_id": "req_5aee1019-c808-4bab-9804-31e57d93cb01"
+    },
+    "hoop": {
+      "file": "props/hoop.png",
+      "source": "../source/school_set/hoop/result_0.png",
+      "operation": "Sprite Fusion generate (size 80, 3 credits)",
+      "prompt": "A school yard basketball hoop on a tall black metal pole with a white backboard and an orange rim with a net, pure side view so the backboard is seen edge-on on the right of the pole. Pixel art game prop for a 2D side-scrolling skateboarding game at dusk, seen exactly from the side, clean one-pixel dark outline, three-tone cel shading lit from the top left, Game Boy Advance era, limited palette, transparent background, no ground, no shadow, no text.",
+      "request_id": "req_1db735c2-3246-4ddd-ba8f-d5dbd6328cb5"
+    },
+    "bike_rack": {
+      "file": "props/bike_rack.png",
+      "source": "../source/school_set/rack/result_0.png",
+      "operation": "Sprite Fusion generate (size 80, 3 credits), shrunk to 60%",
+      "prompt": "A low metal school bike rack with two parked bicycles, pure side view, the bicycles seen from the side. Pixel art game prop for a 2D side-scrolling skateboarding game at dusk, seen exactly from the side, clean one-pixel dark outline, three-tone cel shading lit from the top left, Game Boy Advance era, limited palette, transparent background, no ground, no shadow, no text.",
+      "request_id": "req_1b3cae49-5d5b-4f4d-bb9c-27b7cb607f86"
+    },
+    "_unused": "school_set/table: 9 picnic tables (style-reference, 15 credits), drawn end-on: not used"
+  },
+  "backdrop": {
+    "generator": "Runway gpt_image_2, quality high, 2560:1440 (20 credits each)",
+    "processing": "tools/make_backgrounds.gd -- assets/spots/source/school_set/backdrop assets/spots/school/backdrop sky city:key near:key",
+    "master": {
+      "file": "../source/school_set/backdrop/master.png",
+      "task": "e4551835-e0ec-4c6e-aff3-e8cfb2106d61",
+      "reference": "assets/backgrounds/source/master.png (Dusk Boardwalk)",
+      "prompt": "Reference 1 sets the exact art style to keep: crisp hand-made pixel art at blue-hour dusk, purple and orange sky, warm lights, clean pixel clusters, no blur. Create a new wide horizontal side-scrolling parallax background panorama for a 2D pixel art skateboarding game, seen straight from the side, for a level called SCHOOL set in a city high school yard after hours: from the top, a deep dusk sky with soft pixel clouds and the last sunset glow near the horizon; then distant city rooftops, a water tower and low hills with a few lit windows; then in front a long old red brick high school building with rows of tall windows, some warmly lit, a clock above the entrance, steps and a flagpole, trees, a basketball hoop on the side, all ending at the bottom edge on a green chain-link fence along the schoolyard. No foreground floor, no people, no skater, no cars, no readable text, crisp pixel art, no blur. The left and right edges must continue seamlessly so the image can tile horizontally."
+    },
+    "sky": {
+      "file": "../source/school_set/backdrop/sky.png",
+      "task": "539d8a9d-a616-4e0d-8d55-29682208a84f",
+      "reference": "master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the sky, filling the whole image: the deep dusk sky gradient from dark blue at the top to purple, pink and orange near the bottom, the soft pixel clouds, the sunset glow low in the image. Remove the hills, the city rooftops, the water tower, the school, the trees, the flagpole and the fence: where they were, the sky gradient and the sunset glow simply continue down to the bottom edge."
+    },
+    "city": {
+      "file": "../source/school_set/backdrop/city.png",
+      "task": "32d7ffac-d621-47f7-8dc9-898eb348e7e9",
+      "reference": "master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the distant city behind the school: the hill with its antenna, the city rooftops with their lit windows and the water tower, at exactly the same height and position as in reference 1, the dark city buildings continuing down to the bottom edge across the whole width, behind where the school and trees were. Everything above them (the sky and clouds) is one perfectly flat solid magenta color #FF00FF, no gradient. No school building, no trees, no flagpole, no basketball hoop, no fence."
+    },
+    "near": {
+      "file": "../source/school_set/backdrop/near.png",
+      "task": "f6cc5166-5fe2-45bb-bba1-060cafd4d45a",
+      "reference": "master.png",
+      "prompt": "Reference 1 is the finished background panorama: keep its exact pixel art style, colors, composition and the position of every element, same framing and size. This image is one layer of it for a parallax scroller, crisp hand-made pixel art, clean pixel clusters, no blur, no anti-aliasing against the background. The left and right edges must continue seamlessly so the layer tiles horizontally. This layer: ONLY the school yard front: the long red brick school building with its windows, clock, entrance and steps, the flagpole, the trees and bushes, the lamp posts, the basketball hoop and the green chain-link fence along the bottom, at exactly the same positions and size as in reference 1. Everything else, the sky, the clouds, the hill, the distant city and the water tower, including the gaps between the trees and above the building, is one perfectly flat solid magenta color #FF00FF, no gradient, no glow on it."
+    }
+  }
+}
