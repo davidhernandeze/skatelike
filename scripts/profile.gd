@@ -12,6 +12,8 @@ const DIGITS := "0123456789"
 static var skater_name := DEFAULT_NAME
 ## The Challenges page's online switch.
 static var online := false
+## The skater's stance: goofy (back to the camera riding normal), else regular.
+static var goofy := false
 ## The board: ids from Boards.GRAPHICS, Boards.GRIPS and Boards.WHEELS.
 static var board_graphic: String = Boards.GRAPHICS[0].id
 static var board_grip: String = Boards.GRIPS[0].id
@@ -39,6 +41,11 @@ static func set_skater_name(skater: String) -> void:
 	if not is_valid(skater):
 		return
 	skater_name = skater
+	_save()
+
+
+static func set_goofy(on: bool) -> void:
+	goofy = on
 	_save()
 
 
@@ -71,6 +78,7 @@ static func _save() -> void:
 	var file := ConfigFile.new()
 	file.set_value("profile", "name", skater_name)
 	file.set_value("profile", "online", online)
+	file.set_value("profile", "stance", "goofy" if goofy else "regular")
 	file.set_value("board", "graphic", board_graphic)
 	file.set_value("board", "grip", board_grip)
 	file.set_value("board", "wheels", board_wheels)
@@ -89,6 +97,7 @@ static func load_profile() -> void:
 		if is_valid(saved):
 			skater_name = saved
 		online = file.get_value("profile", "online", false)
+		goofy = file.get_value("profile", "stance", "regular") == "goofy"
 		# Unknown ids (a part since removed) fall back to the default.
 		board_graphic = Boards.find(Boards.GRAPHICS, file.get_value("board", "graphic", "")).id
 		board_grip = Boards.find(Boards.GRIPS, file.get_value("board", "grip", "")).id

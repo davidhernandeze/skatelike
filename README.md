@@ -101,18 +101,31 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
   so a centered catch keeps it there. Pop at the lip (`lip_pop_time`) for height and
   tricks. Coming down onto a wall that faces back the way it came, it touches down tail
   first and rolls down it backward: fakie.
-- **Fakie.** Rolling backward (`stance_name()` "fakie", the FAKIE label shows), a pop off
-  the nose is a fakie trick ("fakie ollie", "fakie kickflip") and off the tail a switch
-  one ("switch ollie", "switch kickflip"); never "nollie". Grinds and slides landed
-  rolling backward are "fakie 5-0 grind", "fakie noseslide". A kickflip into the fakie
-  landing is a plain kickflip.
-- **Half cab.** Popped fakie (off the nose) with a backside 180: "half cab", with board
-  tricks "half cab flip", "half cab heelflip", "half cab 360 shuvit"; a backside 360 is a
-  "full cab" ("full cab flip"). Fakie with a
-  frontside 180 is "fakie frontside 180" ("fakie frontside flip"); off the tail, "switch
-  backside 180". A 180 while fakie turns you forward in your normal stance: no prefix
-  after it. For frontside and backside, fakie faces the other way like switch
-  (`riding_switch()`).
+- **Stance** (`Runner.stance_name()`, shown bottom left as SWITCH or FAKIE):
+  - **Regular or goofy**, picked on the profile page: a regular rider shows the camera
+    their chest riding normal, a goofy one their back (`Runner._goofy`).
+  - **Switch:** riding the other way round to normal, facing the other way (after a 180).
+  - **Fakie:** rolling backward, facing as your stance does, ready to pop the tail. The
+    rider has a heading (`Runner._heading`, the way it faces along the track) apart from
+    the way the board rolls: fakie is rolling against it. Only the board turning around
+    gets you there: landing on a wall that faces back (Transfer) or rolling back down a
+    slope; rolling the other way again out of fakie is normal.
+  - **Fakie tricks chain:** a tail pop is a fakie trick ("fakie ollie", "fakie
+    kickflip") and lands fakie, ready for the next.
+  - **Out of fakie to switch:** a nose pop is a switch trick ("switch ollie") and lands
+    switch; a push puts you in switch; a manual or grind landed out of fakie is a switch
+    one ("fakie kickflip switch 5-0 grind", "switch manual") and leaves you switch.
+  - **180s** take normal to switch and switch to normal. Out of fakie a 180 turns the
+    rider to face the way it rolls: your original stance (a half cab). So does a 180 in
+    the air into a transfer to fakie: you land in your original stance. A 360 leaves the
+    stance as it was.
+  - Manuals, grinds and slides carry the stance they're ridden in ("switch nose
+    manual"), and the pop's when it differs.
+- **Half cab.** A fakie pop (off the tail) with a backside 180: "half cab", with board
+  tricks "half cab flip", "half cab heelflip", "half cab 360 shuvit"; it lands in your
+  original stance. A backside 360 is a "full cab" ("full cab flip") and stays fakie. Fakie
+  with a frontside 180 is "fakie frontside 180" ("fakie frontside flip"), also back to
+  your original stance; off the nose, "switch backside 180".
 - **Floors over floors.** A level can start a new stretch of floor anywhere (`at`), so
   one can run under another. The floor under the board is the highest one at or below
   it (`_seg_at(x, y)`). A floor with another under it is drawn as a slab (`floor_slab`,
@@ -193,13 +206,14 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
     around 0.55-0.65 s it's a 360 ("frontside 360", "backside 360 kickflip"). Landing
     before it has settled slams ("landed mid-frontside 360"). An even number of half
     turns leaves you in the stance you were in.
-  - **Frontside or backside:** in the normal stance a swipe toward the way you're riding
-    (right) is frontside, left backside; riding switch, the other way round.
+  - **Frontside or backside:** turning the chest toward the way the board rolls is
+    frontside (`Runner.swipe_is_frontside()`): for a regular rider riding normal a swipe
+    to the right; riding switch, goofy, or fakie, the sides swap accordingly.
   - **Switch:** landing a 180 (or 540) puts you in switch (shown bottom left), another one
     back; a 360 doesn't.
-    Tricks popped switch say so: "switch ollie", "switch kickflip", and so do grinds and
-    slides landed switch: "switch 5-0 grind", "switch kickflip noseslide". Rolling
-    backward it's fakie instead (see Transfers and fakie). A slam restarts you in your
+    Tricks popped switch say so: "switch ollie", "switch nollie", "switch kickflip", and so
+    do manuals, grinds and slides landed switch: "switch 5-0 grind", "switch kickflip
+    noseslide". Rolling backward it's fakie (see Stance). A slam restarts you in your
     normal stance.
   - **Names:** "frontside 180", "nollie backside 180"; with board tricks, their own names
     where they have one:
@@ -405,7 +419,7 @@ The main menu has these pages, in order:
 - **Practice:** the lessons first, numbered, then every other level without
   `challenge = true` under Free ride.
 - **Profile:** your skater name, 3 letters and 2 numbers (default SKT01), set with the
-  ▲/▼ buttons over each character; your skater (a preview riding in place, and a picker
+  ▲/▼ buttons over each character; your stance (Regular or Goofy); your skater (a preview riding in place, and a picker
   per outfit slot); your board (a spinning preview, and pickers for the deck graphic,
   grip and wheels). It's all saved in `user://profile.cfg`.
 
@@ -507,8 +521,24 @@ they stand about 1.8 boards tall.
   (`tools/make_skater_rig.gd`, `assets/characters/rig/`), posed every frame from
   `Runner.skater_pose()`: the hip drops and the torso leans with the crouch, the legs
   reach the feet with two-bone IK, the arms come up for balance, and the whole rig turns
-  with the body (narrowing through a 180, mirrored with the back to the camera). Turned
-  pieces are drawn RotSprite style, so they stay hard pixel art.
+  with the body (narrowing through a 180). Turned pieces are drawn RotSprite style, so
+  they stay hard pixel art.
+- **Front and back.** The rig has two views of the same figure, both facing right: the
+  front (chest to the camera) and the back (`skater_back.png`, a Sprite Fusion edit of
+  the base, lined up with it pixel for pixel, cut by `tools/make_skater_rig.gd --back`).
+  The pose says which, and whether it's mirrored to face left (`back`, `mirror` from
+  `Runner.skater_pose()`): a regular rider riding normal shows the front facing right,
+  switch the back facing right (looking ahead), fakie the front facing right while
+  rolling left (riding backward), and after a half cab the back facing left; goofy
+  swaps front and back. A body turn spins the figure: it narrows edge-on and the other
+  side comes round facing the other way, so a 360 goes front, back facing left, front.
+  A 180 that should end looking ahead (switch: the back, facing right) finishes with a
+  quick turn of the head (`Runner.view_flip_time`, 0.12 s) once the turn has settled; a
+  half cab already ends the way it rides on (the back, facing left).
+  Seen from behind, the toes are past the deck's far edge, so the board is drawn over
+  the skater (SkaterView reorders itself under the board; ghosts draw their boards over
+  their figures); from the front, the skater over the board. The back view wears the front views of the outfit items for now
+  (hair, hats, hoodie, long sleeve: they line up, but show front details).
 - **Outfits** (`Outfits`, saved in `Profile`): skin, hair, hat, shirt, pants and shoe
   slots. Items have the base's shape, so every pose works with no new animation: a layer
   recolored by a [dark, mid, light] color ramp. Hair, hats, the hoodie and the long sleeve

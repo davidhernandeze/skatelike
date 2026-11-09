@@ -414,8 +414,29 @@ func _show_profile() -> void:
 		column.add_child(up)
 		column.add_child(tile)
 		column.add_child(down)
+	_add_stance_picker()
 	_add_skater_picker()
 	_add_board_picker()
+
+
+## Regular or goofy: whether the skater faces the camera riding normal (regular) or
+## shows the back (goofy). The picked one stays pressed.
+func _add_stance_picker() -> void:
+	_add_label("STANCE", 36, UiKit.LIGHT)
+	_add_label("regular faces the camera, goofy turns its back", 22, UiKit.DIM)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	list.add_child(row)
+	var group := ButtonGroup.new()
+	for goofy in [false, true]:
+		var button := _make_button("Goofy" if goofy else "Regular", Vector2(220, 80), 30)
+		button.toggle_mode = true
+		button.button_group = group
+		button.button_pressed = Profile.goofy == goofy
+		_style_picked(button)
+		button.pressed.connect(func() -> void: Profile.set_goofy(goofy))  # The preview follows it.
+		row.add_child(button)
 
 
 ## Colors that stand for the base character's own layers, for item chips with no ramp.

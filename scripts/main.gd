@@ -62,10 +62,16 @@ var _level: Dictionary
 
 func _ready() -> void:
 	theme = UiKit.theme()
-	$Layout/ControlPanel.add_theme_stylebox_override("panel", UiKit.backboard(0.45))
+	# The pads fill the whole panel: no margin around them (only the device's safe area
+	# insets, SafeArea) and none between them; the backboard shows only where they don't.
+	var board := UiKit.backboard(0.45).duplicate() as StyleBoxTexture
+	board.set_content_margin_all(0)
+	$Layout/ControlPanel.add_theme_stylebox_override("panel", board)
 	Engine.time_scale = game_speed
 	_level = Levels.get_level(Levels.current)
 	runner.configure(_level)  # Every run starts from the beginning: a slam resets it.
+	Profile.load_profile()
+	runner._goofy = Profile.goofy  # Regular faces the camera riding normal, goofy away.
 	# The board in 3D pixel art, drawn right over the runner (under its callouts).
 	var board_view := BoardView.new()
 	board_view.runner = runner
@@ -387,7 +393,7 @@ func _aim_pop() -> void:
 	var dx: float = _pop_finger.at.x - _pop_finger.from.x
 	var aim := int(signf(dx)) if absf(dx) >= BODY_SWIPE * pad.get_global_rect().size.x else 0
 	_pop_finger.aim = aim
-	var front := (aim > 0) != runner.riding_switch()
+	var front := runner.swipe_is_frontside(aim)
 	pad.set_aim(true, aim, ("FS 180" if front else "BS 180") if aim != 0 else "")
 
 

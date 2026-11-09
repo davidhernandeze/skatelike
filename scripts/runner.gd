@@ -82,7 +82,7 @@ const STATE := [&"tick", &"_cam", &"_cam_v", &"_dead", &"_cleared", &"_speed", &
 	&"_board_trick_late", &"_popped", &"_pop_nose", &"_pop_spin", &"_past_vertical",
 	&"_hop", &"_hop_height", &"_lip_t", &"_slam_t", &"_slam_distance", &"_body_v", &"_impact",
 	&"_push_left", &"_push_total", &"_push_peak", &"_push_queue", &"_body_turn", &"_body_turns",
-	&"_body_front", &"_switch", &"_pop_stance", &"_dir", &"_air_base"]
+	&"_body_front", &"_switch", &"_pop_stance", &"_dir", &"_air_base", &"_heading", &"_goofy"]
 
 ## A straight surface from (x0, y0) to (x1, y1): floor (solid below), the top of a
 ## platform (solid only from above) or a rail.
@@ -312,6 +312,9 @@ class Seg:
 ## Caught this little past a half turn (share of one), it settles back on it rather than
 ## turning on to the next.
 @export var body_catch_slack := 0.15
+## The quick turn of the head that ends a 180 the way the rider rides after it (s, see
+## skater_pose()).
+@export var view_flip_time := 0.12
 
 @export_group("Landing")
 ## Allowed difference between the board angle and the ground angle at touchdown (deg).
@@ -486,9 +489,19 @@ var _body_turn := -1.0
 var _body_front := false
 ## Half turns the body 180 settles on once caught (0 while it's still turning freely).
 var _body_turns := 0
-## Riding switch (after landing a 180; another one turns back), and the stance named at
-## the pop (stance_name()).
+## Stance (see stance_name()). The rider is regular (facing the camera riding normal
+## to the right) or goofy (`_goofy`, back to it; the profile's pick, set before setup).
+## `_heading` is the way the rider faces along the track (+1 right, -1 left): riding
+## normal (or switch) the board rolls that way; riding fakie it rolls the other way, so
+## only the board rolling backward gets you there (landing on a wall that faces back,
+## rolling back down a slope). A 180 while fakie turns the rider to face the way it rolls:
+## riding normal again (a half cab). A nose pop, a push, or a manual or grind out of fakie
+## is riding switch instead: the rider takes the way it rolls as its heading without
+## turning, the other foot forward. Riding switch: the other way round (after a 180 riding
+## normal; another one turns back). `_pop_stance` is how the pop was named.
 var _switch := false
+var _heading := 1.0
+var _goofy := false
 var _pop_stance := ""
 ## Body 180s with board tricks that have their own names: [frontside, trick] -> name.
 const BODY_COMBOS := {
@@ -550,6 +563,9 @@ var _body_v := Vector2.ZERO
 ## coordinates, with _distance then), its velocity (px/s) and how long ago (s; -1 = riding).
 var _crouch := 0.2
 var _fig_down := true
+## How long a settled body turn has held (s), for the quick turn of the head at its end
+## (skater_pose()).
+var _view_flip_t := 0.0
 var _fall_at := Vector2.ZERO
 var _fall_distance := 0.0
 var _fall_vy := 0.0
@@ -672,19 +688,42 @@ func can_pop() -> bool:
 	return (_grounded or _rail != null) and not _in_trick
 
 
-## Facing the other way to the way the board rolls, as far as frontside and backside go:
-## riding switch, or backward (fakie).
-func riding_switch() -> bool:
-	return _switch != (_dir < 0.0)
+## The rider's chest is to the camera (else the back): regular riding normal to the
+## right, or fakie rolling left; goofy riding switch to the right...
+func facing_camera() -> bool:
+	return (_goofy == _switch) != (_heading < 0.0)
 
 
-## The stance tricks are named with: "fakie" rolling backward, "switch" riding forward
-## the other way round (after a 180), "" normal. A 180 while fakie turns you forward in
-## your normal stance again (like a half cab): no prefix.
+## Rolling the other way to the rider's heading.
+func is_fakie() -> bool:
+	return _dir != _heading
+
+
+## A body turn swiped `swipe` (+ right) is frontside: turning the chest toward the way
+## the board rolls (else backside).
+func swipe_is_frontside(swipe: float) -> bool:
+	return (swipe > 0.0) == (facing_camera() == (_dir > 0.0))
+
+
+## The stance tricks are named with: "fakie", "switch" or "" (normal).
 func stance_name() -> String:
-	if _dir < 0.0:
-		return "" if _switch else "fakie"
+	if is_fakie():
+		return "fakie"
 	return "switch" if _switch else ""
+
+
+## The way the board rolls changed (`dir`). The rider keeps facing the same way, so
+## rolling against its heading is riding fakie, and with it again normal (or switch).
+func _set_dir(dir: float) -> void:
+	_dir = dir
+
+
+## Fakie no more: on to switch (a nose pop, a push, a manual or grind out of fakie): the
+## rider takes the way it rolls as its heading without turning.
+func _fakie_to_switch() -> void:
+	if is_fakie():
+		_heading = _dir
+		_switch = true
 
 
 func is_pushing() -> bool:
@@ -849,13 +888,10 @@ func pop(nose: bool, strength := 1.0) -> void:
 	_grounded = false
 	_start_trick(0.0 if contrary else spin * (1.0 if nose else -1.0))
 	_popped = not contrary
-	_pop_nose = nose == (_dir > 0.0)  # Named for the end ahead.
 	_pop_stance = stance_name()
-	if _pop_stance == "fakie":
-		# Rolling backward: off the nose it's a fakie trick, off the tail a switch one
-		# (never "nollie").
-		_pop_stance = "fakie" if nose else "switch"
-		_pop_nose = false
+	_pop_nose = nose and not is_fakie()
+	if is_fakie() and nose:
+		_pop_stance = "switch"  # Fakie pops the tail; off the nose it's a switch trick (it lands switch).
 	_pop_spin = not contrary
 	popped.emit(nose, power)
 	_update_airborne()
@@ -1013,7 +1049,7 @@ func body_180(swipe := 1.0) -> void:
 		return
 	_body_turn = 0.0
 	_body_turns = 1 if _catches > 0 else 0  # Caught already: just the 180.
-	_body_front = (swipe > 0.0) != riding_switch()
+	_body_front = swipe_is_frontside(swipe)
 	if _pop_spin:
 		_angular_velocity *= twist_pop_spin  # A twisted pop barely tips the board.
 	trick_started.emit(_pop_callout(""))
@@ -1108,14 +1144,66 @@ func _cab_name() -> String:
 	return "fakie " + _body_name()
 
 
-## Landed a body turn: an odd number of half turns has you riding the other way round
-## (switch, or back to normal); a 360 the same way.
-func _end_body_turn() -> void:
-	if _body_turn >= 0.0:
-		if _body_half_turns() % 2 == 1:
-			_switch = not _switch
-		_body_turn = -1.0
-		_body_turns = 0
+## How the rider looks after half a body turn (an odd number of them): [chest to the
+## camera, heading]. Out of fakie it turns to face the way it rolls (a half cab: the
+## other side, facing the other way); else normal and switch swap (the other side, the
+## same way: a switch rider looks ahead with the back to the camera).
+func _turned_view() -> Array:
+	var heading := _heading
+	var turned := _switch
+	if is_fakie():
+		heading = _dir
+	else:
+		turned = not turned
+	return [(_goofy == turned) != (heading < 0.0), heading]
+
+
+## The stance after this landing (the board rolling the way it does now, so a landing
+## that turned it around counts): [heading, switch]. A nose pop out of fakie lands switch;
+## then an odd number of half turns of a body turn: fakie turns to normal (a half cab, or
+## a 180 into a transfer to fakie: your original stance), normal to switch and switch to
+## normal; a 360 leaves it; then a manual or grind (`balance`) out of fakie is switch.
+func _stance_after_landing(balance: bool) -> Array:
+	var heading := _heading
+	var turned := _switch
+	if _dir != heading and _popped and _pop_stance == "switch":
+		heading = _dir
+		turned = true
+	if _body_turn >= 0.0 and _body_half_turns() % 2 == 1:
+		if _dir != heading:
+			heading = _dir
+		else:
+			turned = not turned
+	if _dir != heading and balance:
+		heading = _dir
+		turned = true
+	return [heading, turned]
+
+
+## Landed: the stance becomes what _stance_after_landing() says, and the body turn ends.
+func _end_body_turn(balance := false) -> void:
+	var after := _stance_after_landing(balance)
+	_heading = after[0]
+	_switch = after[1]
+	_body_turn = -1.0
+	_body_turns = 0
+
+
+## The name of a balance trick landed now (`kind`: "manual", "5-0 grind"...) with its
+## board trick: the stance it's ridden in after landing, and the pop's when they differ
+## ("kickflip 5-0 grind", "switch kickflip nose manual", "fakie kickflip switch 5-0 grind").
+## Returns [the whole name, the balance part alone].
+func _balance_names(kind: String) -> Array:
+	var after := _stance_after_landing(true)
+	var ridden := "switch" if after[1] else ""
+	var part := (ridden + " " if ridden != "" else "") + kind
+	var board := _trick_prefix()
+	if board == "":
+		return [part, part]
+	var popped_in := _pop_stance if _popped else ridden
+	var name := (popped_in + " " if popped_in != "" else "") + board
+	name += part if popped_in != ridden else kind
+	return [name, part]
 
 
 ## "frontside 180", "backside 360"...
@@ -1187,6 +1275,10 @@ func step() -> void:
 ## The skater figure follows the board (drawing only): crouches in the air, tucks for
 ## board tricks, squats on landing, and after a slam falls where it came off.
 func _step_figure(delta: float) -> void:
+	if _body_turn >= 0.0 and _body_settled() and not _grounded and _rail == null:
+		_view_flip_t += delta
+	else:
+		_view_flip_t = 0.0
 	if not _dead:
 		_fall_t = -1.0
 	if _fall_t >= 0.0:
@@ -1241,9 +1333,32 @@ func skater_pose() -> Dictionary:
 		var phase := 1.0 - _push_left / _push_total
 		var drop := deck + board_size.y / 28.0 * 14.0
 		rear = base + along * lerpf(-half * 0.3, -half * 2.6, phase) - up * drop * sin(PI * minf(phase * 1.3, 1.0))
-	var face := -1.0 if _switch else 1.0
+	# The view (SkaterView): front or back (chest or back to the camera), facing left or
+	# right (`mirror`), and how wide (|face|: edge-on in the middle of a turn).
+	var back := not facing_camera()
+	var mirror := _heading < 0.0
+	var face := 1.0
 	if _body_turn >= 0.0 and not _grounded and _rail == null:
-		face *= cos(_body_turn / body_turn_time * PI)
+		# A body turn spins the figure: past each edge-on point the other side shows,
+		# facing the other way, so a 360 comes all the way round (front, back facing the
+		# other way, front).
+		var c := cos(_body_turn / body_turn_time * PI)
+		face = absf(c)
+		if c < 0.0:
+			back = not back
+			mirror = not mirror
+		# Settled on an odd number of half turns, where that spin doesn't end the way the
+		# rider rides after it (switch looks ahead, back to the camera, see
+		# _turned_view()): a quick turn of the head to it, over view_flip_time.
+		if _body_settled() and _body_half_turns() % 2 == 1:
+			var after := _turned_view()
+			if (not after[0]) != back or (after[1] < 0.0) != mirror:
+				var k := clampf(_view_flip_t / view_flip_time, 0.0, 1.0)
+				face = absf(cos(k * PI))
+				if k >= 0.5:
+					back = not after[0]
+					mirror = after[1] < 0.0
+	face *= -1.0 if back else 1.0  # Signed, for the flat fallbacks (no rig).
 	var fall := -1.0
 	if _fall_t >= 0.0:
 		fall = _fall_t
@@ -1254,7 +1369,7 @@ func skater_pose() -> Dictionary:
 		front = base + flat * 4.0
 	var push := 1.0 - _push_left / _push_total if _push_left > 0.0 and _fall_t < 0.0 else -1.0
 	return {base = base, angle = body_angle, feet = [rear, front], crouch = _crouch, face = face, fall = fall,
-		push = push,
+		push = push, back = back, mirror = mirror,
 		manual = _tilt_dir() if (_grounded or _rail != null) else 0.0}
 
 
@@ -1718,7 +1833,7 @@ func _step_speed(delta: float) -> void:
 	if u * _dir < 0.0:
 		# Rolled to a stop going up a slope or rail (or pushed out of rolling backward):
 		# it rolls the other way. (On flat ground it just stands until the next push.)
-		_dir = -_dir
+		_set_dir(-_dir)
 	_speed = clampf(absf(u), 0.0, max_speed) * pixels_per_meter
 
 
@@ -1733,6 +1848,7 @@ func _push_force(v: float) -> float:
 
 ## power is 0 (lightest) .. 1 (hardest).
 func _start_push(power: float) -> void:
+	_fakie_to_switch()  # Pushing out of fakie: riding switch.
 	_push_total = lerpf(push_time.x, push_time.y, power)
 	_push_peak = lerpf(push_force.x, push_force.y, power)
 	_push_left = _push_total
@@ -1928,7 +2044,9 @@ func _step_grind() -> void:
 			else:
 				_set_balance(_riding_manual, null, false, _balance_tilt)
 				landed.emit("to manual")
-				callout.emit("nose manual" if _riding_manual > 0.0 else "manual", true)
+				var stance := "switch " if _switch or is_fakie() else ""
+				_fakie_to_switch()
+				callout.emit(stance + ("nose manual" if _riding_manual > 0.0 else "manual"), true)
 			_step_ground()
 			return
 	if _beyond(_pos.x, _ahead_end(_rail)):
@@ -2071,7 +2189,7 @@ func _touch_down(surface: Seg) -> void:
 	var a := surface.angle()
 	var along := _dir * _speed * cos(a) + _velocity_y * sin(a)
 	if along != 0.0:
-		_dir = signf(along)  # Coming down a wall backward: rolling fakie.
+		_set_dir(signf(along))  # Coming down a wall backward: rolling fakie.
 	_speed = clampf(absf(along), 0.0, max_speed * pixels_per_meter)
 	_velocity_y = 0.0
 
@@ -2161,11 +2279,11 @@ func _land(on: Seg, x: float) -> void:
 			_slam("nose strike" if tilt > 0.0 else "tail strike")
 			return
 		_set_balance(signf(tilt), null, false, deg_to_rad(tilt))
-		var manual := trick + ("nose manual" if tilt > 0.0 else "manual")
-		landed.emit(manual)
-		line_event.emit(_air_name(), "nose manual" if tilt > 0.0 else "manual", false)
-		_end_body_turn()
-		callout.emit(manual, true)
+		var names := _balance_names("nose manual" if tilt > 0.0 else "manual")
+		landed.emit(names[0])
+		line_event.emit(_air_name(), names[1], false)
+		_end_body_turn(true)
+		callout.emit(names[0], true)
 		return
 	var error := rad_to_deg(absf(_angle - _ground_angle))
 	if hop and _catches == 0 and _hop_height <= hop_level_free:
@@ -2200,11 +2318,7 @@ func _start_grind(rail: Seg) -> void:
 	if not _body_settled():
 		_slam("landed mid-" + _body_name())
 		return
-	var trick := ("double " if _from_rail else "") + _trick_prefix()
-	var grind := "double " if _from_rail else ""
-	var stance := stance_name()
-	if stance != "":
-		grind += stance + " "  # "switch 5-0 grind", "fakie noseslide".
+	var kind := ""
 	# Named from how the board meets it, whatever side CATCH was held on.
 	var tilt := _tilt_against(_ground_angle)
 	if absf(tilt) > grind_max_angle:
@@ -2213,19 +2327,19 @@ func _start_grind(rail: Seg) -> void:
 	if absf(tilt) <= fifty_band:
 		# 50-50: both trucks on it, board level along it.
 		_set_balance(1.0, rail, true)
-		grind += "50-50 grind"
+		kind = "50-50 grind"
 	else:
 		_set_balance(signf(tilt), rail, false, deg_to_rad(tilt))
 		if rail.ledge:
-			grind += "noseslide" if tilt > 0.0 else "tailslide"
+			kind = "noseslide" if tilt > 0.0 else "tailslide"
 		else:
-			grind += "nosegrind" if tilt > 0.0 else "5-0 grind"
-	trick = ("double " if _from_rail else "") + (stance + " " if stance != "" else "") + _trick_prefix() \
-			+ grind.trim_prefix("double ").trim_prefix(stance + " " if stance != "" else "")
-	landed.emit(trick)
-	line_event.emit(_air_name(), grind, false)
-	_end_body_turn()
-	callout.emit(trick, true)
+			kind = "nosegrind" if tilt > 0.0 else "5-0 grind"
+	var names := _balance_names(kind)
+	var double := "double " if _from_rail else ""
+	landed.emit(double + names[0])
+	line_event.emit(_air_name(), double + names[1], false)
+	_end_body_turn(true)
+	callout.emit(double + names[0], true)
 
 
 ## The board's angle against a surface at `surface_angle`, in degrees: positive nose down.
@@ -2795,7 +2909,7 @@ func board_motion() -> Dictionary:
 	var local_anchor := Vector2(0.0, 14.0)
 	var roll := 0.0
 	var yaw := 0.0
-	var facing := -1.0 if _switch else 1.0  # Chest to the camera, or back to it.
+	var facing := 1.0 if facing_camera() else -1.0  # Chest to the camera, or back to it.
 	if (_grounded or _rail != null) and _tilt_dir() != 0.0 and _slam_t < 0.0:
 		var wheel := _riding_manual  # Manual (-1) rolls on the back wheel, nose manual (+1) on the front.
 		anchor = _view_pos + Vector2(wheel * _wheel_offset(), 0.0).rotated(_ground_angle)

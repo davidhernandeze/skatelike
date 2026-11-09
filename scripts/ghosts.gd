@@ -200,14 +200,25 @@ func _draw() -> void:
 		var sim: Runner = ghost.sim
 		var pose := sim.board_pose()
 		var center := _runner.from_level(sim.to_level(pose[0]))
-		view.show_pose(_moved(sim.skater_pose(), center - pose[0]), sim.board_size.x / 96.0)
-		_runner.draw_board_at(self, center, pose[1], pose[2], alpha, ghost_color)
+		var figure := sim.skater_pose()
+		view.show_pose(_moved(figure, center - pose[0]), sim.board_size.x / 96.0)
+		# Seen from behind, the board is in front of the feet (see SkaterView): drawn over
+		# the figure, with the name tags.
+		ghost.board = [center, pose[1], pose[2]]
+		ghost.board_over = figure.get("back", false)
+		if not ghost.board_over:
+			_runner.draw_board_at(self, center, pose[1], pose[2], alpha, ghost_color)
 		ghost.center = center
 	_tags.queue_redraw()
 
 
-## The name tags, over the ghosts' figures (on _tags, the last child).
+## The name tags, over the ghosts' figures (on _tags, the last child), and the boards of
+## ghosts seen from behind (over their figures).
 func _draw_tags() -> void:
+	for ghost in _ghosts.values():
+		if ghost.view.visible and ghost.get("board_over", false):
+			var b: Array = ghost.board
+			_runner.draw_board_at(_tags, b[0], b[1], b[2], alpha, ghost_color)
 	for ghost in _ghosts.values():
 		if ghost.view.visible and ghost.has("center"):
 			_draw_name(ghost.center, ghost.skater, Color(ghost_color, 0.8))

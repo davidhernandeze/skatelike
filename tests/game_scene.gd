@@ -43,6 +43,17 @@ func held_pop_and_flip() -> void:
 	TestUtil.check("held pop: lands a frontside flip", out.landed.size() > 0 and String(out.landed[0]).begins_with("frontside"),
 			"landed %s, slam '%s'" % [out.landed, out.slam])
 	TestUtil.check("views: board and skater views on", is_instance_valid(r.board_view) and is_instance_valid(r.skater_view))
+	# Seen from behind the toes are past the deck's far edge: the board draws over the
+	# skater; from the front, the skater over the board.
+	var goofy: bool = r._goofy
+	var order := []
+	for back in [false, true]:
+		r._switch = back != goofy  # The back to the camera, whatever the saved stance.
+		await process_frame
+		await process_frame
+		order.append(r.skater_view.get_index() > r.board_view.get_index())
+	r._switch = false
+	TestUtil.check("views: skater over the board from the front, under it from behind", order == [true, false], str(order))
 
 func flow_and_restart() -> void:
 	for id in ["flat", "sketchy_1"]:
@@ -119,6 +130,8 @@ func menu() -> void:
 	change_scene_to_file("res://scenes/menu.tscn")
 	for i in 10: await process_frame
 	var m = current_scene
+	m._show("main")  # The menu reopens on the last page shown.
+	await process_frame
 	var first := ""
 	for b in m.list.find_children("*", "Button", true, false):
 		if b.is_visible_in_tree():
@@ -141,7 +154,28 @@ func menu() -> void:
 	TestUtil.check("menu: a fling glides on", m.scroll.scroll_vertical > lifted + 100,
 			"%d at the lift, %d after" % [lifted, m.scroll.scroll_vertical])
 
+## The profile page's stance picker: Goofy is saved and the next run's rider is goofy.
+func stance_picker() -> void:
+	change_scene_to_file("res://scenes/menu.tscn")
+	for i in 10: await process_frame
+	var m = current_scene
+	m._show("profile")
+	for i in 5: await process_frame
+	var goofy: Button = null
+	for b in m.list.find_children("*", "Button", true, false):
+		if b.text == "Goofy": goofy = b
+	TestUtil.check("stance picker: on the profile page", goofy != null)
+	if goofy == null:
+		return
+	goofy.pressed.emit()
+	TestUtil.check("stance picker: Goofy saved", Profile.goofy)
+	await load_level("flat")
+	TestUtil.check("stance picker: the rider is goofy", main.runner._goofy and not main.runner.facing_camera())
+	Profile.set_goofy(false)
+
+
 func _initialize():
+	await stance_picker()
 	await held_pop_and_flip()
 	await flow_and_restart()
 	await balance_pop(false)

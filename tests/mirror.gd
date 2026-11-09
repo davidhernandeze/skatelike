@@ -3,8 +3,8 @@ extends SceneTree
 ## and its mirror image (to the left, laid out with `at`), ridden forward and backward
 ## from the same speed with mirrored inputs (pop the trailing end, catch offsets
 ## flipped). The ground code is written once for both ways, so the runs must match step
-## for step: heights, speeds, airborne steps and events (names compared without "fakie"
-## and with nose and tail swapped), board angles mirrored.
+## for step: heights, speeds, airborne steps and events (names compared without their
+## stance and with nose and tail swapped), board angles mirrored.
 const LEAD := 358.0  # Forward: start end to feature = backward: board to start platform end.
 const MIRROR_C := -830.0  # x -> MIRROR_C - x maps the forward feature onto the backward one.
 
@@ -64,7 +64,7 @@ func mirror(specs: Array) -> Array:
 
 func make(segments: Array, dir: float, speed: float, name: String) -> Runner:
 	var r := TestUtil.runner(self, {id = name, start_y = 0.5, segments = segments})
-	r._dir = dir
+	r._set_dir(dir)  # Backward: rolling fakie.
 	r._speed = speed * r.pixels_per_meter
 	return r
 
@@ -91,7 +91,7 @@ func drive(r: Runner, opts: Dictionary, st: Dictionary) -> void:
 		r.act(Runner.Act.PRESS_CATCH, 0.0); r.act(Runner.Act.RELEASE_CATCH)
 
 func swap_ends(s: String) -> String:
-	s = s.replace("fakie ", "")
+	s = s.replace("fakie ", "").replace("switch ", "")  # The stance names differ by design.
 	var map := {"nosegrind": "5-0 grind", "5-0 grind": "nosegrind", "noseslide": "tailslide", "tailslide": "noseslide",
 		"nose manual": "manual", "manual": "nose manual", "nose strike": "tail strike", "tail strike": "nose strike"}
 	for k in map:

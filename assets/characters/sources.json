@@ -132,5 +132,15 @@
         "prompt": "Edit this pixel art skater: keep everything exactly the same, the same bald young man, the same side-view riding pose facing right, the same size, position and pixels, the same white t-shirt, blue jeans, white shoes and skin, and only change this: replace the t-shirt with a plain white long-sleeve crew-neck shirt, the sleeves down to the wrists, the hands stay visible. The new item is drawn in the same style: clean one-pixel dark outline, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, nothing else added."
       }
     }
+  },
+  "skater_back": {
+    "sprite": "skater_back.png",
+    "drawn": "SkaterView's back view (back_sprite), cut by tools/make_skater_rig.gd --back into rig/labels_back.png and rig/base_back.json",
+    "operation": "Sprite Fusion edit (2 results, 15 credits)",
+    "request_id": "req_4d5559f1-9c2d-4374-bd3b-9d04f6a34fa3",
+    "batch_index": 1,
+    "input": "source/back_view/input.png (skater.png on the 24x40 rig canvas)",
+    "alternative": "source/back_view/result_0.png (came out bigger, 24x42, body turned toward the viewer)",
+    "prompt": "Redraw this exact pixel art skater seen from BEHIND: the same bald young man in the same side-view riding pose, still facing right and moving to the right, with the same size, position, proportions, knee bend and arm positions, but turned so his back is toward the viewer: we see the back of his bald head (no face, no eye), the back of the white t-shirt, the seat and back of the blue jeans, the heels of the white shoes; his front arm is now the far arm and his back arm the near arm. Same skin tone and colors. Same style: clean one-pixel dark outline around the whole figure, three-tone cel shading lit from the top left, tidy pixel clusters, no dithering, no noise, no stray pixels. Transparent background, no skateboard, feet resting on the same spot, nothing else added."
   }
 }

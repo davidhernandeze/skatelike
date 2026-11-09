@@ -37,7 +37,7 @@ func _process(delta: float) -> void:
 		var drop := 21.0 * zoom
 		rear = base + Vector2(lerpf(-half * 0.3, -half * 2.6, phase), drop * sin(PI * minf(phase * 1.3, 1.0)))
 	view.show_pose({base = base, angle = 0.0, feet = [rear, front], crouch = 0.35 if push >= 0.0 else 0.2,
-		face = 1.0, fall = -1.0, manual = 0.0, push = push}, zoom)
+		face = 1.0, back = Profile.goofy, mirror = false, fall = -1.0, manual = 0.0, push = push}, zoom)
 
 
 ## Puts on the outfit picked on the profile page again (after a change).

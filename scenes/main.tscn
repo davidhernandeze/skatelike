@@ -119,12 +119,13 @@ script = ExtResource("4_panel")
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_safe")
+base_margin = 0
 use_top = false
 
 [node name="GroundPads" type="HBoxContainer" parent="Layout/ControlPanel/SafeArea" unique_id=1620408999]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 0
 
 [node name="TailPop" type="Panel" parent="Layout/ControlPanel/SafeArea/GroundPads" unique_id=1203576917]
 layout_mode = 2
@@ -169,7 +170,7 @@ font_size = 26
 visible = false
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 0
 
 [node name="Trick" type="Panel" parent="Layout/ControlPanel/SafeArea/AirPads" unique_id=1961179448]
 layout_mode = 2
@@ -201,7 +202,7 @@ center_mark = true
 visible = false
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 0
 
 [node name="BalancePop" type="Panel" parent="Layout/ControlPanel/SafeArea/BalancePads" unique_id=520918374]
 layout_mode = 2

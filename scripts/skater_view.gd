@@ -8,8 +8,13 @@ extends Node2D
 ##
 ## Posing: the hip drops and the torso leans as the skater crouches, the legs reach the
 ## feet with two-bone IK (knees forward), the arms come up for balance, and the whole rig
-## turns with the body, narrows through a body 180 and mirrors with the back to the
-## camera. At the rest pose (riding, crouch 0.2) it draws the sprite exactly.
+## turns with the body and narrows through a body 180. At the rest pose (riding, crouch
+## 0.2) it draws the sprite exactly.
+##
+## Two views of the same rig: the front (chest to the camera) and the back (`back_sprite`,
+## the same figure seen from behind, cut the same way: tools/make_skater_rig.gd --back),
+## both facing right, mirrored to face left. The pose says which (`back`, `mirror`, see
+## Runner.skater_pose()); without a back sprite the back is the front mirrored.
 ##
 ## Outfits: every item has the base's shape, so the rest pose is composed once per
 ## outfit (the base's slot layers recolored, items drawn over them, see Outfits) and cut
@@ -50,6 +55,9 @@ const REST_FOOT := 22.0
 @export var sprite: Texture2D = preload("res://assets/characters/skater.png")
 @export var labels: Texture2D = preload("res://assets/characters/rig/labels.png")
 @export_file("*.json") var joints_file := "res://assets/characters/rig/base.json"
+## The back view and its label map (same joints and canvas as the front). Null: none.
+@export var back_sprite: Texture2D = preload("res://assets/characters/skater_back.png")
+@export var back_labels: Texture2D = preload("res://assets/characters/rig/labels_back.png")
 ## Screen px per texel at the default board_size (Runner.skater_pixel when following one).
 @export var pixel := 5
 ## At full crouch: how far the hip drops (texels), the torso leans forward and the arms
@@ -83,13 +91,15 @@ var _joints := {}
 var _anchor := Vector2.ZERO
 var _canvas := Vector2i.ZERO
 var _offset := Vector2i.ZERO
-## What it wears (slot -> Outfits item id), the base's slot layers and each canvas
-## pixel's piece (made once).
+## What it wears (slot -> Outfits item id).
 var _outfit := Outfits.default_outfit()
-var _layers := {}
-var _field := PackedInt32Array()
-## Each piece in the rest pose: {image (on the canvas), big (its used part, 8x by Scale2x
-## three times), crop (that part on the canvas), turns: {angle step: [texture, origin]}}.
+## Per view ("front", "back"): {sprite, labels, layers (the base's slot layers), field
+## (each canvas pixel's piece), art}, art being each piece in the rest pose: {big (its
+## used part, 8x by Scale2x three times), crop (that part on the canvas), turns: {angle
+## step: [texture, origin]}}. Layers and field are made once, art per outfit.
+var _views := {}
+## The view drawn now, and its art.
+var _view := "front"
 var _art := {}
 
 
@@ -105,7 +115,10 @@ func _ready() -> void:
 	_root.position = Vector2(HALF, HALF)
 	_viewport.add_child(_root)
 	_load_joints()
-	_cut_pieces(_compose())
+	_views.front = {sprite = sprite, labels = labels, layers = {}, field = PackedInt32Array(), art = {}}
+	if back_sprite and back_labels:
+		_views.back = {sprite = back_sprite, labels = back_labels, layers = {}, field = PackedInt32Array(), art = {}}
+	_dress()
 	_shown = Sprite2D.new()
 	_shown.texture = _viewport.get_texture()
 	_shown.centered = false
@@ -124,9 +137,18 @@ func show_pose(pose: Dictionary, size_scale := 1.0) -> void:
 		return
 	var s := pixel * size_scale
 	var face: float = pose.face
-	# Through a body 180 the side view narrows to min_turn_width and mirrors: a body seen
-	# from the front is narrower than from the side, but not a sliver.
-	var width := signf(face if face != 0.0 else 1.0) * lerpf(min_turn_width, 1.0, smoothstep(0.0, 1.0, absf(face)))
+	# The view: front or back, facing right or mirrored left. A pose without them (older
+	# callers): the front, mirrored with the back to the camera.
+	var back: bool = pose.get("back", face < 0.0)
+	var mirror: bool = pose.get("mirror", face < 0.0) if pose.has("back") else face < 0.0
+	if back and not _views.has("back"):
+		back = false
+		mirror = not pose.get("mirror", false)  # No back view: the front, mirrored.
+	_show_view("back" if back else "front")
+	_layer_with_board(back)
+	# Through a body 180 the side view narrows to min_turn_width (a body seen from the
+	# front is narrower than from the side, but not a sliver).
+	var width := (-1.0 if mirror else 1.0) * lerpf(min_turn_width, 1.0, smoothstep(0.0, 1.0, absf(face)))
 	_root.rotation = pose.angle
 	_root.scale = Vector2(width, 1.0)
 	_solve(pose, s)
@@ -289,16 +311,51 @@ func apply_profile() -> void:
 func set_outfit(outfit: Dictionary) -> void:
 	_outfit = outfit.duplicate()
 	if _root:
+		_dress()
+
+
+## Composes and cuts every view for the outfit, then shows the current one again.
+func _dress() -> void:
+	for view: String in _views:
+		_view = view
+		_art = _views[view].art
 		_cut_pieces(_compose())
+	_view = "front"
+	_art = _views.front.art
+	_show_view("front", true)
+
+
+## Seen from the front the shoes stand on the deck's near side, so the skater is drawn
+## over the board; seen from behind the toes are on its far side, behind the deck's near
+## edge, so the board is drawn over the skater. Both are the runner's children: this
+## reorders them.
+func _layer_with_board(back: bool) -> void:
+	if runner == null or not is_instance_valid(runner.board_view) or runner.board_view.get_parent() != get_parent():
+		return
+	var board: Node = runner.board_view
+	if back != (get_index() < board.get_index()):
+		get_parent().move_child(self, board.get_index() + (0 if back else 1))
+
+
+## Draws `view` ("front" or "back") from now on.
+func _show_view(view: String, force := false) -> void:
+	if view == _view and not force:
+		return
+	_view = view
+	_art = _views[view].art
 
 
 ## The skater in the rest pose on the rig's canvas, wearing the outfit: the base
 ## character's slot layers (split by color, see _base_layers()) recolored by their items'
 ## ramps, then the items drawn over them in Outfits.DRAW_ORDER (an item shirt instead
-## of the base's, hair under the hat). Outline pixels keep their color.
+## of the base's, hair under the hat). Outline pixels keep their color. The back view
+## wears the same items for now (the figure lines up with the front, see
+## make_skater_rig.gd); back views of the items are still to make.
 func _compose() -> Image:
-	if _layers.is_empty():
-		_layers = _base_layers()
+	var view: Dictionary = _views[_view]
+	if view.layers.is_empty():
+		view.layers = _base_layers()
+	var _layers: Dictionary = view.layers
 	var out := Image.create(_canvas.x, _canvas.y, false, Image.FORMAT_RGBA8)
 	out.blit_rect(_layers.outline, Rect2i(Vector2i.ZERO, _canvas), Vector2i.ZERO)
 	out.blend_rect(_layers.detail, Rect2i(Vector2i.ZERO, _canvas), Vector2i.ZERO)
@@ -334,7 +391,7 @@ static func _under_hat(hair: Image, hat: Image) -> Image:
 ## "shirt", "pants", "shoes", and "detail" (the eye: light pixels on the head that aren't
 ## skin), by each pixel's color and rig piece.
 func _base_layers() -> Dictionary:
-	var image := sprite.get_image()
+	var image: Image = (_views[_view].sprite as Texture2D).get_image()
 	image.convert(Image.FORMAT_RGBA8)
 	var labels_of := _labels()
 	var layers := {}
@@ -366,7 +423,7 @@ func _base_layers() -> Dictionary:
 
 ## The label map: each canvas pixel's piece (index in LABELS), -1 where it has none.
 func _labels() -> PackedInt32Array:
-	var label_image := labels.get_image()
+	var label_image: Image = (_views[_view].labels as Texture2D).get_image()
 	label_image.convert(Image.FORMAT_RGBA8)
 	var out := PackedInt32Array()
 	out.resize(_canvas.x * _canvas.y)
@@ -416,8 +473,10 @@ func _on_edge(image: Image, x: int, y: int) -> bool:
 ## its 8x Scale2x art for turning (_turned()). The nodes are made once; later outfits
 ## just change their art.
 func _cut_pieces(image: Image) -> void:
-	if _field.is_empty():
-		_field = _label_field()
+	var view: Dictionary = _views[_view]
+	if view.field.is_empty():
+		view.field = _label_field()
+	var _field: PackedInt32Array = view.field
 	var images := {}
 	for name in LABELS:
 		images[name] = Image.create(_canvas.x, _canvas.y, false, Image.FORMAT_RGBA8)

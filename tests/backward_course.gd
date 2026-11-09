@@ -1,8 +1,10 @@
 extends SceneTree
-## The Transfer level end to end: down the drop and the U, the 75° lip, fakie down the
+## The transfer's landing stance (fakie, or the original stance after a 180 in the air),
+## and the Transfer level end to end: down the drop and the U, the 75° lip, fakie down the
 ## wall, then the obstacles ridden backward on the lower floor: the hump (a crest hop), a
 ## tailslide on the box, a nosegrind on the rail, and the kicker (popped at the lip, or
-## rolled off and caught), to the flag. Checks the names (fakie) and the clear.
+## rolled off and caught), to the flag. Checks the names (switch out of fakie) and the
+## clear.
 
 func ride(kicker: String) -> Dictionary:
 	var r := TestUtil.runner(self, Levels.get_level("transfer"))
@@ -56,12 +58,46 @@ func ride(kicker: String) -> Dictionary:
 	r.queue_free()
 	return out
 
+## The transfer on Transfer: a pop at the lip, with a body 180 (`swipe`) or not, caught
+## on the way down onto the wall that faces back. Returns [callout, stance after].
+func transfer(swipe: float) -> Array:
+	var r := TestUtil.runner(self, Levels.get_level("transfer"))
+	var calls := []
+	r.callout.connect(func(c, _b): calls.append(c))
+	r.slammed.connect(func(s): calls.append("SLAM " + s))
+	var popped := false
+	var caught := false
+	for tick in 120 * 6:
+		if not popped and r._air_base != 0.0 and r.can_pop():
+			popped = true
+			r.act(Runner.Act.POP, 0.0, 1.0)
+			if swipe != 0.0: r.act(Runner.Act.BODY_180, swipe)
+		# Caught early, the body turn settles on the 180 (on the way down it'd be a 360).
+		var catch_now: bool = r._body_turn >= 0.2 if swipe != 0.0 else r._velocity_y > -400.0
+		if popped and not caught and r._in_trick and catch_now:
+			caught = true; r.act(Runner.Act.PRESS_CATCH, 0.0); r.act(Runner.Act.RELEASE_CATCH)
+		r.step()
+		if popped and r._grounded and not r._in_trick: break
+		if r._dead: break
+	var out := [calls.back() if not calls.is_empty() else "", r.stance_name()]
+	r.queue_free()
+	return out
+
+
 func _initialize():
+	# Landing the transfer backward: fakie; with a 180 in the air, your original stance.
+	var plain := transfer(0.0)
+	TestUtil.check("transfer lands fakie", plain[1] == "fakie", "'%s', riding '%s'" % plain)
+	for swipe in [1.0, -1.0]:
+		var turned := transfer(swipe)
+		TestUtil.check("transfer with a %s 180 lands in the original stance" % ("right" if swipe > 0 else "left"),
+				turned[1] == "" and turned[0].ends_with("180"), "'%s', riding '%s'" % turned)
 	for kicker in ["pop", "roll"]:
 		var out := ride(kicker)
 		var names: Array = out.landed
 		TestUtil.check("backward course (kicker %s) cleared" % kicker, out.cleared, "slam '%s', landed %s" % [out.slam, names])
-		TestUtil.check("backward course (kicker %s) tailslide named fakie" % kicker, names.has("fakie tailslide"), str(names))
-		TestUtil.check("backward course (kicker %s) nosegrind named fakie" % kicker, names.has("fakie nosegrind"), str(names))
+		# Out of fakie, slides and grinds land switch (and stay switch).
+		TestUtil.check("backward course (kicker %s) tailslide lands switch" % kicker, names.has("switch tailslide"), str(names))
+		TestUtil.check("backward course (kicker %s) nosegrind lands switch" % kicker, names.has("switch nosegrind"), str(names))
 		TestUtil.check("backward course (kicker %s) hop over the hump" % kicker, names.has("roll"), str(names))
 	quit()

@@ -4,15 +4,21 @@ extends SceneTree
 ## and the rig's joints (canvas px) as JSON. The canvas is the sprite with room around
 ## it (CANVAS, sprite at OFFSET) for items bigger than the base, like a hat: outfit items
 ## (assets/characters/items) are drawn on the same canvas, in the same rest pose. The rules below fit assets/characters/
-## skater.png (20 x 35, side view facing right); a new base needs its own rules.
+## skater.png (20 x 35, side view facing right); a new base needs its own rules. They fit
+## its back view too (skater_back.png: the same figure seen from behind, lined up with it
+## pixel for pixel but for the face and the shirt's folds): `--back` cuts that one into
+## labels_back.png and base_back.json, with the same joints.
 ##
-##   godot --headless --path . -s tools/make_skater_rig.gd -- [preview.png]
+##   godot --headless --path . -s tools/make_skater_rig.gd -- [--back] [preview.png]
 ##
 ## The optional preview paints each piece its own color, 8x bigger.
 
 const SPRITE := "res://assets/characters/skater.png"
 const OUT_LABELS := "res://assets/characters/rig/labels.png"
 const OUT_JOINTS := "res://assets/characters/rig/base.json"
+const BACK_SPRITE := "res://assets/characters/skater_back.png"
+const BACK_LABELS := "res://assets/characters/rig/labels_back.png"
+const BACK_JOINTS := "res://assets/characters/rig/base_back.json"
 const CANVAS := Vector2i(24, 40)
 const OFFSET := Vector2i(2, 5)
 ## Must match SkaterView.LABELS.
@@ -40,7 +46,13 @@ const LEG_ROW := 23
 
 
 func _initialize() -> void:
-	var image := Image.load_from_file(ProjectSettings.globalize_path(SPRITE))
+	var args := Array(OS.get_cmdline_user_args())
+	var back := args.has("--back")
+	args.erase("--back")
+	var sprite := BACK_SPRITE if back else SPRITE
+	var out_labels := BACK_LABELS if back else OUT_LABELS
+	var out_joints := BACK_JOINTS if back else OUT_JOINTS
+	var image := Image.load_from_file(ProjectSettings.globalize_path(sprite))
 	image.convert(Image.FORMAT_RGBA8)
 	var w := image.get_width()
 	var h := image.get_height()
@@ -83,15 +95,14 @@ func _initialize() -> void:
 	for name: String in JOINTS:
 		joints[name] = [JOINTS[name][0] + OFFSET.x, JOINTS[name][1] + OFFSET.y]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/characters/rig"))
-	out.save_png(ProjectSettings.globalize_path(OUT_LABELS))
-	var joints_file := FileAccess.open(ProjectSettings.globalize_path(OUT_JOINTS), FileAccess.WRITE)
-	joints_file.store_string(JSON.stringify({sprite = SPRITE, labels = OUT_LABELS, canvas = [CANVAS.x, CANVAS.y],
+	out.save_png(ProjectSettings.globalize_path(out_labels))
+	var joints_file := FileAccess.open(ProjectSettings.globalize_path(out_joints), FileAccess.WRITE)
+	joints_file.store_string(JSON.stringify({sprite = sprite, labels = out_labels, canvas = [CANVAS.x, CANVAS.y],
 		offset = [OFFSET.x, OFFSET.y], joints = joints}, "\t"))
 	joints_file.close()
-	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_save_preview(label, w, h, args[0])
-	print("labels -> ", OUT_LABELS, ", joints -> ", OUT_JOINTS)
+	print("labels -> ", out_labels, ", joints -> ", out_joints)
 	quit()
 
 
