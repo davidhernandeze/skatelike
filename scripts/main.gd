@@ -2,6 +2,14 @@ extends Control
 
 ## Global time scale; set below 1 to slow everything down while tuning mechanics.
 @export var game_speed := 1.0
+## How big the world is drawn (the World node's scale): under 1, the skater and the level
+## are smaller on screen and the runner gets a bigger area to lay out, so more of what's
+## ahead is in sight. 2/3 keeps the world's pixels whole (Runner.PIXEL 3 -> 2 screen px).
+@export var world_zoom := 2.0 / 3.0
+## Share of the play area's height above the level's own area: the runner lays out and
+## frames the level in the rest, near the pads, and the backdrop shows up here (anything
+## high in the air still shows here too).
+@export var world_top := 0.4
 
 const MENU_SCENE := "res://scenes/menu.tscn"
 
@@ -70,6 +78,7 @@ func _ready() -> void:
 	board.set_content_margin_all(0)
 	$Layout/ControlPanel.add_theme_stylebox_override("panel", board)
 	Engine.time_scale = game_speed
+	$Layout/PlayArea/World.scale = Vector2.ONE * world_zoom
 	_level = Levels.get_level(Levels.current)
 	runner.configure(_level)  # Every run starts from the beginning: a slam resets it.
 	Profile.load_profile()
@@ -89,6 +98,7 @@ func _ready() -> void:
 	var backdrop := ParallaxBackdrop.new()
 	backdrop.runner = runner
 	backdrop.use_art(_level.get("art", ""))
+	backdrop.pixel = roundi(Runner.PIXEL * world_zoom)  # The backdrop shrinks with the world.
 	var play_area := $Layout/PlayArea
 	play_area.add_child(backdrop)
 	play_area.move_child(backdrop, 0)
@@ -295,8 +305,11 @@ func _frame_below_lesson() -> void:
 	var band := defaults.camera_band
 	var air_band := defaults.camera_air_band
 	defaults.free()
-	if lesson.visible and play_area.size.y > 0.0:
-		var under := (lesson.offset_bottom + 12.0) / play_area.size.y
+	# (Not before the panel's layout settles: it can measure taller than the screen, and
+	# the view would stay pushed down after.)
+	if lesson.visible and play_area.size.y > 0.0 and lesson.offset_bottom < play_area.size.y * 0.6:
+		# Below the panel, as a share of the level's area (see world_top).
+		var under := maxf((lesson.offset_bottom + 12.0) / play_area.size.y - world_top, 0.0) / (1.0 - world_top)
 		band.x = maxf(band.x, under + 0.22)
 		air_band.x = maxf(air_band.x, under + 0.04)
 	runner.camera_band = band
@@ -340,7 +353,9 @@ func _send_run(delta: float) -> void:
 
 
 func _layout_world() -> void:
-	runner.setup(play_area.size)
+	# The level's area: the play area below world_top, in the world's (zoomed) units.
+	$Layout/PlayArea/World.position.y = play_area.size.y * world_top
+	runner.setup(Vector2(play_area.size.x, play_area.size.y * (1.0 - world_top)) / world_zoom)
 	if flow:
 		var area := play_area.get_global_rect()
 		flow.position = Vector2(area.get_center().x - flow.radius, area.end.y - flow.radius * 2.0 - 16.0)
@@ -501,6 +516,11 @@ func _on_level_cleared() -> void:
 		return
 	last_input.text = "CLEARED!"
 	Levels.record(Levels.current, 1.0)
+	if _level.get("practice", false):
+		# A practice stage goes on: again from the start (only the menu leaves it).
+		await get_tree().create_timer(0.8, true, false, true).timeout
+		get_tree().reload_current_scene.call_deferred()
+		return
 	if _level.get("challenge", false) and Profile.online:
 		# On the board: send the clear and show the board when back on the menu.
 		Scoreboard.record_clear(_level.id)

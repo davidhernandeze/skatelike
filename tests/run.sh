@@ -3,7 +3,7 @@
 # Usage: tests/run.sh [test name ...]   GODOT=/path/to/godot to use another binary.
 cd "$(dirname "$0")/.." || exit 1
 GODOT=${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}
-TESTS=${*:-mirror backward_course trick_names replay game_scene spots}
+TESTS=${*:-mirror backward_course trick_names replay game_scene spots practice}
 export SKATELIKE_API_URL=http://127.0.0.1:9  # No scoreboard calls.
 # The player's saves (playing in the editor) are put aside and back afterwards: runs write
 # their own. Spot progress has a test file of its own (SKATELIKE_SPOTS_SAVE).

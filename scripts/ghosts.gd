@@ -236,7 +236,11 @@ static func _moved(pose: Dictionary, offset: Vector2) -> Dictionary:
 
 func _draw_name(center: Vector2, text: String, color: Color) -> void:
 	var font: Font = UiKit.UI_FONT
-	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x
+	# The same size on screen however small the world is drawn (Main.world_zoom).
+	var unzoom := 1.0 / maxf(_tags.get_global_transform().get_scale().x, 0.1)
+	var font_size := roundi(name_size * unzoom)
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var at := center + Vector2(-width * 0.5, -name_lift)
-	_tags.draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size, 6, Color(0, 0, 0, color.a * 0.8))
-	_tags.draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size, color)
+	_tags.draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, roundi(6 * unzoom),
+			Color(0, 0, 0, color.a * 0.8))
+	_tags.draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)

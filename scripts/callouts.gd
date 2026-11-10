@@ -13,7 +13,7 @@ extends Node2D
 @export var outline_color := Color(0.08, 0.06, 0.12)
 ## How long a burst stays on screen (s).
 @export var burst_time := 0.9
-## Height above the board where callouts appear (px).
+## Height above the board where callouts appear (screen px, whatever the world's zoom).
 @export var lift := 190.0
 
 ## Each: {text, color, age, life (INF while sustained), tilt, size, sustained}.
@@ -38,7 +38,7 @@ func slam() -> void:
 	_items.append({
 		text = "slam!", color = slam_color, age = 0.0, life = burst_time * 1.3,
 		tilt = randf_range(-0.2, 0.2), size = font_size + 10, sustained = false, y = 0.0,
-		at = _runner.view_position() + Vector2(0.0, -lift), scrolled = _runner.scrolled(),
+		at = _runner.view_position() + Vector2(0.0, -_lift()), scrolled = _runner.scrolled(),
 	})
 
 
@@ -65,7 +65,7 @@ func _draw() -> void:
 		# Pop in with a little overshoot, then settle.
 		var grow := clampf(age / 0.15, 0.0, 1.0)
 		var scale_k := lerpf(0.4, 1.0, grow) + sin(grow * PI) * 0.2
-		var pos := board + Vector2(0.0, -lift)
+		var pos := board + Vector2(0.0, -_lift())
 		if item.has("at"):
 			pos = item.at - Vector2(_runner.scrolled() - item.scrolled, 0.0)  # Stays put in the level.
 		var alpha := 1.0
@@ -80,7 +80,8 @@ func _draw() -> void:
 				item.y = pos.y
 			pos.y = item.y - age * 50.0
 		var tilt: float = item.tilt + (sin(age * 40.0) * 0.06 if item.sustained else 0.0)
-		var size: int = item.size
+		# Text keeps its size on screen however small the world is drawn (Main.world_zoom).
+		var size: int = roundi(item.size / maxf(_runner.get_global_transform().get_scale().x, 0.1))
 		var width := font.get_string_size(item.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 		# Long names are kept on screen: nudged in from the edges (or centered if wider).
 		var half := width * 0.5 * scale_k + 12.0
@@ -92,3 +93,8 @@ func _draw() -> void:
 				Color(outline_color, alpha))
 		draw_string(font, at, item.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(item.color, alpha))
 	draw_set_transform(Vector2.ZERO)
+
+
+## `lift` in the runner's units: the world is drawn zoomed (Main.world_zoom).
+func _lift() -> float:
+	return lift / maxf(_runner.get_global_transform().get_scale().x, 0.1)

@@ -137,7 +137,7 @@ func menu() -> void:
 		if b.is_visible_in_tree():
 			first = b.text; break
 	TestUtil.check("menu: Map first", first == "Map", "first '%s'" % first)
-	m._show("practice")
+	m._show("mechanics")  # A list longer than the screen.
 	for i in 5: await process_frame
 	var at := Vector2(270, 700)
 	var e := InputEventScreenTouch.new(); e.index = 0; e.pressed = true; e.position = at

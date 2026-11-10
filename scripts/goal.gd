@@ -68,4 +68,10 @@ static func trick_matches(name: String, trick: String, match_by := "end") -> boo
 			return name.contains(trick)
 		"starts":
 			return name.begins_with(trick)
-	return name == trick or name.ends_with(" " + trick)
+	if not (name == trick or name.ends_with(" " + trick)):
+		return false
+	# A longer trick ending the same way is another trick: a front shuvit isn't a shuvit.
+	for other: StringName in Runner.TRICKS:
+		if String(other) != trick and String(other).ends_with(" " + trick) and name.ends_with(String(other)):
+			return false
+	return true

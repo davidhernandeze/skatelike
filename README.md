@@ -333,8 +333,10 @@ dv/dt = (F_push(t) - c_r m g cos(a) - c_d v²) / m + g sin(a)
 
 ## Lessons
 
-Practice levels that teach one mechanic each, in order (they replaced the old guided
-tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run by `scripts/lesson.gd`):
+Levels that teach one thing each, under **Practice > Learn**, in two lists: **Mechanics**
+(the game's mechanics, in order; they replaced the old guided tutorial) and **Tricks**
+(one board trick each). A lesson is a level with a `lesson` entry (`scripts/levels.gd`,
+run by `scripts/lesson.gd`; its `group` is "mechanics", the default, or "tricks"):
 
 - An **explanation panel** at the top of the play area: the mechanic's text, the goal and
   how it's going, and a miniature control panel where a finger loops the input to make
@@ -343,9 +345,16 @@ tutorial). A lesson is a level with a `lesson` entry (`scripts/levels.gd`, run b
   It never takes touches. The **Tips** checkbox in the top bar hides it (remembered).
 - A **goal** to clear it: reach a speed (`{speed = km/h}`) or land a trick, n times
   (`{trick = "360 flip", count = n}`): a trick of a line named that, or ending in it
-  ("nollie 360 flip" counts as a 360 flip; a nollie isn't an ollie). Reaching the flag without it
-  says what's missing and restarts the lesson.
-- Lessons are listed first under Practice, numbered, with a check once cleared.
+  ("nollie 360 flip" counts as a 360 flip; a nollie isn't an ollie, a front shuvit isn't a
+  shuvit). Reaching the flag without it says what's missing and restarts the lesson.
+- Each list is numbered, with a check once cleared.
+
+**Tricks**, each an ollie off a high floor (a 420 px drop to a lower one, `max_fall`
+900), so there's time to do it and catch: Kickflip, Heelflip, Shuvit and FS Shuvit (front
+shuvit), each with its demo tapping the right quarter of the TRICK pad; the goal is to
+land that trick.
+
+**Mechanics:**
 
 | # | Lesson | Goal |
 |---|---|---|
@@ -417,8 +426,12 @@ Defined in `scripts/levels.gd` (the format is documented at the top of the file)
 The main menu has these pages, in order:
 
 - **Map:** the city map (see Spots and the map below).
-- **Practice:** the lessons first, numbered, then every other level without
-  `challenge = true` under Free ride.
+- **Practice:** **Learn** (a page with **Mechanics** and **Tricks**, each a list of
+  lessons, see Lessons), then the **Obstacles** to practice on: levels with
+  `practice = true`, so far **Stairs** (4, 6 and 8 stairs at 35° with handrails, after a
+  run-up) and **Flat**. A practice stage has no goals, and reaching its flag starts it
+  again: only the menu (pause) leaves it. The other old free-ride levels are out of the
+  menu, kept for tests.
 - **Profile:** your skater name, 3 letters and 2 numbers (default SKT01), set with the
   ▲/▼ buttons over each character; your stance (Regular or Goofy); your skater (a preview riding in place, and a picker
   per outfit slot); your board (a spinning preview, and pickers for the deck graphic,
@@ -571,8 +584,14 @@ The random terrain generator (steps and slopes) still exists. Give a level `rand
 
 Art direction "Dusk Boardwalk": a pixel-art beach boardwalk at blue-hour dusk, with
 wooden surf-shop signboards for the controls and menus. The world is drawn at
-`Runner.PIXEL` (3) screen px per art pixel; the skater at `Runner.skater_pixel` (5), so
-they stand about 1.8 boards tall.
+`Runner.PIXEL` (3) world px per art pixel; the skater at `Runner.skater_pixel` (5), so
+they stand about 1.8 boards tall. In the game the world is drawn zoomed out
+(`Main.world_zoom`, 2/3: the World node's scale, the runner laying out a bigger area), so
+the skater is smaller on screen and obstacles are in sight earlier; the world's art pixels
+are then 2 screen px, the backdrop's too. Text in the world (callouts, ghost name tags)
+keeps its screen size. The level's own area is the play area's lower part, near the pads
+(`Main.world_top`: the top 40% is left to the backdrop, and to whatever flies up into
+it); levels' `start_y` and the camera bands are fractions of that area.
 
 - **The board** (`BoardView`) is a small 3D model rendered into a low-res viewport and
   drawn back as pixel art (stepped toon shading, 1 texel outline). Flips, shuvits, body

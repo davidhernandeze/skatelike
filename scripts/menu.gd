@@ -154,9 +154,13 @@ func _show(new_page: String) -> void:
 		"map":
 			_show_map()
 		"practice":
-			_show_levels(false)
+			_show_practice()
+		"learn":
+			_show_learn()
+		"mechanics", "tricks":
+			_show_lessons(page)
 		"challenges":
-			_show_levels(true)
+			_show_challenges()
 		"profile":
 			_show_profile()
 		"credits":
@@ -174,25 +178,53 @@ func _show(new_page: String) -> void:
 				button.add_theme_font_size_override("font_size", 48)
 
 
-func _show_levels(challenges: bool) -> void:
+## The old challenges (Gaps), out of the main menu: kept for testing.
+func _show_challenges() -> void:
 	_add_back("main")
-	_add_label("GAPS" if challenges else "PRACTICE", 36, UiKit.LIGHT)
-	if challenges:
-		_add_online_switch()
-		_show_challenge_table()
-		return
-	# Lessons first, in order, then free practice.
-	for lessons in [true, false]:
-		_add_label("Lessons" if lessons else "Free ride", 26, HEADER_COLOR)
-		var n := 0
-		for level in Levels.LIST:
-			if level.get("challenge", false) or level.get("spot", false) or level.has("lesson") != lessons:
-				continue
-			n += 1
-			var button := _add_button(("%d. %s" % [n, level.name]) if lessons else level.name, _start.bind(level.id))
-			if Levels.is_cleared(level.id):
-				button.icon = UiKit.icon("check")
-				button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_add_label("GAPS", 36, UiKit.LIGHT)
+	_add_online_switch()
+	_show_challenge_table()
+
+
+## Practice: Learn (the lessons), then the obstacles to practice on (levels with
+## `practice`: no goals, they start again at the flag).
+func _show_practice() -> void:
+	_add_back("main")
+	_add_label("PRACTICE", 36, UiKit.LIGHT)
+	var learn := _add_button("Learn", _show.bind("learn"))
+	learn.icon = UiKit.icon("star")
+	learn.custom_minimum_size = Vector2(480, 104)
+	learn.add_theme_font_size_override("font_size", 48)
+	_add_label("Obstacles", 26, HEADER_COLOR)
+	for level in Levels.LIST:
+		if level.get("practice", false):
+			_add_button(level.name, _start.bind(level.id))
+
+
+## Learn: the lessons, in two lists.
+func _show_learn() -> void:
+	_add_back("practice")
+	_add_label("LEARN", 36, UiKit.LIGHT)
+	for entry in [["Mechanics", "mechanics"], ["Tricks", "tricks"]]:
+		var button := _add_button(entry[0], _show.bind(entry[1]))
+		button.custom_minimum_size = Vector2(480, 104)
+		button.add_theme_font_size_override("font_size", 48)
+
+
+## A group of lessons (`group` in their lesson: "mechanics" by default, or "tricks"), in
+## order, a check on the ones cleared.
+func _show_lessons(group: String) -> void:
+	_add_back("learn")
+	_add_label(group.to_upper(), 36, UiKit.LIGHT)
+	var n := 0
+	for level in Levels.LIST:
+		if not level.has("lesson") or level.lesson.get("group", "mechanics") != group:
+			continue
+		n += 1
+		var button := _add_button("%d. %s" % [n, level.name], _start.bind(level.id))
+		if Levels.is_cleared(level.id):
+			button.icon = UiKit.icon("check")
+			button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 
 ## One row per challenge: play button, your best progress, and its scoreboard.

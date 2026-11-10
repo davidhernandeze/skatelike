@@ -25,8 +25,11 @@ extends RefCounted
 ## longer in the menu, kept for testing until the spots replace them.
 ## `spot = true` makes it a spot's stage (Spots): played from the map, not under Practice.
 ## `max_fall = px` sets the hardest landing (Runner.max_fall; 0 = no limit).
-## `lesson = {title, text, demo, goal}` makes it a practice lesson (see Lesson): listed
-## first under Practice, with an explanation panel and a goal it needs to clear.
+## `lesson = {title, text, demo, goal, group}` makes it a lesson (see Lesson), with an
+## explanation panel and a goal it needs to clear: listed under Practice > Learn, in its
+## group ("mechanics", the default, or "tricks").
+## `practice = true` makes it a practice stage (Practice's obstacles): no goals, and
+## reaching the flag starts it again (only the menu leaves it).
 ## `at = Vector2(x, y)` starts a new stretch of floor there instead of after the last
 ## piece (x from the end of the start platform, y down from its height), so a floor can
 ## run under one laid already (drawn as a slab, Runner.floor_slab); the pieces after it
@@ -96,7 +99,54 @@ const LIST := [
 		{width = 900, gap = 120, step = -60, mark = "gap_up"},
 		Vector2(500, 0),
 	]},
-	# Lessons: one mechanic each, in order.
+	# Trick lessons (Learn > Tricks): one board trick each, popped off a high floor down
+	# to a lower one, for plenty of air. The TRICK pad after a tail pop: flips on the right
+	# (kickflip low, heelflip high), shuvits on the left (shuvit low, front shuvit high).
+	{id = "lesson_kickflip", name = "Kickflip", start_y = 0.25, max_fall = 900, lesson = {
+		title = "Kickflip", group = "tricks",
+		text = "Ollie off the ledge with TAIL POP, then tap KICKFLIP on the TRICK pad: the board flips over. Tap CATCH before you land.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"trick", at = Vector2(0.55, 0.5), hold = 0.12},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "kickflip"},
+	}, segments = [Vector2(700, 0), Vector2(1600, 420)]},
+	{id = "lesson_heelflip", name = "Heelflip", start_y = 0.25, max_fall = 900, lesson = {
+		title = "Heelflip", group = "tricks",
+		text = "Ollie off the ledge with TAIL POP, then tap HEELFLIP on the TRICK pad: the board flips the other way. Tap CATCH before you land.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"trick", at = Vector2(0.55, -0.5), hold = 0.12},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "heelflip"},
+	}, segments = [Vector2(700, 0), Vector2(1600, 420)]},
+	{id = "lesson_shuvit", name = "Shuvit", start_y = 0.25, max_fall = 900, lesson = {
+		title = "Shuvit", group = "tricks",
+		text = "Ollie off the ledge with TAIL POP, then tap SHUVIT on the TRICK pad: the board spins flat under you. Tap CATCH before you land.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"trick", at = Vector2(-0.55, 0.5), hold = 0.12},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "shuvit"},
+	}, segments = [Vector2(700, 0), Vector2(1600, 420)]},
+	{id = "lesson_front_shuvit", name = "FS Shuvit", start_y = 0.25, max_fall = 900, lesson = {
+		title = "FS Shuvit", group = "tricks",
+		text = "Ollie off the ledge with TAIL POP, then tap FRONT SHUVIT on the TRICK pad: the board spins flat the other way. Tap CATCH before you land.",
+		demo = [
+			{layout = &"ground"}, {wait = 0.3}, {pad = &"tail_pop", at = Vector2(0.0, -0.8), hold = 0.12},
+			{layout = &"air"}, {wait = 0.2}, {pad = &"trick", at = Vector2(-0.55, -0.5), hold = 0.12},
+			{wait = 0.3}, {pad = &"lock_tilt", at = Vector2(0.0, 0.1), hold = 0.12},
+			{wait = 0.6}, {layout = &"ground"}, {wait = 1.4},
+		],
+		goal = {trick = "front shuvit"},
+	}, segments = [Vector2(700, 0), Vector2(1600, 420)]},
+	# Lessons: one mechanic each, in order (Learn > Mechanics).
 	{id = "lesson_push", name = "Pushing", start_y = 0.8, lesson = {
 		title = "1. Pushing",
 		text = "Tap PUSH to kick. Higher on the pad kicks harder. Tap again while a kick is going to line up to two more. No pops while pushing.",
@@ -476,7 +526,20 @@ const LIST := [
 		{width = 1218.6 * cos(deg_to_rad(72.0)), rise = -1218.6 * sin(deg_to_rad(72.0)), mark = "wall"},
 		Vector2(300, 0),
 	]},
-	{id = "flat", name = "Flat", start_y = 0.7, segments = [Vector2(8000, 0)]},
+	# Practice stages (Practice: obstacles to ride over and over, no goals; reaching the
+	# flag starts them again).
+	{id = "flat", name = "Flat", start_y = 0.7, practice = true, segments = [Vector2(8000, 0)]},
+	# Three stair sets down (4, 6, 8 stairs, 35°), each with a handrail: ollie them, or
+	# grind the rail.
+	{id = "stairs", name = "Stairs", start_y = 0.25, practice = true, segments = [
+		Vector2(1200, 0),  # A run-up to get going.
+		{width = 200, rise = 140, stairs = 4, rail = Vector3(-40, 280, 70), mark = "stairs4"},
+		Vector2(900, 0),
+		{width = 300, rise = 210, stairs = 6, rail = Vector3(-40, 380, 70), mark = "stairs6"},
+		Vector2(900, 0),
+		{width = 400, rise = 280, stairs = 8, rail = Vector3(-40, 480, 70), mark = "stairs8"},
+		Vector2(900, 0),
+	]},
 	{id = "push", name = "Push", start_y = 0.7, segments = [
 		Vector3(600, 0, 0),  # flat run-up
 		Vector3(900, 0, -160),  # uphill

@@ -96,12 +96,14 @@ static func _extension(layer: Texture2D) -> Texture2D:
 
 func _process(delta: float) -> void:
 	if runner:
-		var cam: float = runner.position.y  # -camera height: grows as the camera goes up.
+		# The runner's units are the world's: zoomed (its scale) on the way to the screen.
+		var zoom := runner.get_global_transform().get_scale().x
+		var cam: float = runner.position.y * zoom  # -camera height: grows as the camera goes up.
 		if is_nan(_cam_from):
 			_cam_from = cam
-			var board: Vector2 = runner.board_pose()[0]
-			bottom = (board.y + cam - lift) / maxf(size.y, 1.0)
-		scroll = Vector2(runner.scrolled(), cam - _cam_from)
+			var board: Vector2 = runner.get_global_transform() * (runner.board_pose()[0] as Vector2)
+			bottom = (board.y - global_position.y - lift) / maxf(size.y, 1.0)
+		scroll = Vector2(runner.scrolled() * zoom, cam - _cam_from)
 	else:
 		scroll.x += drift * delta
 	queue_redraw()
